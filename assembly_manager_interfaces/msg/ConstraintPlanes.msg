@@ -1,0 +1,4 @@
+string plane_name_component_1
+string plane_name_component_2
+float32 plane_offset
+bool inv_normal_vector

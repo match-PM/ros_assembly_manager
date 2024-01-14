@@ -1,0 +1,4 @@
+string obj_name
+string link
+---
+bool success

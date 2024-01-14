@@ -1,0 +1,5 @@
+string id
+bool component_1_is_moving_part 
+ConstraintPlanes plane_match_1
+ConstraintPlanes plane_match_2
+ConstraintPlanes plane_match_3

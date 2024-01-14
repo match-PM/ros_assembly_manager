@@ -1,0 +1,5 @@
+AssemblyInstruction assembly_instruction
+---
+bool success
+string message
+ 
