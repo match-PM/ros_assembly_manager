@@ -44,19 +44,19 @@ class AssemblyManagerNode(Node):
         self.callback_group_mu_ex = MutuallyExclusiveCallbackGroup()
 
         # create service for obj
-        self.object_topic_publisher_srv_spawn = self.create_service(ami_srv.SpawnObject,'object_spawner_manager/spawn_object',self.spawn_object_callback,callback_group=self.callback_group_re)
-        self.object_topic_publisher_srv_destroy = self.create_service(ami_srv.DestroyObject,'object_spawner_manager/destroy_object',self.destroy_object_callback,callback_group=self.callback_group_re)
+        self.object_topic_publisher_srv_spawn = self.create_service(ami_srv.SpawnObject,'assembly_manager/spawn_object',self.spawn_object_callback,callback_group=self.callback_group_re)
+        self.object_topic_publisher_srv_destroy = self.create_service(ami_srv.DestroyObject,'assembly_manager/destroy_object',self.destroy_object_callback,callback_group=self.callback_group_re)
         
         # create client for publisher node
-        self.object_topic_publisher_client_spawn = self.create_client(ami_srv.SpawnObject,'object_spawner_publisher/spawn_object',callback_group=self.callback_group_re) 
-        self.object_topic_publisher_client_destroy = self.create_client(ami_srv.DestroyObject,'object_spawner_publisher/destroy_object',callback_group=self.callback_group_re) 
+        self.object_topic_publisher_client_spawn = self.create_client(ami_srv.SpawnObject,'assembly_scene_publisher/spawn_object',callback_group=self.callback_group_re) 
+        self.object_topic_publisher_client_destroy = self.create_client(ami_srv.DestroyObject,'assembly_scene_publisher/destroy_object',callback_group=self.callback_group_re) 
 
-        self.moveit_object_spawner_client = self.create_client(ami_srv.SpawnObject,'object_spawner_moveit/spawn_object',callback_group=self.callback_group_re) 
-        self.moveit_object_destroyer_client = self.create_client(ami_srv.DestroyObject,'object_spawner_moveit/destroy_object',callback_group=self.callback_group_re)    
+        self.moveit_object_spawner_client = self.create_client(ami_srv.SpawnObject,'moveit_component_spawner/spawn_object',callback_group=self.callback_group_re) 
+        self.moveit_object_destroyer_client = self.create_client(ami_srv.DestroyObject,'moveit_component_spawner/destroy_object',callback_group=self.callback_group_re)    
 
         # Service for Spawning from Dictionary
-        self.object_spawn_from_dict = self.create_service(ami_srv.SpawnFromDict,'object_spawner_manager/spawn_from_dict',self.spawn_from_dict,callback_group=self.callback_group_re)
-        self.create_ref_frame_client = self.create_client(ami_srv.CreateRefFrame,'object_spawner_manager/create_ref_frame',callback_group=self.callback_group_re) 
+        self.object_spawn_from_dict = self.create_service(ami_srv.SpawnFromDict,'assembly_manager/spawn_from_dict',self.spawn_from_dict,callback_group=self.callback_group_re)
+        self.create_ref_frame_client = self.create_client(ami_srv.CreateRefFrame,'assembly_manager/create_ref_frame',callback_group=self.callback_group_re) 
 
         self.logger = self.get_logger()
 

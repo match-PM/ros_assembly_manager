@@ -16,7 +16,7 @@ find_package(moveit_msgs REQUIRED)
 find_package(moveit_core REQUIRED)
 find_package(moveit_ros_planning_interface REQUIRED)
 find_package(moveit_ros_planning REQUIRED)
-find_package(spawn_object_interfaces REQUIRED)
+find_package(assembly_manager_interfaces REQUIRED)
 find_package(std_msgs REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
@@ -37,7 +37,7 @@ ament_target_dependencies(
   rclcpp_action
   tf2_ros
   std_msgs
-  spawn_object_interfaces
+  assembly_manager_interfaces
 )
 
 # Install Cpp executables

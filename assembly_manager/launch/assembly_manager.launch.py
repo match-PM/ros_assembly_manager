@@ -12,38 +12,38 @@ def generate_launch_description():
     # Define Launch Description
     ld = LaunchDescription()
     sim_time = True
-    object_spawner_manager = Node(
-        name="object_spawner_manager",
-        package="object_spawner_manager",
-        executable="object_spawner_manager.py",
+    assembly_manager = Node(
+        name="assembly_manager",
+        package="assembly_manager",
+        executable="assembly_manager",
         #namespace = '',
         parameters=[{"use_sim_time": sim_time},
         ],
         emulate_tty=True
     )
     
-    object_topic_publisher = Node(
-        name="object_spawner_publisher",
-        package="object_spawner_manager",
-        executable="spawn_object_tf.py",
+    assembly_scene_publisher = Node(
+        name="assembly_scene_publisher",
+        package="assembly_scene_publisher",
+        executable="assembly_scene_publisher",
         #namespace = '',
         parameters=[{"use_sim_time": sim_time},
         ],
         emulate_tty=True
     )
 
-    moveit_object_publisher = Node(
-        name="object_spawner_moveit",
-        package="object_spawner_manager",
-        executable="spawn_object_in_moveit_V",
+    moveit_component_spawner = Node(
+        name="moveit_component_spawner",
+        package="moveit_component_spawner",
+        executable="moveit_component_spawner",
         parameters=[{"use_sim_time": sim_time},
         ],
         emulate_tty=True
     )
 
-    ld.add_action(object_spawner_manager)
-    ld.add_action(object_topic_publisher)
-    ld.add_action(moveit_object_publisher)
+    ld.add_action(assembly_manager)
+    ld.add_action(assembly_scene_publisher)
+    ld.add_action(moveit_component_spawner)
 
     return ld
 

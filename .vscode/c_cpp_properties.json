@@ -7,6 +7,7 @@
       },
       "includePath": [
         "/home/niklas/ros2_ws/install/spawn_object_interfaces/include/**",
+        "/home/niklas/ros2_ws/install/assembly_manager_interfaces/include/**",
         "/home/niklas/ros2_ws/install/pm_vision_interfaces/include/**",
         "/home/niklas/ros2_ws/install/pm_uv_controller/include/**",
         "/home/niklas/ros2_ws/install/pm_sensor_controller/include/**",

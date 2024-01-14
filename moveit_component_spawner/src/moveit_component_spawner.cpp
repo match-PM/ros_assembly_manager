@@ -30,7 +30,6 @@ using std::placeholders::_1;
 
 std::shared_ptr<robot_model_loader::RobotModelLoader> PM_Robot_Model_Loader;
 
-
 class MoveitObjectSpawnerNode : public rclcpp::Node
   {
   public:
@@ -49,9 +48,9 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
     {
       RCLCPP_INFO(this->get_logger(), "Moveit Object Spawner started!");
 
-      spawn_object_service = this->create_service<assembly_manager_interfaces::srv::SpawnObject>("object_spawner_moveit/spawn_object", std::bind(&MoveitObjectSpawnerNode::spawn_object, this,std::placeholders::_1, std::placeholders::_2));
-      destroy_object_service = this->create_service<assembly_manager_interfaces::srv::DestroyObject>("object_spawner_moveit/destroy_object", std::bind(&MoveitObjectSpawnerNode::destroy_object, this,std::placeholders::_1, std::placeholders::_2));
-      disable_collision_service = this->create_service<assembly_manager_interfaces::srv::DisableObjCollision>("object_spawner_moveit/disable_collision_of_object", std::bind(&MoveitObjectSpawnerNode::disable_collision, this,std::placeholders::_1, std::placeholders::_2));
+      spawn_object_service = this->create_service<assembly_manager_interfaces::srv::SpawnObject>("moveit_component_spawner/spawn_object", std::bind(&MoveitObjectSpawnerNode::spawn_object, this,std::placeholders::_1, std::placeholders::_2));
+      destroy_object_service = this->create_service<assembly_manager_interfaces::srv::DestroyObject>("moveit_component_spawner/destroy_object", std::bind(&MoveitObjectSpawnerNode::destroy_object, this,std::placeholders::_1, std::placeholders::_2));
+      disable_collision_service = this->create_service<assembly_manager_interfaces::srv::DisableObjCollision>("moveit_component_spawner/disable_collision_of_object", std::bind(&MoveitObjectSpawnerNode::disable_collision, this,std::placeholders::_1, std::placeholders::_2));
 
       tf_subscriber_ = this->create_subscription<tf2_msgs::msg::TFMessage>("/tf_static", 10, std::bind(&MoveitObjectSpawnerNode::tfCallback, this, _1));
       planning_scene_diff_publisher =this->create_publisher<moveit_msgs::msg::PlanningScene>("planning_scene", 1);
