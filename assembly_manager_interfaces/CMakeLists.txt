@@ -28,6 +28,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/SpawnFromDict.srv"
   "srv/CalculateAssemblyInstructions.srv"
   "srv/CreateAxis.srv"
+  "srv/SpawnComponentFromDescription.srv"
+  "srv/CreateAssemblyInstructionFromDescription.srv"
 
   "msg/AssemblyInstruction.msg"
   "msg/Object.msg"

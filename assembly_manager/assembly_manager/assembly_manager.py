@@ -58,6 +58,9 @@ class AssemblyManagerNode(Node):
         self.object_spawn_from_dict = self.create_service(ami_srv.SpawnFromDict,'assembly_manager/spawn_from_dict',self.spawn_from_dict,callback_group=self.callback_group_re)
         self.create_ref_frame_client = self.create_client(ami_srv.CreateRefFrame,'assembly_manager/create_ref_frame',callback_group=self.callback_group_re) 
 
+        self.spawn_component_from_description = self.create_service(ami_srv.SpawnComponentFromDescription,'assembly_manager/spawn_component_from_description',self.spawn_component_from_description_callback,callback_group=self.callback_group_re)
+        self.create_assembly_instruction_from_description = self.create_service(ami_srv.CreateAssemblyInstructionFromDescription,'assembly_manager/create_assembly_instruction_from_description',self.create_assembly_instruction_from_description_callback,callback_group=self.callback_group_re)
+        
         self.logger = self.get_logger()
 
         self.logger.info("Assembly manager started!")
@@ -137,7 +140,7 @@ class AssemblyManagerNode(Node):
 
         return response
 
-    def spawn_object_function(self, SpwnRequest: ami_srv.SpawnObject.Request)->bool:
+    def spawn_object_function(self, SpawnRequest: ami_srv.SpawnObject.Request)->bool:
 
         self.logger.info('Spawn Object Service received!')
         object_publish_executed =  None
@@ -152,7 +155,7 @@ class AssemblyManagerNode(Node):
         if object_publish_executed is None:
             self.logger.info('Object handler called')
             # Spawning part in topic publisher
-            result = self.object_topic_publisher_client_spawn.call(SpwnRequest)
+            result = self.object_topic_publisher_client_spawn.call(SpawnRequest)
             #rclpy.spin_until_future_complete(self, future)
             #result = self.future.result()
             object_publish_success=result.success
@@ -166,18 +169,83 @@ class AssemblyManagerNode(Node):
             
             if moveit_spawner_executed is None:
                 self.logger.info('Moveit Spawn called')
-                result = self.moveit_object_spawner_client.call(SpwnRequest)
+                result = self.moveit_object_spawner_client.call(SpawnRequest)
                 moveit_spawner_success = result.success
 
         # Destroy object from publisher if spawn in moveit failed
         if not moveit_spawner_success:
             request_destroy = ami_srv.DestroyObject.Request()
-            request_destroy.obj_name=SpwnRequest.obj_name
+            request_destroy.obj_name=SpawnRequest.obj_name
             result_destory = self.object_topic_publisher_client_destroy.call(request_destroy)
             if (result_destory.success):
                 self.logger.error('Object was spawned in publisher, but failed to spawn in Moveit. Object was deleted from publisher! Service call ignored!')
         
         return (object_publish_success and moveit_spawner_success)
+
+    def spawn_component_from_description_callback(self, request: ami_srv.SpawnComponentFromDescription.Request, response: ami_srv.SpawnComponentFromDescription.Response):
+        try:
+            # Load the JSON data from the file
+            with open(request.file_path, 'r') as file:
+                file_data = json.load(file)
+
+            # Now, 'file_data' contains the contents of the JSON file as a Python dictionary
+            print(file_data)
+
+        except FileNotFoundError:
+            print(f"Error: File not found at path '{request.file_path}'.")
+
+        except json.JSONDecodeError as e:
+            print(f"Error decoding JSON: {e}")
+
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+
+        name = file_data.get("name")
+        description = file_data.get("description")
+        guid = file_data.get("guid")
+        type_value = file_data.get("type")
+        save_date = file_data.get("saveDate")
+        cad_path = file_data.get("cad_path")
+        mounting_references = file_data.get("mounting_references")
+        ref_frames = mounting_references.get("ref_frames")
+        ref_axis = mounting_references.get("ref_axis")
+        ref_planes = mounting_references.get("ref_planes")
+
+        spawn_request = ami_srv.SpawnObject.Request()
+        spawn_request.obj_name = name
+        spawn_request.parent_frame = mounting_references.get("spawning_origin")
+
+        spawn_request.cad_data = f"{os.path.dirname(request.file_path)}/{cad_path}"
+
+        for ref_frame in ref_frames:
+            create_ref_frame_request = ami_srv.CreateRefFrame.Request()
+            create_ref_frame_request.ref_frame.frame_name = ref_frame.get("name")
+            create_ref_frame_request.ref_frame.parent_frame = name
+            create_ref_frame_request.ref_frame.pose.position.x = ref_frame.get("transformation").get("position").get("x")
+            create_ref_frame_request.ref_frame.pose.position.y = ref_frame.get("transformation").get("position").get("y")
+            create_ref_frame_request.ref_frame.pose.position.z = ref_frame.get("transformation").get("position").get("z")
+            create_ref_frame_request.ref_frame.pose.orientation.w = ref_frame.get("transformation").get("orientation").get("w")
+            create_ref_frame_request.ref_frame.pose.orientation.x = ref_frame.get("transformation").get("orientation").get("x")
+            create_ref_frame_request.ref_frame.pose.orientation.y = ref_frame.get("transformation").get("orientation").get("y")
+            create_ref_frame_request.ref_frame.pose.orientation.z = ref_frame.get("transformation").get("orientation").get("z")
+
+        for axis in ref_axis:
+            create_axis_request = ami_srv.CreateAxis.Request()
+            create_axis_request.axis.axis_name = axis.get("name")
+            create_axis_request.axis.point_names = axis.get("ref_frame_names")
+            
+        for plane in ref_planes:
+            create_plane_request = ami_srv.CreateRefPlane.Request()
+            create_plane_request.ref_plane.ref_plane_name = plane.get("name")
+            create_plane_request.ref_plane.point_names = plane.get("ref_frame_names")
+            create_plane_request.ref_plane.axis_names = plane.get("ref_axis_names")
+
+        self.get_logger().error(str(spawn_request))
+        response.success = True
+        return response
+
+    def create_assembly_instruction_from_description_callback(self, request: ami_srv.CreateAssemblyInstructionFromDescription.Request, response: ami_srv.CreateAssemblyInstructionFromDescription.Response):
+        pass
 
     def spawn_from_dict(self, request: ami_srv.SpawnFromDict.Request, response: ami_srv.SpawnFromDict.Response):
         dictionarys_to_spawn = self.process_input_dict(request.dict)
