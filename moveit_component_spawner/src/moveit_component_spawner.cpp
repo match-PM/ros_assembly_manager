@@ -149,12 +149,12 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
     {
 
       // List all registered objects in terminal
-      RCLCPP_INFO(this->get_logger(), "Objects in Moveit:");
-      int i = 1;
-      for (const auto& value : obj_names_list) {
-          RCLCPP_INFO(this->get_logger(), "%i. %s", i, value.c_str());
-          i++;
-      }
+      //RCLCPP_INFO(this->get_logger(), "Objects in Moveit:");
+      // int i = 1;
+      // for (const auto& value : obj_names_list) {
+      //     RCLCPP_INFO(this->get_logger(), "%i. %s", i, value.c_str());
+      //     i++;
+      // }
 
       // Process the received TFMessage
       for (const auto& transform : msg->transforms)

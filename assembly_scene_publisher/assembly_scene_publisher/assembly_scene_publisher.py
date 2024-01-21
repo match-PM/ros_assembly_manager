@@ -9,6 +9,8 @@ from rclpy.callback_groups import ReentrantCallbackGroup, MutuallyExclusiveCallb
 import assembly_manager_interfaces.srv as ami_srv
 import assembly_manager_interfaces.msg as ami_msg
 
+from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
+
 from typing import Union
 from assembly_scene_publisher.py_modules.AssemblyScene import AssemblyManagerScene
 
@@ -16,7 +18,8 @@ class AssemblyScenePublisherNode(Node):
     def __init__(self):
         super().__init__("assembly_scene_publisher")
 
-        self.callback_group = MutuallyExclusiveCallbackGroup()
+        #self.callback_group = MutuallyExclusiveCallbackGroup()
+        self.callback_group = ReentrantCallbackGroup()
 
         self.object_scene = AssemblyManagerScene(self)
 
@@ -107,7 +110,6 @@ class AssemblyScenePublisherNode(Node):
         response.success = del_success
         return response
 
-
     def modify_pose(self, request: ami_srv.ModifyPose.Request, response: ami_srv.ModifyPose.Response):
         modify_success = self.object_scene.modify_pose(frame_obj_name= request.frame_name,
                                                        rel_pose = request.rel_pose)
@@ -136,9 +138,17 @@ class AssemblyScenePublisherNode(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = AssemblyScenePublisherNode()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
+   
+    executor = MultiThreadedExecutor(num_threads=6) 
 
+    executor.add_node(node)
+
+    try:
+        executor.spin()
+    finally:
+        executor.shutdown()
+        node.destroy_node()
+        rclpy.shutdown()
+    
 if __name__ == '__main__':
     main()

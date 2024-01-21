@@ -7,7 +7,7 @@ from tf2_ros import Buffer, TransformListener, TransformBroadcaster, StaticTrans
 import numpy as np
 import json
 import assembly_manager_interfaces.msg as ami_msg
-
+from scipy.spatial.transform import Rotation as R
 from geometry_msgs.msg import Vector3, Quaternion
 import sympy as sp
 from typing import Union
@@ -17,6 +17,12 @@ def get_point_of_plane_intersection(plane1: sp.Plane, plane2: sp.Plane, plane3: 
     line = plane1.intersection(plane2)
     # Get the first point of intersection, should also be the only one
     #inter:sp.Point3D = plane3.intersection(line[0])
+
+    try:
+        plane3.intersection(line[0])[0]
+    except Exception as e:
+        raise ValueError(f"Given planes (1.{plane1}, 2.{plane2}, 3.{plane3}) do not have a single point of intersection. Invalid plane selection!")
+
     inter:sp.Point3D = plane3.intersection(line[0])[0]
 
     if not isinstance(inter, sp.Point3D):
@@ -48,13 +54,17 @@ def get_euler_rotation_matrix(alpha, beta, gamma):
     rotation_matrix = rotation_z * rotation_y * rotation_x
     return rotation_matrix
 
-def rotation_matrix_to_quaternion(R)-> sp.Matrix:
-    trace_R = R[0, 0] + R[1, 1] + R[2, 2]
-    w = sp.sqrt(1 + trace_R) / 2
-    x = (R[2, 1] - R[1, 2]) / (4 * w)
-    y = (R[0, 2] - R[2, 0]) / (4 * w)
-    z = (R[1, 0] - R[0, 1]) / (4 * w)
-    return sp.Matrix([w, x, y, z])
+# def rotation_matrix_to_quaternion(R)-> sp.Matrix:
+#     trace_R = R[0, 0] + R[1, 1] + R[2, 2]
+#     w = sp.sqrt(1 + trace_R) / 2
+#     x = (R[2, 1] - R[1, 2]) / (4 * w)
+#     y = (R[0, 2] - R[2, 0]) / (4 * w)
+#     z = (R[1, 0] - R[0, 1]) / (4 * w)
+#     return sp.Matrix([w, x, y, z])
+
+def rotation_matrix_to_quaternion(Rot_mat)-> sp.Matrix:
+    r = R.from_matrix(Rot_mat)
+    return sp.Matrix(r.as_quat())
 
 def quaternion_to_rotation_matrix(quaternion:Quaternion)-> sp.Matrix:
     w, x, y, z = quaternion.w, quaternion.x, quaternion.y, quaternion.z
@@ -184,10 +194,17 @@ def adapt_transform_for_new_parent_frame(child_frame, new_parent_frame, tf_buffe
     return trans, rot
 
 
-def get_transform_for_frame_in_world(frame_name: str, tf_buffer: Buffer) -> TransformStamped:
+def get_transform_for_frame_in_world(frame_name: str, tf_buffer: Buffer, logger = None) -> TransformStamped:
     # this function adapts the tf for parent_frame changes
     #transform:TransformStamped = tf_buffer.lookup_transform(frame_name, 'world',rclpy.time.Time())
-    transform:TransformStamped = tf_buffer.lookup_transform('world', frame_name, rclpy.time.Time())
+    try:
+        
+        transform:TransformStamped = tf_buffer.lookup_transform('world', frame_name, rclpy.time.Time(),rclpy.duration.Duration(seconds=1.0))
+        if logger is not None:
+            logger.debug(f"Frame '{frame_name}' found in TF!")
+    except Exception as e:
+        transform = None
+        raise ValueError(f"Frame '{frame_name}' does not exist in TF! {str(e)}")
     return transform
 
 def get_point_from_ros_obj(position: Union[Vector3, Point]) -> sp.Point3D:
@@ -203,7 +220,7 @@ def get_point_from_ros_obj(position: Union[Vector3, Point]) -> sp.Point3D:
     
     return point
 
-def get_plane_from_frame_names(frames: list[str], tf_buffer: Buffer)-> sp.Plane:
+def get_plane_from_frame_names(frames: list[str], tf_buffer: Buffer, logger = None)-> sp.Plane:
 
     if len(frames)!=3:
         raise ValueError
@@ -211,7 +228,15 @@ def get_plane_from_frame_names(frames: list[str], tf_buffer: Buffer)-> sp.Plane:
     t1:TransformStamped = get_transform_for_frame_in_world(frames[0], tf_buffer)
     t2:TransformStamped = get_transform_for_frame_in_world(frames[1], tf_buffer)
     t3:TransformStamped = get_transform_for_frame_in_world(frames[2], tf_buffer)
+    
+    if logger is not None:  
+        logger.debug(f"t1: {t1}")
+        logger.debug(f"t2: {t2}")
+        logger.debug(f"t3: {t3}")
 
+    if t1 is None or t2 is None or t3 is None:
+        raise ValueError
+    
     p1 = get_point_from_ros_obj(t1.transform.translation)
     p2 = get_point_from_ros_obj(t2.transform.translation)
     p3 = get_point_from_ros_obj(t3.transform.translation)
@@ -220,14 +245,15 @@ def get_plane_from_frame_names(frames: list[str], tf_buffer: Buffer)-> sp.Plane:
 
     return plane
 
-def get_line3d_from_frame_names(frames: list[str], tf_buffer: Buffer)-> sp.Line3D:
+def get_line3d_from_frame_names(frames: list[str], tf_buffer: Buffer, logger=None)-> sp.Line3D:
 
     if len(frames)!=2:
         raise ValueError
     
-    t1:TransformStamped = get_transform_for_frame_in_world(frames[0], tf_buffer)
-    t2:TransformStamped = get_transform_for_frame_in_world(frames[1], tf_buffer)
-
+    t1:TransformStamped = get_transform_for_frame_in_world(frames[0], tf_buffer, logger)
+    t2:TransformStamped = get_transform_for_frame_in_world(frames[1], tf_buffer, logger)
+    if t1 is None or t2 is None:
+        raise ValueError
     p1 = get_point_from_ros_obj(t1.transform.translation)
     p2 = get_point_from_ros_obj(t2.transform.translation)
 
@@ -278,13 +304,16 @@ def get_transform_matrix_from_tf(tf: Union[Pose, TransformStamped])-> sp.Matrix:
     transform_matrix[:3, 3] = t
     return transform_matrix
     
-def transform_matrix_to_pose(transform_matrix:sp.Matrix)-> Pose:
+def transform_matrix_to_pose(transform_matrix:sp.Matrix, logger = None)-> Pose:
     # Extract the rotation matrix and translation vector from the transformation matrix
     rotation_matrix = transform_matrix[:3, :3]
     translation_vector = transform_matrix[:3, 3]
 
     # Convert the rotation matrix to a quaternion
     quaternion = rotation_matrix_to_quaternion(rotation_matrix)
+
+    if logger is not None:
+        logger.debug(f"Quaternion: {quaternion}")
 
     # Create a Pose message
     pose_msg = Pose(
@@ -308,6 +337,7 @@ def euler_to_matrix(angles:list):
     return Rz * Ry * Rx
 
 
+
 class AssemblyManagerScene():
     UNUSED_FRAME_CONST = 'unused_frame'
     def __init__(self, node: Node):
@@ -317,8 +347,9 @@ class AssemblyManagerScene():
         self._scene_publisher = node.create_publisher(ami_msg.ObjectScene,'/object_spawner_manager/scene',10)
         self.logger = node.get_logger()
         self.tf_broadcaster = StaticTransformBroadcaster(node)
-        self.tf_buffer = Buffer()
-        self.tf_listener = TransformListener(self.tf_buffer, node)
+        #self.tf_broadcaster = TransformBroadcaster(node)
+        self.tf_buffer = Buffer(cache_time=rclpy.duration.Duration(seconds=10.0))
+        self.tf_listener = TransformListener(self.tf_buffer, node,spin_thread=True)
 
     def publish_information(self):
         self.publish_scene()
@@ -407,7 +438,10 @@ class AssemblyManagerScene():
             frame_list_to_append_to.append(new_ref_frame)
         else:
             if parent_frame != new_ref_frame.parent_frame:
-                frame_list_to_delete = self.get_obj_by_name(parent_frame).ref_frames
+                if frame_is_obj_frame:
+                    frame_list_to_delete = self.get_obj_by_name(parent_frame).ref_frames
+                else:
+                    frame_list_to_delete = self.scene.ref_frames_in_scene
                 for index, frame in enumerate(frame_list_to_delete):
                     frame: ami_msg.RefFrame
                     if frame.frame_name == new_ref_frame.frame_name:
@@ -545,9 +579,7 @@ class AssemblyManagerScene():
             transform.transform.translation.x=ref_frame.pose.position.x
             transform.transform.translation.y=ref_frame.pose.position.y
             transform.transform.translation.z=ref_frame.pose.position.z
-
             self.tf_broadcaster.sendTransform(transform)
-            #self.logger.info(f"TF for '{ref_frame.frame_name}' published!")
 
         for obj in self.scene.objects_in_scene:
             obj: ami_msg.Object
@@ -561,8 +593,6 @@ class AssemblyManagerScene():
             transform_stamped.transform.rotation = obj.obj_pose.orientation
             self.tf_broadcaster.sendTransform(transform_stamped)
 
-            #self.logger.info(f"TF for object'{obj.obj_name}' published!")
-
         for obj in self.scene.objects_in_scene:
             obj: ami_msg.Object
             for ref_frame in obj.ref_frames:
@@ -575,12 +605,10 @@ class AssemblyManagerScene():
                 transform.transform.translation.x=ref_frame.pose.position.x
                 transform.transform.translation.y=ref_frame.pose.position.y
                 transform.transform.translation.z=ref_frame.pose.position.z
-
                 self.tf_broadcaster.sendTransform(transform)
-                #self.logger.info(f"TF for '{ref_frame.frame_name}' published!")
 
     def check_if_frame_exists(self, frame_id:str) -> bool:
-        # This function checks if a tf exists in the tf buffer
+        """ This function checks if a tf exists in the tf buffer"""
         try:
             self.tf_buffer.lookup_transform("world", frame_id, rclpy.time.Time())
             return True
@@ -597,6 +625,10 @@ class AssemblyManagerScene():
         return False
     
     def check_ref_frame_exists(self,name_frame:str) -> Union[bool,str]:
+        """
+        This function checks if an frame esixts in the frame list. If it exists it returns True and the parent frame. 
+        If it does not exist it returns False and None.
+        """
         # this function checks if an frame esixts in the frame list
         # iterate over ref_frames
         for ref_frame in self.scene.ref_frames_in_scene:
@@ -639,7 +671,8 @@ class AssemblyManagerScene():
             try:
                 test_axis:sp.Line3D = get_line3d_from_frame_names(axis.point_names, tf_buffer=self.tf_buffer)
             except ValueError as e:
-                self.logger.error(f"Given frames do not form a valid plane. Plane could not be created!")
+                self.logger.error(f"Given frames do not form a axis. Axis could not be created!")
+                self.logger.error(str(e))
                 return False
 
             list_to_append_axis= []
@@ -707,14 +740,14 @@ class AssemblyManagerScene():
             # Check if frames form a valid plane
             try:
                 if mode == 'PlanePPP':
-                    test_plane: sp.Plane = get_plane_from_frame_names(plane.point_names, tf_buffer=self.tf_buffer)
+                    test_plane: sp.Plane = get_plane_from_frame_names(plane.point_names, tf_buffer=self.tf_buffer, logger=self.logger)
                     logger_message = f"Plane '{plane.ref_plane_name}' created! Plane is defined by frames 1.{plane.point_names[0]}, 2.{plane.point_names[1]}, 3.{plane.point_names[2]}."
                 else:
                     test_plane: sp.Plane = self.get_plane_from_axis_and_frame(plane.axis_names[0],plane.point_names[0])
                     logger_message = f"Plane '{plane.ref_plane_name}' created! Plane is defined by axis '{plane.axis_names[0]}' and point '{plane.point_names[0]}'."
 
             except ValueError as e:
-                self.logger.error(f"Given frames do not form a valid plane. Plane could not be created!")
+                self.logger.error(f"Given frames do not form a valid plane. Plane '{plane.ref_plane_name}' could not be created!")
                 return False
 
             list_to_append_plane = []
@@ -751,54 +784,66 @@ class AssemblyManagerScene():
             obj: ami_msg.Object
             for ref_frame in obj.ref_frames:
                 ref_frame:ami_msg.RefFrame
-                self.update_ref_frame_constraint(ref_frame)
+                self.update_ref_frame_constraint(ref_frame, obj.obj_name)
         for ref_frame in self.scene.ref_frames_in_scene:
             ref_frame: ami_msg.RefFrame
-            self.update_ref_frame_constraint(ref_frame)
+            self.update_ref_frame_constraint(ref_frame, None)
 
-    def update_ref_frame_constraint(self, ref_frame:ami_msg.RefFrame)-> bool:
+    def update_ref_frame_constraint(self, ref_frame:ami_msg.RefFrame,component_name:str)-> bool:
         try:
-            constraint_dict = json.loads(ref_frame.constraints_dict)
-            if constraint_dict == {}:
-                self.logger.info(f"No constraints for ref frame '{ref_frame.frame_name}' given.")
+            default_dicts = [{},{"constraints": {"units": "m"}}, {"constraints": {"units": "mm"}}, {"constraints": {"units": "um"}}, ""]         
+            constraint_dict = eval(ref_frame.constraints_dict)
+
+            if constraint_dict in default_dicts:
+                self.logger.debug(f"No constraints for ref frame '{ref_frame.frame_name}' given.")
+                return True
+
+            if constraint_dict.get("constraints", []).get("centroid", []).get("ref_frame_names", []) == []:
+                self.logger.debug(f"No constraints for ref frame '{ref_frame.frame_name}' given.")
                 return True
             
             try:
-                ref_frames:list[str] = constraint_dict["constraint"]["centroid"]['ref_frame_names']
-                dim:str = constraint_dict["constraint"]["centroid"]['dim']
-                offset_values:list[float] = constraint_dict["constraint"]["centroid"]['offset_values']
-                unit:str = constraint_dict["constraint"]["centroid"]['unit']
 
-                self.logger.warn(f"Centroid constraint is given!")
+                ref_frames:list[str] = constraint_dict["constraints"]["centroid"]['ref_frame_names']
+                dim:str = constraint_dict["constraints"]["centroid"]['dim']
+                offset_values:list[float] = constraint_dict["constraints"]["centroid"]['offset_values']
+                unit:str = constraint_dict["constraints"]['units']
 
-                if not self.check_ref_frames_for_same_parent_frame(ref_frames):
+                self.logger.debug(f"Centroid constraint for '{ref_frame.frame_name}' is given!")
+                frame_names_list = []
+                if component_name is not None:
+                    for frame in ref_frames:
+                        frame_names_list.append(f"{component_name}_{frame}")
+                else:
+                    frame_names_list = ref_frames
+
+                if not self.check_ref_frames_for_same_parent_frame(frame_names_list):
                     self.logger.error(f"Tried to create constraint for ref frame '{ref_frame.frame_name}', but given ref frames do not have the same parent frame. Constraint could not be created!")
+                    self.logger.error(f"{frame_names_list}")
                     return False
-                if ref_frame.parent_frame != self.get_parent_frame_for_ref_frame(ref_frames[0]):
-                    self.logger.error(f"Tried to create constraint for ref frame '{ref_frame.frame_name}', but given ref frames do not have the same parent frame as the ref frame. Constraint could not be created!")
-                    return False
-                ref_frame.pose = self.caluclate_frame_centroid(ref_frame.pose, 
-                                                               ref_frames, 
-                                                               dim, 
-                                                               offset_values, 
-                                                               unit)
-            except KeyError as e:
-                pass
 
-            # try:
-            #     constraint_dict["constraint"]["centroid"]:
-            # except KeyError as e:
-            #     self.logger.error(f"Invalid JSON string for constraint_dict. Constraint could not be updated!")
-            #     return False
+                if ref_frame.parent_frame != self.get_parent_frame_for_ref_frame(frame_names_list[0]):
+                    self.logger.error(f"Tried to create constraint for ref frame '{ref_frame.frame_name}', but given ref frames do not have the same parent frame as the ref frame. Constraint could not be created!")
+                    self.logger.error(f"Parent frame of ref frame '{ref_frame.frame_name}': {ref_frame.parent_frame}")
+                    self.logger.error(f"Parent frame of ref frame '{frame_names_list[0]}': {self.get_parent_frame_for_ref_frame(ref_frames[0])}")
+                    return False
+                
+                ref_frame.pose = self.caluclate_frame_centroid(initial_pose=ref_frame.pose, 
+                                                               ref_frames=frame_names_list, 
+                                                               dim=dim, 
+                                                               offset_values=offset_values, 
+                                                               unit=unit)
+                
+                self.logger.debug(f"Centroid constraint for ref frame '{ref_frame.frame_name}' created!")
+            except KeyError as e:
+                self.logger.error(f"KeyError: {str(e)}")
+                pass
 
             return True
         
-        except json.decoder.JSONDecodeError as e:
-            self.logger.error(f"Invalid string for constraint_dict. Constraint could not be updated!")
-            return False
         
         except Exception as e:
-            self.logger.error(e)
+            self.logger.error(str(e))
             self.logger.error(f"Unknown Error. Constraint could not be updated!")
             return False
 
@@ -807,8 +852,9 @@ class AssemblyManagerScene():
         This function calculates the centroid of the given ref frames and returns the pose of the centroid.
         """
         centroid_pose = Pose()
-        for frame in enumerate(ref_frames):
-            frame_pose = self.get_ref_frame_by_name(frame).pose
+        for index, frame in enumerate(ref_frames):
+            fr: ami_msg.RefFrame = self.get_ref_frame_by_name(frame)
+            frame_pose = fr.pose
             if 'x' in dim:
                 centroid_pose.position.x += frame_pose.position.x
             if 'y' in dim:
@@ -824,14 +870,14 @@ class AssemblyManagerScene():
             centroid_pose.position.y += offset_values[1]
         if offset_values[2] is not None:
             centroid_pose.position.z += offset_values[2]
-        if unit == 'mm':
-            centroid_pose.position.x = centroid_pose.position.x/1000
-            centroid_pose.position.y = centroid_pose.position.y/1000
-            centroid_pose.position.z = centroid_pose.position.z/1000
-        if unit == 'um':
-            centroid_pose.position.x = centroid_pose.position.x/1000000
-            centroid_pose.position.y = centroid_pose.position.y/1000000
-            centroid_pose.position.z = centroid_pose.position.z/1000000
+        # if unit == 'mm':
+        #     centroid_pose.position.x = centroid_pose.position.x/1000
+        #     centroid_pose.position.y = centroid_pose.position.y/1000
+        #     centroid_pose.position.z = centroid_pose.position.z/1000
+        # if unit == 'um':
+        #     centroid_pose.position.x = centroid_pose.position.x/1000000
+        #     centroid_pose.position.y = centroid_pose.position.y/1000000
+        #     centroid_pose.position.z = centroid_pose.position.z/1000000
         if 'x' in dim:
             initial_pose.position.x = centroid_pose.position.x
         if 'y' in dim:
@@ -856,6 +902,10 @@ class AssemblyManagerScene():
                 return ref_frame
             
     def get_parent_frame_for_ref_frame(self,frame_name:str)->str:
+        """
+        This function returns the parent frame for the given ref frame. 
+        If the ref frame does not exist the function returns None.
+        """
         for obj in self.scene.objects_in_scene:
             obj: ami_msg.Object
             for ref_frame in obj.ref_frames:
@@ -879,7 +929,7 @@ class AssemblyManagerScene():
         """
         parent_frame = self.get_parent_frame_for_ref_frame(frame_names[0])
         for frame in frame_names:
-            if parent_frame != self.get_parent_frame_for_ref_frame(frame):
+            if parent_frame != self.get_parent_frame_for_ref_frame(frame) or parent_frame is None:
                 return False
         return True
 
@@ -932,33 +982,38 @@ class AssemblyManagerScene():
         obj2_plane3_msg = self.get_plane_from_scene(instruction.plane_match_3.plane_name_component_2) 
 
         # return false if planes do not exist in scene
-        if (obj1_plane1_msg is None or
-            obj1_plane2_msg is None or
-            obj1_plane3_msg is None or
-            obj2_plane1_msg is None or
-            obj2_plane2_msg is None or
-            obj2_plane3_msg is None):
-            self.logger.error(f"At least one of the given plane names does not exist ('{obj1_plane1_msg}', '{obj1_plane2_msg}', '{obj1_plane3_msg}', '{obj2_plane1_msg}', '{obj2_plane2_msg}', '{obj2_plane3_msg}'). Invalid input!")
+        create_plane_error = False
+        if (obj1_plane1_msg is None):
+            self.logger.error(f"Plane 1 {instruction.plane_match_1.plane_name_component_1}' of component 1 does not exist. Invalid input!")
+            create_plane_error = True
+        if (obj1_plane2_msg is None):
+            self.logger.error(f"Plane 2 {instruction.plane_match_2.plane_name_component_1}' of component 1 does not exist. Invalid input!")
+            create_plane_error = True
+        if (obj1_plane3_msg is None):
+            self.logger.error(f"Plane 3 {instruction.plane_match_3.plane_name_component_1}' of component 1 does not exist. Invalid input!")
+            create_plane_error = True
+        if (obj2_plane1_msg is None):
+            self.logger.error(f"Plane 1 {instruction.plane_match_1.plane_name_component_2}' of component 2 does not exist. Invalid input!")
+            create_plane_error = True
+        if (obj2_plane2_msg is None):
+            self.logger.error(f"Plane 2 {instruction.plane_match_2.plane_name_component_2}' of component 2 does not exist. Invalid input!")
+            create_plane_error = True
+        if (obj2_plane3_msg is None):
+            self.logger.error(f"Plane 3 {instruction.plane_match_3.plane_name_component_2}' of component 2 does not exist. Invalid input!")
+            create_plane_error = True
+
+        # return false if planes do not exist in scene
+        if create_plane_error:
             return False
         
-        # # Get parent frame of the first point of the respective planes to test for parent frames
-        # obj1_plane1_p1_parent_frame = self.get_parent_frame_for_ref_frame(obj1_plane1_msg.point_names[0])
-        # obj1_plane2_p1_parent_frame = self.get_parent_frame_for_ref_frame(obj1_plane2_msg.point_names[1])
-        # obj1_plane3_p1_parent_frame = self.get_parent_frame_for_ref_frame(obj1_plane3_msg.point_names[2])
+        obj_1_name = self.get_parent_frame_for_ref_frame(self.get_plane_from_scene(instruction.plane_match_1.plane_name_component_1).point_names[0])
+        obj_2_name = self.get_parent_frame_for_ref_frame(self.get_plane_from_scene(instruction.plane_match_1.plane_name_component_2).point_names[0])
 
-        # obj2_plane1_p1_parent_frame = self.get_parent_frame_for_ref_frame(obj2_plane1_msg.point_names[0])
-        # obj2_plane2_p1_parent_frame = self.get_parent_frame_for_ref_frame(obj2_plane2_msg.point_names[1])
-        # obj2_plane3_p1_parent_frame = self.get_parent_frame_for_ref_frame(obj2_plane3_msg.point_names[2])
-
-        # self.logger.warn(f"{obj1_plane1_p1_parent_frame}, {obj1_plane2_p1_parent_frame}, {obj1_plane3_p1_parent_frame}, {obj2_plane1_p1_parent_frame}, {obj2_plane2_p1_parent_frame}, {obj2_plane3_p1_parent_frame},")
-        # if obj1_plane1_p1_parent_frame != obj1_plane2_p1_parent_frame != obj1_plane3_p1_parent_frame:
-        #     self.logger.error(f"Planes for component 1 do not belong to the same parent frame. Invalid input!")
-        #     return False
-
-        # if obj2_plane1_p1_parent_frame != obj2_plane2_p1_parent_frame != obj2_plane3_p1_parent_frame:
-        #     self.logger.error(f"Planes for component 2 do not belong to the same parent frame. Invalid input!")
-        #     return False
-
+        # return false if planes are linked to the same component
+        if obj_1_name == obj_2_name:
+            self.logger.error(f"Invalid plane selection. All given planes are linked to the same component!")
+            return False
+        
         try:
             transfrom = self.calculate_assembly_transformation(instruction)
         except ValueError as e:
@@ -1019,16 +1074,14 @@ class AssemblyManagerScene():
             return assembly_transform
     
     def calculate_assembly_transformation(self, instruction:ami_msg.AssemblyInstruction)->Pose:
-
         obj_1_plane_1 = self._get_plane_obj_from_scene(instruction.plane_match_1.plane_name_component_1)
         obj_1_plane_2 = self._get_plane_obj_from_scene(instruction.plane_match_2.plane_name_component_1)
         obj_1_plane_3 = self._get_plane_obj_from_scene(instruction.plane_match_3.plane_name_component_1)
-
         obj_1_name = self.get_parent_frame_for_ref_frame(self.get_plane_from_scene(instruction.plane_match_1.plane_name_component_1).point_names[0])
         obj_2_name = self.get_parent_frame_for_ref_frame(self.get_plane_from_scene(instruction.plane_match_1.plane_name_component_2).point_names[0])
         
         obj_1_mate_plane_intersection: sp.Point3D = get_point_of_plane_intersection(obj_1_plane_1, obj_1_plane_2, obj_1_plane_3)
-        
+
         obj_2_plane_1 = self._get_plane_obj_from_scene(instruction.plane_match_1.plane_name_component_2)
         obj_2_plane_2 = self._get_plane_obj_from_scene(instruction.plane_match_2.plane_name_component_2)
         obj_2_plane_3 = self._get_plane_obj_from_scene(instruction.plane_match_3.plane_name_component_2)
@@ -1050,6 +1103,7 @@ class AssemblyManagerScene():
             static_component_plane_intersection = obj_1_mate_plane_intersection
 
         self.logger.warn(f"\nMoving component: '{moving_component}'\nStatic component: '{static_component}'")
+        self.logger.warn(f"\nMoving component plane intersection: '{moving_component_plane_intersection.evalf()}'\nStatic component plane intersection: '{static_component_plane_intersection.evalf()}'")
         assembly_transform.position.x = float(static_component_plane_intersection.x - moving_component_plane_intersection.x)
         assembly_transform.position.y = float(static_component_plane_intersection.y - moving_component_plane_intersection.y)
         assembly_transform.position.z = float(static_component_plane_intersection.z - moving_component_plane_intersection.z)
@@ -1122,14 +1176,17 @@ class AssemblyManagerScene():
                                         moving_component_plane_intersection:sp.Point3D, 
                                         static_component_plane_intersection:sp.Point3D, 
                                         assembly_transform: Pose)-> bool:
-        
+
         assembly_frame = ami_msg.RefFrame()
         assembly_frame.frame_name = f"assembly_frame_{instruction_id}"
         assembly_frame.parent_frame = moving_component
+        assembly_frame.constraints_dict = str({})
         assembly_frame.pose.position.x = float(moving_component_plane_intersection.x)
         assembly_frame.pose.position.y = float(moving_component_plane_intersection.y)
         assembly_frame.pose.position.z = float(moving_component_plane_intersection.z)
         moving_component_world_transform = get_transform_for_frame_in_world(moving_component, self.tf_buffer)
+        if moving_component_world_transform is None:
+            return False
         assembly_frame.pose.orientation = moving_component_world_transform.transform.rotation
         assembly_frame_matrix = get_transform_matrix_from_tf(assembly_frame.pose)
         moving_component_matrix = get_transform_matrix_from_tf(moving_component_world_transform)
@@ -1145,13 +1202,16 @@ class AssemblyManagerScene():
         target_frame.pose.position.x = float(static_component_plane_intersection.x)
         target_frame.pose.position.y = float(static_component_plane_intersection.y)
         target_frame.pose.position.z = float(static_component_plane_intersection.z)
+        target_frame.constraints_dict = str({})
         #target_frame.pose.orientation = quaternion_multiply(assembly_transfrom.orientation, target_frame.pose.orientation)
         target_frame.pose.orientation = quaternion_multiply(assembly_transform.orientation, moving_component_world_transform.transform.rotation)
-
         static_component_world_transform = get_transform_for_frame_in_world(static_component, self.tf_buffer)
+        if static_component_world_transform is None:    
+            return False
+        
         target_frame_matrix = get_transform_matrix_from_tf(target_frame.pose)
         static_component_matrix = get_transform_matrix_from_tf(static_component_world_transform)
-        helper_pose_2 = transform_matrix_to_pose(static_component_matrix.inv()*target_frame_matrix)
+        helper_pose_2 = transform_matrix_to_pose(static_component_matrix.inv()*target_frame_matrix, logger=self.logger)
         target_frame.pose = helper_pose_2
         add_target_frame_success = self.add_ref_frame_to_scene(target_frame)
         result = add_assembly_frame_success and add_target_frame_success
@@ -1222,9 +1282,9 @@ class AssemblyManagerScene():
     def get_plane_from_axis_and_frame(self, axis_name: str, frame_name: str)-> sp.Plane:
         axis_msg = self.get_axis_from_scene(axis_name)
 
-        line3d:sp.Line3D = get_line3d_from_frame_names(axis_msg.point_names, tf_buffer=self.tf_buffer)
+        line3d:sp.Line3D = get_line3d_from_frame_names(axis_msg.point_names, tf_buffer=self.tf_buffer, logger=self.logger)
 
-        t_point:TransformStamped = get_transform_for_frame_in_world(frame_name, self.tf_buffer)
+        t_point:TransformStamped = get_transform_for_frame_in_world(frame_name, self.tf_buffer, logger=self.logger)
         point = get_point_from_ros_obj(t_point.transform.translation)
 
         plane = sp.Plane(point, normal_vector = line3d.direction)
