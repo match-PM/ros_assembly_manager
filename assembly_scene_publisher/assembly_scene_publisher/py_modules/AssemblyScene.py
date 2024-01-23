@@ -336,7 +336,44 @@ def euler_to_matrix(angles:list):
 
     return Rz * Ry * Rx
 
+def norm_vec_direction(norm_vector_1: sp.Matrix, norm_vector_2: Union[sp.Matrix,Vector3]) -> int:
+    """
+    Checks if the direction of the two vectors is the same or not.
+    Parameters:
+    - norm_vector_1: sp.Matrix
+    - norm_vector_2: sp.Matrix or Vector3
+    Returns:
+    - 1 if direction is the same
+    - -1 if direction is not the same
+    """
+    if isinstance(norm_vector_2, Vector3):
+        norm_vector_2 = sp.Matrix([norm_vector_2.x, norm_vector_2.y, norm_vector_2.z])
 
+    angle_rad = calc_angle_between_vectors(norm_vector_1, norm_vector_2)
+    if angle_rad > sp.pi/2 or angle_rad < -sp.pi/2:
+        return -1
+    else:
+        return 1
+
+def calc_angle_between_vectors(vector_1: sp.Matrix, vector_2: sp.Matrix) -> float:
+    """
+    Calculates the angle between two vectors in radians.
+    Parameters:
+    - vector_1: sp.Matrix
+    - vector_2: sp.Matrix
+    Returns:
+    - angle_radians: float
+    """
+    dot_product = sp.DotProduct(vector_1, vector_2).doit()
+    magnitude_vec_1 = sp.sqrt(sp.DotProduct(vector_1, vector_1)).doit()
+    magnitude_vec_2 = sp.sqrt(sp.DotProduct(vector_2, vector_2)).doit()
+    # Calculate the cosine of the angle
+    cosine_theta = dot_product / (magnitude_vec_1 * magnitude_vec_2)
+
+    # Calculate the angle in radians
+    angle_radians = sp.acos(cosine_theta)
+
+    return angle_radians
 
 class AssemblyManagerScene():
     UNUSED_FRAME_CONST = 'unused_frame'
@@ -729,7 +766,6 @@ class AssemblyManagerScene():
                 self.logger.error(f"Invalid input for creation of reference plane. Plane should be defined by 3 x frames or by 1 x axis + 1 x frame!")
                 return False
             
-
             if (not (parent_frame_1 == parent_frame_2 == parent_frame_3) or 
                 parent_frame_1 is None or 
                 parent_frame_2 is None or 
@@ -1072,7 +1108,7 @@ class AssemblyManagerScene():
         else:
             assembly_transform = self.calculate_assembly_transformation(instruction)
             return assembly_transform
-    
+        
     def calculate_assembly_transformation(self, instruction:ami_msg.AssemblyInstruction)->Pose:
         obj_1_plane_1 = self._get_plane_obj_from_scene(instruction.plane_match_1.plane_name_component_1)
         obj_1_plane_2 = self._get_plane_obj_from_scene(instruction.plane_match_2.plane_name_component_1)
@@ -1107,13 +1143,23 @@ class AssemblyManagerScene():
         assembly_transform.position.x = float(static_component_plane_intersection.x - moving_component_plane_intersection.x)
         assembly_transform.position.y = float(static_component_plane_intersection.y - moving_component_plane_intersection.y)
         assembly_transform.position.z = float(static_component_plane_intersection.z - moving_component_plane_intersection.z)
-    
-        bvec_obj_1_1=sp.Matrix(obj_1_plane_1.normal_vector).normalized().evalf()
-        #bvec_obj_1_2=-1*sp.Matrix(obj_1_plane_2.normal_vector).normalized().evalf()
-        bvec_obj_1_2=sp.Matrix(obj_1_plane_2.normal_vector).normalized().evalf()
-        bvec_obj_1_3=-1*sp.Matrix(obj_1_plane_3.normal_vector).normalized().evalf()
 
-        basis_obj_1: sp.Matrix = sp.Matrix.hstack(bvec_obj_1_1, bvec_obj_1_2, bvec_obj_1_3)
+        comp_1_plane_1_ideal_norm_vector = self.get_plane_from_scene(instruction.plane_match_1.plane_name_component_1).ideal_norm_vector
+        comp_1_plane_2_ideal_norm_vector = self.get_plane_from_scene(instruction.plane_match_2.plane_name_component_1).ideal_norm_vector
+        comp_1_plane_3_ideal_norm_vector = self.get_plane_from_scene(instruction.plane_match_3.plane_name_component_1).ideal_norm_vector
+
+        comp_2_plane_1_ideal_norm_vector = self.get_plane_from_scene(instruction.plane_match_1.plane_name_component_2).ideal_norm_vector
+        comp_2_plane_2_ideal_norm_vector = self.get_plane_from_scene(instruction.plane_match_2.plane_name_component_2).ideal_norm_vector
+        comp_2_plane_3_ideal_norm_vector = self.get_plane_from_scene(instruction.plane_match_3.plane_name_component_2).ideal_norm_vector
+
+        self.logger.warn(f"Ideal norm vectors ob1: {comp_1_plane_1_ideal_norm_vector}, {comp_1_plane_2_ideal_norm_vector}, {comp_1_plane_3_ideal_norm_vector}")
+        
+        self.logger.warn(f"Ideal norm vectors obj2: {comp_2_plane_1_ideal_norm_vector}, {comp_2_plane_2_ideal_norm_vector}, {comp_2_plane_3_ideal_norm_vector}")
+
+        bvec_obj_1_1=sp.Matrix(obj_1_plane_1.normal_vector).normalized().evalf()
+        bvec_obj_1_2=sp.Matrix(obj_1_plane_2.normal_vector).normalized().evalf()
+        bvec_obj_1_3=sp.Matrix(obj_1_plane_3.normal_vector).normalized().evalf()
+        self.logger.warn(f"All normal vectors obj 1 are: {bvec_obj_1_1.evalf()}, {bvec_obj_1_2.evalf()}, {bvec_obj_1_3.evalf}")
 
         if bvec_obj_1_1.cross(bvec_obj_1_2) == bvec_obj_1_3:
             self.logger.warn("It is right hand")
@@ -1123,13 +1169,32 @@ class AssemblyManagerScene():
         #self.logger.warn(f"Eignevalues B2: {basis_obj_1.eigenvals()}")
         #self.logger.warn(f"Basis obj 1 is: {basis_obj_1.evalf()}")
 
-        bvec_obj_2_1=-1*sp.Matrix(obj_2_plane_1.normal_vector).normalized().evalf()
+        bvec_obj_2_1=sp.Matrix(obj_2_plane_1.normal_vector).normalized().evalf()
         bvec_obj_2_2=sp.Matrix(obj_2_plane_2.normal_vector).normalized().evalf()
-        bvec_obj_2_3=-1*sp.Matrix(obj_2_plane_3.normal_vector).normalized().evalf()
+        bvec_obj_2_3=sp.Matrix(obj_2_plane_3.normal_vector).normalized().evalf()
 
-        basis_obj_2: sp.Matrix = sp.Matrix.hstack(bvec_obj_2_1, bvec_obj_2_2, bvec_obj_2_3)
+        self.logger.warn(f"All normal vectors obj2 are: {bvec_obj_2_1.evalf()}, {bvec_obj_2_2.evalf()}, {bvec_obj_2_3.evalf}")
+        
         #self.logger.warn(f"Basis obj 2 is: {basis_obj_2.evalf()}")
 
+        mult_1 = norm_vec_direction(bvec_obj_1_1,comp_1_plane_1_ideal_norm_vector)
+        mult_2 = norm_vec_direction(bvec_obj_1_2,comp_1_plane_2_ideal_norm_vector)
+        mult_3 = norm_vec_direction(bvec_obj_1_3,comp_1_plane_3_ideal_norm_vector)
+        mult_4 = norm_vec_direction(bvec_obj_2_1,comp_2_plane_1_ideal_norm_vector)
+        mult_5 = norm_vec_direction(bvec_obj_2_2,comp_2_plane_2_ideal_norm_vector)
+        mult_6 = norm_vec_direction(bvec_obj_2_3,comp_2_plane_3_ideal_norm_vector)
+
+        bvec_obj_1_1 = bvec_obj_1_1 * mult_1
+        bvec_obj_1_2 = bvec_obj_1_2 * mult_2
+        bvec_obj_1_3 = bvec_obj_1_3 * mult_3
+        bvec_obj_2_1 = bvec_obj_2_1 * mult_4
+        bvec_obj_2_2 = bvec_obj_2_2 * mult_5
+        bvec_obj_2_3 = bvec_obj_2_3 * mult_6
+
+        basis_obj_1: sp.Matrix = sp.Matrix.hstack(bvec_obj_1_1, bvec_obj_1_2, bvec_obj_1_3)
+        basis_obj_2: sp.Matrix = sp.Matrix.hstack(bvec_obj_2_1, bvec_obj_2_2, bvec_obj_2_3) 
+            
+        self.logger.error(f"Mult : {mult_1}, {mult_2}, {mult_3}, {mult_4}, {mult_5}, {mult_6}")
         if instruction.component_1_is_moving_part:
             rot_matrix = basis_obj_2 * basis_obj_1.inv()
         else:

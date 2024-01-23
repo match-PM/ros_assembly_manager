@@ -270,6 +270,9 @@ class AssemblyManagerNode(Node):
                     if not axis == "":
                         axis = f'{comp_name}_{axis}'
                         create_plane_request.ref_plane.axis_names[index] = axis
+                create_plane_request.ref_plane.ideal_norm_vector.x = plane.get("ideal_norm_vector").get("x")
+                create_plane_request.ref_plane.ideal_norm_vector.y = plane.get("ideal_norm_vector").get("y")
+                create_plane_request.ref_plane.ideal_norm_vector.z = plane.get("ideal_norm_vector").get("z")
                 spawn_plane_success = self.create_ref_plane(create_plane_request)
                 if not spawn_plane_success:
                     self.logger.error(f"Error while spawning plane {create_plane_request.ref_plane.ref_plane_name}!")
