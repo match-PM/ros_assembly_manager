@@ -118,6 +118,7 @@ class AssemblyScenePublisherNode(Node):
     
     def srv_create_assembly_instructions(self, request: ami_srv.CreateAssemblyInstructions.Request, response: ami_srv.CreateAssemblyInstructions.Response):
         create_success = self.object_scene.create_assembly_instructions(instruction=request.assembly_instruction)
+        response.instruction_id = request.assembly_instruction.id
         response.success = create_success
         return response
     

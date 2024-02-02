@@ -13,367 +13,23 @@ import sympy as sp
 from typing import Union
 from scipy.optimize import minimize, least_squares
 
-def get_point_of_plane_intersection(plane1: sp.Plane, plane2: sp.Plane, plane3: sp.Plane) -> sp.Point3D:
-    line = plane1.intersection(plane2)
-    # Get the first point of intersection, should also be the only one
-    #inter:sp.Point3D = plane3.intersection(line[0])
+from assembly_scene_publisher.py_modules.geometry_functions import (get_point_of_plane_intersection, 
+            get_euler_rotation_matrix, quaternion_multiply, matrix_multiply_vector, norm_vec_direction)
 
-    try:
-        plane3.intersection(line[0])[0]
-    except Exception as e:
-        raise ValueError(f"Given planes (1.{plane1}, 2.{plane2}, 3.{plane3}) do not have a single point of intersection. Invalid plane selection!")
+from assembly_scene_publisher.py_modules.geometry_type_functions import (vector3_to_matrix1x3,
+                                                                            point3D_to_vector3,
+                                                                            check_and_return_quaternion,
+                                                                            get_point_from_ros_obj,
+                                                                            get_transform_matrix_from_tf,
+                                                                            get_rotation_matrix_from_tf,
+                                                                            transform_matrix_to_pose,
+                                                                            euler_to_quaternion)
 
-    inter:sp.Point3D = plane3.intersection(line[0])[0]
-
-    if not isinstance(inter, sp.Point3D):
-        raise ValueError(f"Given planes (1.{plane1}, 2.{plane2}, 3.{plane3}) do not have a single point of intersection. Invalid plane selection!")
-    
-    # Value Error if not a point
-
-    return inter
-
-def get_euler_rotation_matrix(alpha, beta, gamma):
-    rotation_z = sp.Matrix([
-        [sp.cos(alpha), -sp.sin(alpha), 0],
-        [sp.sin(alpha), sp.cos(alpha), 0],
-        [0, 0, 1]
-    ])
-
-    rotation_y = sp.Matrix([
-        [sp.cos(beta), 0, sp.sin(beta)],
-        [0, 1, 0],
-        [-sp.sin(beta), 0, sp.cos(beta)]
-    ])
-
-    rotation_x = sp.Matrix([
-        [1, 0, 0],
-        [0, sp.cos(gamma), -sp.sin(gamma)],
-        [0, sp.sin(gamma), sp.cos(gamma)]
-    ])
-
-    rotation_matrix = rotation_z * rotation_y * rotation_x
-    return rotation_matrix
-
-# def rotation_matrix_to_quaternion(R)-> sp.Matrix:
-#     trace_R = R[0, 0] + R[1, 1] + R[2, 2]
-#     w = sp.sqrt(1 + trace_R) / 2
-#     x = (R[2, 1] - R[1, 2]) / (4 * w)
-#     y = (R[0, 2] - R[2, 0]) / (4 * w)
-#     z = (R[1, 0] - R[0, 1]) / (4 * w)
-#     return sp.Matrix([w, x, y, z])
-
-def rotation_matrix_to_quaternion(Rot_mat)-> sp.Matrix:
-    r = R.from_matrix(Rot_mat)
-    return sp.Matrix(r.as_quat())
-
-def quaternion_to_rotation_matrix(quaternion:Quaternion)-> sp.Matrix:
-    w, x, y, z = quaternion.w, quaternion.x, quaternion.y, quaternion.z
-    r = sp.Matrix([
-        [1 - 2*y**2 - 2*z**2, 2*x*y - 2*w*z, 2*x*z + 2*w*y],
-        [2*x*y + 2*w*z, 1 - 2*x**2 - 2*z**2, 2*y*z - 2*w*x],
-        [2*x*z - 2*w*y, 2*y*z + 2*w*x, 1 - 2*x**2 - 2*y**2]
-    ])
-    return r
-
-def euler_to_quaternion(roll:float, pitch:float, yaw:float)-> Quaternion:
-    """
-    Convert Euler angles to quaternion.
-
-    Parameters:
-    - roll: Rotation angle around the x-axis (in radians)
-    - pitch: Rotation angle around the y-axis (in radians)
-    - yaw: Rotation angle around the z-axis (in radians)
-
-    Returns:
-    - Quaternion
-    """
-    cy = np.cos(yaw * 0.5)
-    sy = np.sin(yaw * 0.5)
-    cp = np.cos(pitch * 0.5)
-    sp = np.sin(pitch * 0.5)
-    cr = np.cos(roll * 0.5)
-    sr = np.sin(roll * 0.5)
-
-    w = cr * cp * cy + sr * sp * sy
-    x = sr * cp * cy - cr * sp * sy
-    y = cr * sp * cy + sr * cp * sy
-    z = cr * cp * sy - sr * sp * cy
-    result = Quaternion()
-    result.w = w
-    result.x = x
-    result.y = y
-    result.z = z
-    return result
-
-def quaternion_multiply(q0:Quaternion, q1:Quaternion)->Quaternion:
-    """
-    Multiplies two quaternions.
-
-    Input
-    :param q0: 
-    :param q1: 
-
-    Output
-    :return: Quaternion
-
-    """
-
-    #q0.w = -q0.w
-
-    # Extract the values from q0
-    w0 = q0.w
-    x0 = q0.x
-    y0 = q0.y
-    z0 = q0.z
-
-    # Extract the values from q1
-    w1 = q1.w
-    x1 = q1.x
-    y1 = q1.y
-    z1 = q1.z
-
-    # Computer the product of the two quaternions, term by term
-    q0q1_w = w0 * w1 - x0 * x1 - y0 * y1 - z0 * z1
-    q0q1_x = w0 * x1 + x0 * w1 + y0 * z1 - z0 * y1
-    q0q1_y = w0 * y1 - x0 * z1 + y0 * w1 + z0 * x1
-    q0q1_z = w0 * z1 + x0 * y1 - y0 * x1 + z0 * w1
-
-    result = Quaternion()
-    result.x = q0q1_x
-    result.y = q0q1_y
-    result.z = q0q1_z
-    result.w = q0q1_w
-
-    return result
-
-
-def check_and_return_quaternion(object_to_check,logger=None):
-    """This function checks if a given quaternion is valid. This is the case if x=0, y=0, z=0, w=0. 
-    In this case the function will set the quaterion to x=0, y=0, z=0, w=1.
-    This function accepts quaternions as well as poses as input. According to its input the equivaltent type is returned. """
-
-    if isinstance(object_to_check,Quaternion):
-        tmp_q = object_to_check
-    elif isinstance(object_to_check,Pose):
-        tmp_q = object_to_check.orientation
-
-    # This case will probably never happen because the node would crash at some point
-    else:
-        if logger is not None:
-            logger.error("Fatal error")
-        return object_to_check
-    
-    if tmp_q.x==0 and tmp_q.y==0 and tmp_q.z==0 and tmp_q.w==0:
-        tmp_q.x=0.0
-        tmp_q.y=0.0
-        tmp_q.z=0.0
-        tmp_q.w=1.0
-        if logger is not None:
-            logger.info("Assuming Quaternion: x=0.0, y=0.0, z=0.0, w=1.0!")
-    
-    if isinstance(object_to_check,Quaternion):
-        return tmp_q
-    elif isinstance(object_to_check,Pose):
-        object_to_check.orientation = tmp_q
-        return object_to_check
-
-def adapt_transform_for_new_parent_frame(child_frame, new_parent_frame, tf_buffer: Buffer):
-    # this function adapts the tf for parent_frame changes
-    t:TransformStamped = tf_buffer.lookup_transform(child_frame, new_parent_frame,rclpy.time.Time())
-    trans = Vector3()
-    rot = Quaternion()
-    trans.x = -t.transform.translation.x
-    trans.y = -t.transform.translation.y
-    trans.z = -t.transform.translation.z
-
-    rot.x = t.transform.rotation.x
-    rot.y = t.transform.rotation.y
-    rot.z = t.transform.rotation.z
-    rot.w = t.transform.rotation.w
-
-    return trans, rot
-
-
-def get_transform_for_frame_in_world(frame_name: str, tf_buffer: Buffer, logger = None) -> TransformStamped:
-    # this function adapts the tf for parent_frame changes
-    #transform:TransformStamped = tf_buffer.lookup_transform(frame_name, 'world',rclpy.time.Time())
-    try:
-        
-        transform:TransformStamped = tf_buffer.lookup_transform('world', frame_name, rclpy.time.Time(),rclpy.duration.Duration(seconds=1.0))
-        if logger is not None:
-            logger.debug(f"Frame '{frame_name}' found in TF!")
-    except Exception as e:
-        transform = None
-        raise ValueError(f"Frame '{frame_name}' does not exist in TF! {str(e)}")
-    return transform
-
-def get_point_from_ros_obj(position: Union[Vector3, Point]) -> sp.Point3D:
-    
-    if isinstance(position, Vector3):
-        position:Vector3
-        point = sp.Point3D(position.x, position.y, position.z, evaluate=False)
-    elif isinstance(position, Point):
-        position:Point
-        point = sp.Point3D(position.x, position.y, position.z, evaluate=False)
-    else:
-        raise ValueError
-    
-    return point
-
-def get_plane_from_frame_names(frames: list[str], tf_buffer: Buffer, logger = None)-> sp.Plane:
-
-    if len(frames)!=3:
-        raise ValueError
-    
-    t1:TransformStamped = get_transform_for_frame_in_world(frames[0], tf_buffer)
-    t2:TransformStamped = get_transform_for_frame_in_world(frames[1], tf_buffer)
-    t3:TransformStamped = get_transform_for_frame_in_world(frames[2], tf_buffer)
-    
-    if logger is not None:  
-        logger.debug(f"t1: {t1}")
-        logger.debug(f"t2: {t2}")
-        logger.debug(f"t3: {t3}")
-
-    if t1 is None or t2 is None or t3 is None:
-        raise ValueError
-    
-    p1 = get_point_from_ros_obj(t1.transform.translation)
-    p2 = get_point_from_ros_obj(t2.transform.translation)
-    p3 = get_point_from_ros_obj(t3.transform.translation)
-
-    plane = sp.Plane(p1,p2,p3)
-
-    return plane
-
-def get_line3d_from_frame_names(frames: list[str], tf_buffer: Buffer, logger=None)-> sp.Line3D:
-
-    if len(frames)!=2:
-        raise ValueError
-    
-    t1:TransformStamped = get_transform_for_frame_in_world(frames[0], tf_buffer, logger)
-    t2:TransformStamped = get_transform_for_frame_in_world(frames[1], tf_buffer, logger)
-    if t1 is None or t2 is None:
-        raise ValueError
-    p1 = get_point_from_ros_obj(t1.transform.translation)
-    p2 = get_point_from_ros_obj(t2.transform.translation)
-
-    line = sp.Line3D(p1,p2)
-
-    return line
-
-def publish_transform_tf_static(node: Node, 
-                                tf_broadcaster:StaticTransformBroadcaster, 
-                                child_frame:str, 
-                                parent_frame:str, 
-                                translation:Vector3, 
-                                rotations:Quaternion):
-    # Create a static transform
-    transform_stamped = TransformStamped()
-    transform_stamped.header.stamp = node.get_clock().now().to_msg()  # Use current timestamp
-    transform_stamped.header.frame_id = parent_frame
-    transform_stamped.child_frame_id = child_frame
-
-    # # Set the translation
-    transform_stamped.transform.translation.x = float(translation.x)
-    transform_stamped.transform.translation.y = float(translation.y)
-    transform_stamped.transform.translation.z = float(translation.z)
-
-    # Set the rotation (quaternion)
-    transform_stamped.transform.rotation.x = float(rotations.x)
-    transform_stamped.transform.rotation.y = float(rotations.y)
-    transform_stamped.transform.rotation.z = float(rotations.z)
-    transform_stamped.transform.rotation.w = float(rotations.w)
-
-    # Publish the static transform
-    tf_broadcaster.sendTransform(transform_stamped)
-
-def get_transform_matrix_from_tf(tf: Union[Pose, TransformStamped])-> sp.Matrix:
-    if isinstance(tf, Pose):
-        tf: Pose
-        r:sp.Matrix = quaternion_to_rotation_matrix(tf.orientation)
-        t = sp.Matrix([tf.position.x, tf.position.y, tf.position.z]) 
-    elif isinstance(tf, TransformStamped):
-        tf: TransformStamped
-        r:sp.Matrix = quaternion_to_rotation_matrix(tf.transform.rotation)
-        t = sp.Matrix([tf.transform.translation.x, tf.transform.translation.y, tf.transform.translation.z])         
-    else:
-        return None
-    transform_matrix = sp.eye(4)
-
-    transform_matrix[:3, :3] = r
-    transform_matrix[:3, 3] = t
-    return transform_matrix
-    
-def transform_matrix_to_pose(transform_matrix:sp.Matrix, logger = None)-> Pose:
-    # Extract the rotation matrix and translation vector from the transformation matrix
-    rotation_matrix = transform_matrix[:3, :3]
-    translation_vector = transform_matrix[:3, 3]
-
-    # Convert the rotation matrix to a quaternion
-    quaternion = rotation_matrix_to_quaternion(rotation_matrix)
-
-    if logger is not None:
-        logger.debug(f"Quaternion: {quaternion}")
-
-    # Create a Pose message
-    pose_msg = Pose(
-        position=Point(x=float(translation_vector[0]), y=float(translation_vector[1]), z=float(translation_vector[2])),
-        orientation=Quaternion(x=float(quaternion[1]), y=float(quaternion[2]), z=float(quaternion[3]), w=float(quaternion[0])))
-    return pose_msg 
-
-def euler_to_matrix(angles:list):
-    Rz = sp.Matrix([[sp.cos(angles[2]), -1*sp.sin(angles[2]), 0],
-                [sp.sin(angles[2]), sp.cos(angles[2]), 0],
-                [0, 0, 1]])
-
-    Ry = sp.Matrix([[sp.cos(angles[1]), 0, sp.sin(angles[1])],
-                [0, 1, 0],
-                [-1*sp.sin(angles[1]), 0, sp.cos(angles[1])]])
-
-    Rx = sp.Matrix([[1, 0, 0],
-                [0, sp.cos(angles[0]), -1*sp.sin(angles[0])],
-                [0, sp.sin(angles[0]), sp.cos(angles[0])]])
-
-    return Rz * Ry * Rx
-
-def norm_vec_direction(norm_vector_1: sp.Matrix, norm_vector_2: Union[sp.Matrix,Vector3]) -> int:
-    """
-    Checks if the direction of the two vectors is the same or not.
-    Parameters:
-    - norm_vector_1: sp.Matrix
-    - norm_vector_2: sp.Matrix or Vector3
-    Returns:
-    - 1 if direction is the same
-    - -1 if direction is not the same
-    """
-    if isinstance(norm_vector_2, Vector3):
-        norm_vector_2 = sp.Matrix([norm_vector_2.x, norm_vector_2.y, norm_vector_2.z])
-
-    angle_rad = calc_angle_between_vectors(norm_vector_1, norm_vector_2)
-    if angle_rad > sp.pi/2 or angle_rad < -sp.pi/2:
-        return -1
-    else:
-        return 1
-
-def calc_angle_between_vectors(vector_1: sp.Matrix, vector_2: sp.Matrix) -> float:
-    """
-    Calculates the angle between two vectors in radians.
-    Parameters:
-    - vector_1: sp.Matrix
-    - vector_2: sp.Matrix
-    Returns:
-    - angle_radians: float
-    """
-    dot_product = sp.DotProduct(vector_1, vector_2).doit()
-    magnitude_vec_1 = sp.sqrt(sp.DotProduct(vector_1, vector_1)).doit()
-    magnitude_vec_2 = sp.sqrt(sp.DotProduct(vector_2, vector_2)).doit()
-    # Calculate the cosine of the angle
-    cosine_theta = dot_product / (magnitude_vec_1 * magnitude_vec_2)
-
-    # Calculate the angle in radians
-    angle_radians = sp.acos(cosine_theta)
-
-    return angle_radians
+from assembly_scene_publisher.py_modules.tf_functions import (adapt_transform_for_new_parent_frame,
+                                                              get_transform_for_frame_in_world,
+                                                                get_plane_from_frame_names,
+                                                                get_line3d_from_frame_names,
+                                                                publish_transform_tf_static)
 
 class AssemblyManagerScene():
     UNUSED_FRAME_CONST = 'unused_frame'
@@ -1020,26 +676,27 @@ class AssemblyManagerScene():
         # return false if planes do not exist in scene
         create_plane_error = False
         if (obj1_plane1_msg is None):
-            self.logger.error(f"Plane 1 {instruction.plane_match_1.plane_name_component_1}' of component 1 does not exist. Invalid input!")
+            self.logger.error(f"Plane 1 '{instruction.plane_match_1.plane_name_component_1}' of component 1 does not exist. Invalid input!")
             create_plane_error = True
         if (obj1_plane2_msg is None):
-            self.logger.error(f"Plane 2 {instruction.plane_match_2.plane_name_component_1}' of component 1 does not exist. Invalid input!")
+            self.logger.error(f"Plane 2 '{instruction.plane_match_2.plane_name_component_1}' of component 1 does not exist. Invalid input!")
             create_plane_error = True
         if (obj1_plane3_msg is None):
-            self.logger.error(f"Plane 3 {instruction.plane_match_3.plane_name_component_1}' of component 1 does not exist. Invalid input!")
+            self.logger.error(f"Plane 3 '{instruction.plane_match_3.plane_name_component_1}' of component 1 does not exist. Invalid input!")
             create_plane_error = True
         if (obj2_plane1_msg is None):
-            self.logger.error(f"Plane 1 {instruction.plane_match_1.plane_name_component_2}' of component 2 does not exist. Invalid input!")
+            self.logger.error(f"Plane 1 '{instruction.plane_match_1.plane_name_component_2}' of component 2 does not exist. Invalid input!")
             create_plane_error = True
         if (obj2_plane2_msg is None):
-            self.logger.error(f"Plane 2 {instruction.plane_match_2.plane_name_component_2}' of component 2 does not exist. Invalid input!")
+            self.logger.error(f"Plane 2 '{instruction.plane_match_2.plane_name_component_2}' of component 2 does not exist. Invalid input!")
             create_plane_error = True
         if (obj2_plane3_msg is None):
-            self.logger.error(f"Plane 3 {instruction.plane_match_3.plane_name_component_2}' of component 2 does not exist. Invalid input!")
+            self.logger.error(f"Plane 3 '{instruction.plane_match_3.plane_name_component_2}' of component 2 does not exist. Invalid input!")
             create_plane_error = True
 
         # return false if planes do not exist in scene
         if create_plane_error:
+            self.logger.error(f"Invalid input for assembly instruction. Planes do not exist in scene!")
             return False
         
         obj_1_name = self.get_parent_frame_for_ref_frame(self.get_plane_from_scene(instruction.plane_match_1.plane_name_component_1).point_names[0])
@@ -1116,34 +773,27 @@ class AssemblyManagerScene():
         obj_1_name = self.get_parent_frame_for_ref_frame(self.get_plane_from_scene(instruction.plane_match_1.plane_name_component_1).point_names[0])
         obj_2_name = self.get_parent_frame_for_ref_frame(self.get_plane_from_scene(instruction.plane_match_1.plane_name_component_2).point_names[0])
         
-        obj_1_mate_plane_intersection: sp.Point3D = get_point_of_plane_intersection(obj_1_plane_1, obj_1_plane_2, obj_1_plane_3)
+        obj_1_mate_plane_intersection: Vector3 = point3D_to_vector3(get_point_of_plane_intersection(obj_1_plane_1, obj_1_plane_2, obj_1_plane_3))
 
         obj_2_plane_1 = self._get_plane_obj_from_scene(instruction.plane_match_1.plane_name_component_2)
         obj_2_plane_2 = self._get_plane_obj_from_scene(instruction.plane_match_2.plane_name_component_2)
         obj_2_plane_3 = self._get_plane_obj_from_scene(instruction.plane_match_3.plane_name_component_2)
-        obj_2_mate_plane_intersection: sp.Point3D = get_point_of_plane_intersection(obj_2_plane_1, obj_2_plane_2, obj_2_plane_3)
 
-        #self.logger.warn(f"Intersection Obj1: {str(obj_1_mate_plane_intersection)}")
-        #self.logger.warn(f"Intersection Obj2: {str(obj_2_mate_plane_intersection)}")
+        obj_2_mate_plane_intersection: Vector3 = point3D_to_vector3(get_point_of_plane_intersection(obj_2_plane_1, obj_2_plane_2, obj_2_plane_3))
+
         assembly_transform = Pose()
 
         if instruction.component_1_is_moving_part:
             moving_component = obj_1_name
             static_component = obj_2_name
-            moving_component_plane_intersection = obj_1_mate_plane_intersection
-            static_component_plane_intersection = obj_2_mate_plane_intersection
+
         else:
             moving_component = obj_2_name
             static_component = obj_1_name
-            moving_component_plane_intersection = obj_2_mate_plane_intersection
-            static_component_plane_intersection = obj_1_mate_plane_intersection
 
         self.logger.warn(f"\nMoving component: '{moving_component}'\nStatic component: '{static_component}'")
-        self.logger.warn(f"\nMoving component plane intersection: '{moving_component_plane_intersection.evalf()}'\nStatic component plane intersection: '{static_component_plane_intersection.evalf()}'")
-        assembly_transform.position.x = float(static_component_plane_intersection.x - moving_component_plane_intersection.x)
-        assembly_transform.position.y = float(static_component_plane_intersection.y - moving_component_plane_intersection.y)
-        assembly_transform.position.z = float(static_component_plane_intersection.z - moving_component_plane_intersection.z)
-
+        
+        # Get the ideal norm vectors from the plane messages
         comp_1_plane_1_ideal_norm_vector = self.get_plane_from_scene(instruction.plane_match_1.plane_name_component_1).ideal_norm_vector
         comp_1_plane_2_ideal_norm_vector = self.get_plane_from_scene(instruction.plane_match_2.plane_name_component_1).ideal_norm_vector
         comp_1_plane_3_ideal_norm_vector = self.get_plane_from_scene(instruction.plane_match_3.plane_name_component_1).ideal_norm_vector
@@ -1152,56 +802,110 @@ class AssemblyManagerScene():
         comp_2_plane_2_ideal_norm_vector = self.get_plane_from_scene(instruction.plane_match_2.plane_name_component_2).ideal_norm_vector
         comp_2_plane_3_ideal_norm_vector = self.get_plane_from_scene(instruction.plane_match_3.plane_name_component_2).ideal_norm_vector
 
-        self.logger.warn(f"Ideal norm vectors ob1: {comp_1_plane_1_ideal_norm_vector}, {comp_1_plane_2_ideal_norm_vector}, {comp_1_plane_3_ideal_norm_vector}")
-        
-        self.logger.warn(f"Ideal norm vectors obj2: {comp_2_plane_1_ideal_norm_vector}, {comp_2_plane_2_ideal_norm_vector}, {comp_2_plane_3_ideal_norm_vector}")
+        # Transform the ideal norm vectors to the world frame
+        # for component 1
+        obj_1_rot_matrix = get_rotation_matrix_from_tf(self.tf_buffer.lookup_transform('world', obj_1_name,rclpy.time.Time()))
+        comp_1_plane_1_ideal_norm_vector = vector3_to_matrix1x3(comp_1_plane_1_ideal_norm_vector)
+        comp_1_plane_1_ideal_norm_vector = matrix_multiply_vector(matrix=obj_1_rot_matrix, vector = comp_1_plane_1_ideal_norm_vector)
 
-        bvec_obj_1_1=sp.Matrix(obj_1_plane_1.normal_vector).normalized().evalf()
-        bvec_obj_1_2=sp.Matrix(obj_1_plane_2.normal_vector).normalized().evalf()
-        bvec_obj_1_3=sp.Matrix(obj_1_plane_3.normal_vector).normalized().evalf()
-        self.logger.warn(f"All normal vectors obj 1 are: {bvec_obj_1_1.evalf()}, {bvec_obj_1_2.evalf()}, {bvec_obj_1_3.evalf}")
+        comp_1_plane_2_ideal_norm_vector = vector3_to_matrix1x3(comp_1_plane_2_ideal_norm_vector)
+        comp_1_plane_2_ideal_norm_vector = matrix_multiply_vector(matrix=obj_1_rot_matrix, vector = comp_1_plane_2_ideal_norm_vector)
 
-        if bvec_obj_1_1.cross(bvec_obj_1_2) == bvec_obj_1_3:
-            self.logger.warn("It is right hand")
-        else:
-            self.logger.warn(f"Not right hand {bvec_obj_1_1.cross(bvec_obj_1_2).evalf()} != {bvec_obj_1_3.evalf()}")
+        comp_1_plane_3_ideal_norm_vector = vector3_to_matrix1x3(comp_1_plane_3_ideal_norm_vector)
+        comp_1_plane_3_ideal_norm_vector = matrix_multiply_vector(matrix=obj_1_rot_matrix, vector = comp_1_plane_3_ideal_norm_vector)
 
-        #self.logger.warn(f"Eignevalues B2: {basis_obj_1.eigenvals()}")
-        #self.logger.warn(f"Basis obj 1 is: {basis_obj_1.evalf()}")
+        # for component 2
+        obj_2_rot_matrix = get_rotation_matrix_from_tf(self.tf_buffer.lookup_transform('world', obj_2_name,rclpy.time.Time()))
+        comp_2_plane_1_ideal_norm_vector = vector3_to_matrix1x3(comp_2_plane_1_ideal_norm_vector)
+        comp_2_plane_1_ideal_norm_vector = matrix_multiply_vector(matrix=obj_2_rot_matrix, vector = comp_2_plane_1_ideal_norm_vector)
+
+        comp_2_plane_2_ideal_norm_vector = vector3_to_matrix1x3(comp_2_plane_2_ideal_norm_vector)
+        comp_2_plane_2_ideal_norm_vector = matrix_multiply_vector(matrix=obj_2_rot_matrix, vector = comp_2_plane_2_ideal_norm_vector)
+
+        comp_2_plane_3_ideal_norm_vector = vector3_to_matrix1x3(comp_2_plane_3_ideal_norm_vector)
+        comp_2_plane_3_ideal_norm_vector = matrix_multiply_vector(matrix=obj_2_rot_matrix, vector = comp_2_plane_3_ideal_norm_vector)
+
+        #self.logger.warn(f"Ideal norm vectors ob1: {comp_1_plane_1_ideal_norm_vector}, {comp_1_plane_2_ideal_norm_vector}, {comp_1_plane_3_ideal_norm_vector}")
+        #self.logger.warn(f"Ideal norm vectors obj2: {comp_2_plane_1_ideal_norm_vector}, {comp_2_plane_2_ideal_norm_vector}, {comp_2_plane_3_ideal_norm_vector}")
+
+        # Get the normal vectors from the plane actual plane in the world frame
+        bvec_obj_1_1:sp.Matrix = sp.Matrix(obj_1_plane_1.normal_vector).normalized().evalf()
+        bvec_obj_1_2:sp.Matrix = sp.Matrix(obj_1_plane_2.normal_vector).normalized().evalf()
+        bvec_obj_1_3:sp.Matrix = sp.Matrix(obj_1_plane_3.normal_vector).normalized().evalf()
 
         bvec_obj_2_1=sp.Matrix(obj_2_plane_1.normal_vector).normalized().evalf()
         bvec_obj_2_2=sp.Matrix(obj_2_plane_2.normal_vector).normalized().evalf()
         bvec_obj_2_3=sp.Matrix(obj_2_plane_3.normal_vector).normalized().evalf()
 
-        self.logger.warn(f"All normal vectors obj2 are: {bvec_obj_2_1.evalf()}, {bvec_obj_2_2.evalf()}, {bvec_obj_2_3.evalf}")
+        self.logger.debug(f"All normal vectors obj 1 are: {bvec_obj_1_1.evalf()}, {bvec_obj_1_2.evalf()}, {bvec_obj_1_3.evalf}")
+        self.logger.debug(f"All normal vectors obj2 are: {bvec_obj_2_1.evalf()}, {bvec_obj_2_2.evalf()}, {bvec_obj_2_3.evalf}")
+
+        # get the multiplicator for the normal vectors calculated from the planes and match their direction to the ideal normal vectors
+        mult_1 = norm_vec_direction(bvec_obj_1_1,comp_1_plane_1_ideal_norm_vector, logger=self.logger)
+        mult_2 = norm_vec_direction(bvec_obj_1_2,comp_1_plane_2_ideal_norm_vector, logger=self.logger)
+        mult_3 = norm_vec_direction(bvec_obj_1_3,comp_1_plane_3_ideal_norm_vector, logger=self.logger)
+        mult_4 = norm_vec_direction(bvec_obj_2_1,comp_2_plane_1_ideal_norm_vector, logger=self.logger)
+        mult_5 = norm_vec_direction(bvec_obj_2_2,comp_2_plane_2_ideal_norm_vector, logger=self.logger)
+        mult_6 = norm_vec_direction(bvec_obj_2_3,comp_2_plane_3_ideal_norm_vector, logger=self.logger)
+
+        self.logger.debug(f"Mults: {mult_1}, {mult_2}, {mult_3}, {mult_4}, {mult_5}, {mult_6}")
         
-        #self.logger.warn(f"Basis obj 2 is: {basis_obj_2.evalf()}")
+        # Check if the normal vectors should be inverted
+        if instruction.plane_match_1.inv_normal_vector:
+            mult_4 = -mult_4
+            self.logger.debug("Inverted normal vector for plane 1")
+        if instruction.plane_match_2.inv_normal_vector:
+            mult_5 = -mult_5
+            self.logger.debug("Inverted normal vector for plane 2")
+        if instruction.plane_match_3.inv_normal_vector:
+            mult_6 = -mult_6
+            self.logger.debug("Inverted normal vector for plane 3")
 
-        mult_1 = norm_vec_direction(bvec_obj_1_1,comp_1_plane_1_ideal_norm_vector)
-        mult_2 = norm_vec_direction(bvec_obj_1_2,comp_1_plane_2_ideal_norm_vector)
-        mult_3 = norm_vec_direction(bvec_obj_1_3,comp_1_plane_3_ideal_norm_vector)
-        mult_4 = norm_vec_direction(bvec_obj_2_1,comp_2_plane_1_ideal_norm_vector)
-        mult_5 = norm_vec_direction(bvec_obj_2_2,comp_2_plane_2_ideal_norm_vector)
-        mult_6 = norm_vec_direction(bvec_obj_2_3,comp_2_plane_3_ideal_norm_vector)
+        # Multiply the normal vectors with the multiplicator
+        bvec_obj_1_1 : sp.Matrix = bvec_obj_1_1 * mult_1
+        bvec_obj_1_2 : sp.Matrix = bvec_obj_1_2 * mult_2
+        bvec_obj_1_3 : sp.Matrix = bvec_obj_1_3 * mult_3
+        bvec_obj_2_1 : sp.Matrix = bvec_obj_2_1 * mult_4
+        bvec_obj_2_2 : sp.Matrix = bvec_obj_2_2 * mult_5
+        bvec_obj_2_3 : sp.Matrix = bvec_obj_2_3 * mult_6
 
-        bvec_obj_1_1 = bvec_obj_1_1 * mult_1
-        bvec_obj_1_2 = bvec_obj_1_2 * mult_2
-        bvec_obj_1_3 = bvec_obj_1_3 * mult_3
-        bvec_obj_2_1 = bvec_obj_2_1 * mult_4
-        bvec_obj_2_2 = bvec_obj_2_2 * mult_5
-        bvec_obj_2_3 = bvec_obj_2_3 * mult_6
-
+        # Stack all normal vectors together to a single basis
         basis_obj_1: sp.Matrix = sp.Matrix.hstack(bvec_obj_1_1, bvec_obj_1_2, bvec_obj_1_3)
-        basis_obj_2: sp.Matrix = sp.Matrix.hstack(bvec_obj_2_1, bvec_obj_2_2, bvec_obj_2_3) 
-            
-        self.logger.error(f"Mult : {mult_1}, {mult_2}, {mult_3}, {mult_4}, {mult_5}, {mult_6}")
+        basis_obj_2: sp.Matrix = sp.Matrix.hstack(bvec_obj_2_1, bvec_obj_2_2, bvec_obj_2_3)         
+        
+        # Add the translation to the assembly transformation
+        obj_1_mate_plane_intersection.x += float(bvec_obj_1_1[0]*instruction.plane_match_1.plane_offset)
+        obj_1_mate_plane_intersection.y += float(bvec_obj_1_1[1]*instruction.plane_match_1.plane_offset)
+        obj_1_mate_plane_intersection.z += float(bvec_obj_1_1[2]*instruction.plane_match_1.plane_offset)
+
+        obj_1_mate_plane_intersection.x += float(bvec_obj_1_2[0]*instruction.plane_match_2.plane_offset)
+        obj_1_mate_plane_intersection.y += float(bvec_obj_1_2[1]*instruction.plane_match_2.plane_offset)
+        obj_1_mate_plane_intersection.z += float(bvec_obj_1_2[2]*instruction.plane_match_2.plane_offset)
+
+        obj_1_mate_plane_intersection.x += float(bvec_obj_1_3[0]*instruction.plane_match_3.plane_offset)
+        obj_1_mate_plane_intersection.y += float(bvec_obj_1_3[1]*instruction.plane_match_3.plane_offset)
+        obj_1_mate_plane_intersection.z += float(bvec_obj_1_3[2]*instruction.plane_match_3.plane_offset)
+    
+        if instruction.component_1_is_moving_part:
+            moving_component_plane_intersection = obj_1_mate_plane_intersection
+            static_component_plane_intersection = obj_2_mate_plane_intersection
+        else:
+            moving_component_plane_intersection = obj_2_mate_plane_intersection
+            static_component_plane_intersection = obj_1_mate_plane_intersection
+
+        # Calculate the translation
+        assembly_transform.position.x = float(static_component_plane_intersection.x - moving_component_plane_intersection.x)
+        assembly_transform.position.y = float(static_component_plane_intersection.y - moving_component_plane_intersection.y)
+        assembly_transform.position.z = float(static_component_plane_intersection.z - moving_component_plane_intersection.z)
+
+        # Calculate the 'unideal' rotationmatrix
         if instruction.component_1_is_moving_part:
             rot_matrix = basis_obj_2 * basis_obj_1.inv()
         else:
             rot_matrix = basis_obj_1 * basis_obj_2.inv()
 
         det_rot_matrix= rot_matrix.det()
-        self.logger.warn(f"Rot obj 2 to 1: {rot_matrix.evalf()}")
+        #self.logger.warn(f"Rot obj 2 to 1: {rot_matrix.evalf()}")
 
         #self.logger.warn(f"Eigenvalues Rot: {rot_matrix.eigenvals()}")
         #self.logger.warn(f"Det Rot: {det_rot_matrix}")
@@ -1210,7 +914,7 @@ class AssemblyManagerScene():
             self.logger.warn(f"Invalid plane selection")
             #return False
 
-        # Calculate the approx quaternion
+        # Calculate the approx quaternion for rotation in euclidean space
         assembly_transform.orientation = self.calc_approx_quat_from_matrix(rot_matrix)
 
         #self.logger.info(f"Assembly transformation is: {assembly_transform.__str__()}")
@@ -1301,7 +1005,13 @@ class AssemblyManagerScene():
             self.logger.info(f"Max iterations reached ({max_iter}). Measurement inacurate.")
         else:
             self.logger.info(f"Iterations ran: {result.nit}")
-        self.logger.info(f"Residual error: {result.fun}")
+        if result.fun >1.0:
+            self.logger.warn(f"Residual error of rotation calculation is very high: {result.fun}. You should not assemble the components.")
+        elif result.fun >0.5:
+            self.logger.warn(f"Residual error of rotation calculation is high: {result.fun}. Make sure you identified all necessary assembly frames.")
+        else:
+            self.logger.info(f"Calculation has low residual error: {result.fun}! This is a good sign. You can assemble the components.")
+        
         self.logger.info(f"Result (deg) is: \nalpha: {result.x[0]*(180/np.pi)}, \nbeta: {result.x[1]*(180/np.pi)}, \ngamma:{result.x[2]*(180/np.pi)}")
 
         quaternion = euler_to_quaternion(   roll   = result.x[2],

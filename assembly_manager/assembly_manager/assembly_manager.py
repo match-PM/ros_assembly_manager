@@ -103,7 +103,7 @@ class AssemblyManagerNode(Node):
 
     def spawn_component(self, SpawnRequest: ami_srv.SpawnObject.Request, call_async = False)->bool:
 
-        self.logger.info('Spawn comonent request received!')
+        self.logger.info('Spawn component request received!')
         object_publish_executed =  None
         moveit_spawner_executed =  None
         object_publish_success = False
@@ -167,33 +167,42 @@ class AssemblyManagerNode(Node):
         return response
         
     def spawn_component_from_description(self, request: ami_srv.SpawnComponentFromDescription.Request, component_name_override = None)->bool:
-
         self.logger.info("Spawning component from description!")
         try:
+            file_data = None
             # Load the JSON data from the file
             with open(request.file_path, 'r') as file:
                 file_data = json.load(file)
 
         except FileNotFoundError:
             self.logger.error(f"Error: File not found at path '{request.file_path}'.")
+            return False
 
         except json.JSONDecodeError as e:
             self.logger.error(f"Error decoding JSON: {e}")
+            return False
 
         except Exception as e:
             self.logger.error(f"An unexpected error occurred: {e}")
+            return False
         try:
-            comp_name = file_data.get("name")
+            if component_name_override is not None:
+                comp_name = component_name_override
+            elif request.component_name_override != "":
+                comp_name = request.component_name_override
+            else:
+                comp_name = file_data.get("name")
             description = file_data.get("description")
             guid = file_data.get("guid")
             type = file_data.get("type")
             save_date = file_data.get("saveDate")
-            cad_path = file_data.get("cad_path")
-            mounting_references = file_data.get("mounting_description").get("mounting_references")
+            cad_path = file_data.get("cadPath")
+
+            mounting_references = file_data.get("mountingDescription").get("mountingReferences")
             ref_frames = mounting_references.get("ref_frames")
-            ref_axis = mounting_references.get("ref_axis")
+            ref_axis = mounting_references.get("ref_axes")
             ref_planes = mounting_references.get("ref_planes")
-            doc_units = file_data.get("document_units")
+            doc_units = file_data.get("documentUnits")
             if doc_units == "mm":
                 multiplier = 0.001
             elif doc_units == "cm":
@@ -203,19 +212,17 @@ class AssemblyManagerNode(Node):
             else:
                 multiplier = 1
 
-            self.logger.info(f"Spawning compontnet {comp_name}!")
             spawn_request = ami_srv.SpawnObject.Request()
             spawn_request.obj_name = comp_name
-            spawn_request.parent_frame = mounting_references.get("spawning_origin")
-
+            spawn_request.parent_frame = mounting_references.get("spawningOrigin")
             spawn_request.cad_data = f"{os.path.dirname(request.file_path)}/{cad_path}"
-            spawn_request.translation.x = mounting_references.get("spawning_transformation").get("position").get("x")*multiplier
-            spawn_request.translation.y = mounting_references.get("spawning_transformation").get("position").get("y")*multiplier
-            spawn_request.translation.z = mounting_references.get("spawning_transformation").get("position").get("z")*multiplier
-            spawn_request.rotation.w = mounting_references.get("spawning_transformation").get("orientation").get("w")
-            spawn_request.rotation.x = mounting_references.get("spawning_transformation").get("orientation").get("x")
-            spawn_request.rotation.y = mounting_references.get("spawning_transformation").get("orientation").get("y")
-            spawn_request.rotation.z = mounting_references.get("spawning_transformation").get("orientation").get("z")
+            spawn_request.translation.x = mounting_references.get("spawningTransformation").get("translation").get("X")*multiplier
+            spawn_request.translation.y = mounting_references.get("spawningTransformation").get("translation").get("Y")*multiplier
+            spawn_request.translation.z = mounting_references.get("spawningTransformation").get("translation").get("Z")*multiplier
+            spawn_request.rotation.w = mounting_references.get("spawningTransformation").get("rotation").get("W")
+            spawn_request.rotation.x = mounting_references.get("spawningTransformation").get("rotation").get("X")
+            spawn_request.rotation.y = mounting_references.get("spawningTransformation").get("rotation").get("Y")
+            spawn_request.rotation.z = mounting_references.get("spawningTransformation").get("rotation").get("Z")
             spawn_success = self.spawn_component(spawn_request)
 
             if not spawn_success:
@@ -228,13 +235,13 @@ class AssemblyManagerNode(Node):
                 create_ref_frame_request = ami_srv.CreateRefFrame.Request()
                 create_ref_frame_request.ref_frame.frame_name = f'{comp_name}_{ref_frame.get("name")}'
                 create_ref_frame_request.ref_frame.parent_frame = comp_name
-                create_ref_frame_request.ref_frame.pose.position.x = ref_frame.get("transformation").get("position").get("x")*multiplier
-                create_ref_frame_request.ref_frame.pose.position.y = ref_frame.get("transformation").get("position").get("y")*multiplier
-                create_ref_frame_request.ref_frame.pose.position.z = ref_frame.get("transformation").get("position").get("z")*multiplier
-                create_ref_frame_request.ref_frame.pose.orientation.w = ref_frame.get("transformation").get("orientation").get("w")
-                create_ref_frame_request.ref_frame.pose.orientation.x = ref_frame.get("transformation").get("orientation").get("x")
-                create_ref_frame_request.ref_frame.pose.orientation.y = ref_frame.get("transformation").get("orientation").get("y")
-                create_ref_frame_request.ref_frame.pose.orientation.z = ref_frame.get("transformation").get("orientation").get("z")
+                create_ref_frame_request.ref_frame.pose.position.x = ref_frame.get("transformation").get("translation").get("X")*multiplier
+                create_ref_frame_request.ref_frame.pose.position.y = ref_frame.get("transformation").get("translation").get("Y")*multiplier
+                create_ref_frame_request.ref_frame.pose.position.z = ref_frame.get("transformation").get("translation").get("Z")*multiplier
+                create_ref_frame_request.ref_frame.pose.orientation.w = ref_frame.get("transformation").get("rotation").get("W")
+                create_ref_frame_request.ref_frame.pose.orientation.x = ref_frame.get("transformation").get("rotation").get("X")
+                create_ref_frame_request.ref_frame.pose.orientation.y = ref_frame.get("transformation").get("rotation").get("Y")
+                create_ref_frame_request.ref_frame.pose.orientation.z = ref_frame.get("transformation").get("rotation").get("Z")
                 constraint_dict = ref_frame.get("constraints",{})
                 constraint_dict['units'] = doc_units
                 constraint_dict = {"constraints": constraint_dict}
@@ -249,7 +256,7 @@ class AssemblyManagerNode(Node):
             for axis in ref_axis:
                 create_axis_request = ami_srv.CreateAxis.Request()
                 create_axis_request.axis.axis_name = f'{comp_name}_{axis.get("name")}'
-                for index, frame in enumerate(axis.get("ref_frame_names")):
+                for index, frame in enumerate(axis.get("refPointNames")):
                     if not frame == "":
                         frame = f'{comp_name}_{frame}'
                         create_axis_request.axis.point_names[index] = frame
@@ -262,17 +269,17 @@ class AssemblyManagerNode(Node):
             for plane in ref_planes:
                 create_plane_request = ami_srv.CreateRefPlane.Request()
                 create_plane_request.ref_plane.ref_plane_name = f'{comp_name}_{plane.get("name")}'
-                for index, frame in enumerate(plane.get("ref_frame_names")):
+                for index, frame in enumerate(plane.get("refPointNames")):
                     if not frame == "":
                         frame = f'{comp_name}_{frame}'
                         create_plane_request.ref_plane.point_names[index] = frame
-                for index, axis in enumerate(plane.get("ref_axis_names")):
+                for index, axis in enumerate(plane.get("refAxisNames")):
                     if not axis == "":
                         axis = f'{comp_name}_{axis}'
                         create_plane_request.ref_plane.axis_names[index] = axis
-                create_plane_request.ref_plane.ideal_norm_vector.x = plane.get("ideal_norm_vector").get("x")
-                create_plane_request.ref_plane.ideal_norm_vector.y = plane.get("ideal_norm_vector").get("y")
-                create_plane_request.ref_plane.ideal_norm_vector.z = plane.get("ideal_norm_vector").get("z")
+                create_plane_request.ref_plane.ideal_norm_vector.x = plane.get("normalVector").get("X")
+                create_plane_request.ref_plane.ideal_norm_vector.y = plane.get("normalVector").get("Y")
+                create_plane_request.ref_plane.ideal_norm_vector.z = plane.get("normalVector").get("Z")
                 spawn_plane_success = self.create_ref_plane(create_plane_request)
                 if not spawn_plane_success:
                     self.logger.error(f"Error while spawning plane {create_plane_request.ref_plane.ref_plane_name}!")
@@ -280,7 +287,7 @@ class AssemblyManagerNode(Node):
 
             return True
         except Exception as e:
-            self.logger.error(f"Error while spawning component from description: {e}")
+            self.logger.error(f"Error while spawning component '{comp_name}' from description: {e}")
             return False
 
 
@@ -301,49 +308,62 @@ class AssemblyManagerNode(Node):
             self.logger.error(f"An unexpected error occurred: {e}")
         try:
             type = file_data.get("type")
-            mounting_description = file_data.get("mounting_description")
-            
+            mounting_description = file_data.get("mountingDescription")
+
             # Check if file is an assembly file
-            if type != "assembly":
+            if type != "Assembly":
                 self.logger.error(f"Error: File is not an assembly file!")
                 response.success = False
                 return response
             
+            # Get document units
+            doc_units = file_data.get("documentUnits")
+            if doc_units == "mm":
+                multiplier = 0.001
+            elif doc_units == "cm":
+                multiplier = 0.01
+            elif doc_units == "um":
+                multiplier = 0.000001
+            else:
+                multiplier = 1
+
             # Spawn components
             if request.spawn_components:
-                for component in file_data.get("mounting_description").get("components"):
+                for component in file_data.get("mountingDescription").get("components"):
                     component_name = component.get("name")
                     directory, filename = os.path.split(request.file_path)
-                    component_path = os.path.join(directory.replace("Assemblies", "Components"), f"{component_name}.json")
+                    component_path = os.path.join(directory.replace("assemblies", "components"), f"{component_name[:-2]}.json")
                     request = ami_srv.SpawnComponentFromDescription.Request()
+                    self.logger.warn(f"Spawning component from descriptionddddddddddd: {component_path}")
                     request.file_path = component_path
-                    spawn_success = self.spawn_component_from_description(request)
+                    spawn_success = self.spawn_component_from_description(request, component_name_override = component_name)
                     if not spawn_success:
                         self.logger.error(f"Error while spawning component from description!")
                         response.success = False
                         return response
                     
             # Create assembly instructions
-            assembly_constraints = mounting_description.get("assembly_constraints")
+            assembly_constraints = mounting_description.get("assemblyConstraints")
 
             for constraint in assembly_constraints:
                 component_1 = constraint.get("component_1")
                 component_2 = constraint.get("component_2")
                 create_assembly_instruction_request = ami_srv.CreateAssemblyInstructions.Request()
-                create_assembly_instruction_request.assembly_instruction.id =                                       constraint.get("description").get("name")
-                create_assembly_instruction_request.assembly_instruction.component_1_is_moving_part =               constraint.get("move_component_1")
-                create_assembly_instruction_request.assembly_instruction.plane_match_1.plane_name_component_1 =     f'{component_1}_{constraint.get("description").get("plane_match_1").get("plane_name_component_1")}'
-                create_assembly_instruction_request.assembly_instruction.plane_match_1.plane_name_component_2 =     f'{component_2}_{constraint.get("description").get("plane_match_1").get("plane_name_component_2")}'
-                create_assembly_instruction_request.assembly_instruction.plane_match_1.plane_offset =               constraint.get("description").get("plane_match_1").get("plane_offset")
-                create_assembly_instruction_request.assembly_instruction.plane_match_1.inv_normal_vector =          constraint.get("description").get("plane_match_1").get("inv_normal_vector")
-                create_assembly_instruction_request.assembly_instruction.plane_match_2.plane_name_component_1 =     f'{component_1}_{constraint.get("description").get("plane_match_2").get("plane_name_component_1")}'
-                create_assembly_instruction_request.assembly_instruction.plane_match_2.plane_name_component_2 =     f'{component_2}_{constraint.get("description").get("plane_match_2").get("plane_name_component_2")}'
-                create_assembly_instruction_request.assembly_instruction.plane_match_2.plane_offset =               constraint.get("description").get("plane_match_2").get("plane_offset")
-                create_assembly_instruction_request.assembly_instruction.plane_match_2.inv_normal_vector =          constraint.get("description").get("plane_match_2").get("inv_normal_vector")
-                create_assembly_instruction_request.assembly_instruction.plane_match_3.plane_name_component_1 =     f'{component_1}_{constraint.get("description").get("plane_match_3").get("plane_name_component_1")}'
-                create_assembly_instruction_request.assembly_instruction.plane_match_3.plane_name_component_2 =     f'{component_2}_{constraint.get("description").get("plane_match_3").get("plane_name_component_2")}'
-                create_assembly_instruction_request.assembly_instruction.plane_match_3.plane_offset =               constraint.get("description").get("plane_match_3").get("plane_offset")
-                create_assembly_instruction_request.assembly_instruction.plane_match_3.inv_normal_vector =          constraint.get("description").get("plane_match_3").get("inv_normal_vector")
+                create_assembly_instruction_request.assembly_instruction.id =                                       constraint.get("name")
+                response.instruction_id = create_assembly_instruction_request.assembly_instruction.id
+                create_assembly_instruction_request.assembly_instruction.component_1_is_moving_part =               constraint.get("moveComponent_1")
+                create_assembly_instruction_request.assembly_instruction.plane_match_1.plane_name_component_1 =     f'{component_1}_{constraint.get("description").get("planeMatch_1").get("planeNameComponent_1")}'
+                create_assembly_instruction_request.assembly_instruction.plane_match_1.plane_name_component_2 =     f'{component_2}_{constraint.get("description").get("planeMatch_1").get("planeNameComponent_2")}'
+                create_assembly_instruction_request.assembly_instruction.plane_match_1.plane_offset =               constraint.get("description").get("planeMatch_1").get("planeOffset") * multiplier
+                create_assembly_instruction_request.assembly_instruction.plane_match_1.inv_normal_vector =          constraint.get("description").get("planeMatch_1").get("invertNormalVector")
+                create_assembly_instruction_request.assembly_instruction.plane_match_2.plane_name_component_1 =     f'{component_1}_{constraint.get("description").get("planeMatch_2").get("planeNameComponent_1")}'
+                create_assembly_instruction_request.assembly_instruction.plane_match_2.plane_name_component_2 =     f'{component_2}_{constraint.get("description").get("planeMatch_2").get("planeNameComponent_2")}'
+                create_assembly_instruction_request.assembly_instruction.plane_match_2.plane_offset =               constraint.get("description").get("planeMatch_2").get("planeOffset") * multiplier
+                create_assembly_instruction_request.assembly_instruction.plane_match_2.inv_normal_vector =          constraint.get("description").get("planeMatch_2").get("invertNormalVector")
+                create_assembly_instruction_request.assembly_instruction.plane_match_3.plane_name_component_1 =     f'{component_1}_{constraint.get("description").get("planeMatch_3").get("planeNameComponent_1")}'
+                create_assembly_instruction_request.assembly_instruction.plane_match_3.plane_name_component_2 =     f'{component_2}_{constraint.get("description").get("planeMatch_3").get("planeNameComponent_2")}'
+                create_assembly_instruction_request.assembly_instruction.plane_match_3.plane_offset =               constraint.get("description").get("planeMatch_3").get("planeOffset") * multiplier
+                create_assembly_instruction_request.assembly_instruction.plane_match_3.inv_normal_vector =          constraint.get("description").get("planeMatch_3").get("invertNormalVector")
                 create_success = self.create_assembly_instructions(create_assembly_instruction_request)
                 if not create_success:
                     self.logger.error(f"Error while creating assembly instruction {create_assembly_instruction_request.assembly_instruction.id}!")
