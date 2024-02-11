@@ -23,10 +23,12 @@ from assembly_scene_publisher.py_modules.geometry_type_functions import (vector3
                                                                             get_transform_matrix_from_tf,
                                                                             get_rotation_matrix_from_tf,
                                                                             transform_matrix_to_pose,
-                                                                            euler_to_quaternion)
+                                                                            euler_to_quaternion,
+                                                                            SCALE_FACTOR)
 
 from assembly_scene_publisher.py_modules.tf_functions import (adapt_transform_for_new_parent_frame,
                                                               get_transform_for_frame_in_world,
+                                                              get_transform_for_frame,
                                                                 get_plane_from_frame_names,
                                                                 get_line3d_from_frame_names,
                                                                 publish_transform_tf_static)
@@ -439,7 +441,7 @@ class AssemblyManagerScene():
                     logger_message = f"Plane '{plane.ref_plane_name}' created! Plane is defined by axis '{plane.axis_names[0]}' and point '{plane.point_names[0]}'."
 
             except ValueError as e:
-                self.logger.error(f"Given frames do not form a valid plane. Plane '{plane.ref_plane_name}' could not be created!")
+                self.logger.error(f"Given frames do not form a valid plane. Plane '{plane.ref_plane_name}' could not be created! Error {e}")
                 return False
 
             list_to_append_plane = []
@@ -731,7 +733,7 @@ class AssemblyManagerScene():
 
         return True
     
-    def _get_plane_obj_from_scene(self, plane_name:str)-> sp.Plane:
+    def _get_plane_obj_from_scene(self, plane_name:str, parent_frame:str = None)-> sp.Plane:
         plane_msg = self.get_plane_from_scene(plane_name)
         plane_msg: ami_msg.Plane
         if (plane_msg.axis_names[0]=='' and
@@ -739,18 +741,19 @@ class AssemblyManagerScene():
             plane_msg.point_names[1]!='' and 
             plane_msg.point_names[2]!=''):
             
-            plane = get_plane_from_frame_names(frames = plane_msg.point_names , tf_buffer=self.tf_buffer)
+            plane = get_plane_from_frame_names(frames = plane_msg.point_names , tf_buffer=self.tf_buffer, parent_frame=parent_frame)
 
         elif (plane_msg.axis_names[0]!='' and
             plane_msg.point_names[0]!='' and 
             plane_msg.point_names[1]=='' and 
             plane_msg.point_names[2]==''):
-            plane = self.get_plane_from_axis_and_frame(plane_msg.axis_names[0], plane_msg.point_names[0])
+            plane = self.get_plane_from_axis_and_frame(plane_msg.axis_names[0], plane_msg.point_names[0],parent_frame=parent_frame)
         else:
             plane = None
 
         return plane
     
+
     def get_assembly_instruction_by_id(self, instruction_id:str)->ami_msg.AssemblyInstruction:
         for instruction in self.scene.assembly_instructions:
             instruction: ami_msg.AssemblyInstruction
@@ -765,7 +768,57 @@ class AssemblyManagerScene():
         else:
             assembly_transform = self.calculate_assembly_transformation(instruction)
             return assembly_transform
+    
+    def calculate_plane_intersections(self, instruction: ami_msg.AssemblyInstruction)-> tuple[Vector3, Vector3]:
+        """
+        This function calculates the intersection point of the given planes and returns the intersection point as a Vector3.
+
+        """
+        component_1 = self.get_parent_frame_for_ref_frame(self.get_plane_from_scene(instruction.plane_match_1.plane_name_component_1).point_names[0])
+        component_2 = self.get_parent_frame_for_ref_frame(self.get_plane_from_scene(instruction.plane_match_1.plane_name_component_2).point_names[0])
+
+        obj_1_plane_1 = self._get_plane_obj_from_scene(instruction.plane_match_1.plane_name_component_1, parent_frame=component_1)
+        obj_1_plane_2 = self._get_plane_obj_from_scene(instruction.plane_match_2.plane_name_component_1, parent_frame=component_1)
+        obj_1_plane_3 = self._get_plane_obj_from_scene(instruction.plane_match_3.plane_name_component_1, parent_frame=component_1)
         
+        obj_2_plane_1 = self._get_plane_obj_from_scene(instruction.plane_match_1.plane_name_component_2, parent_frame=component_2)
+        obj_2_plane_2 = self._get_plane_obj_from_scene(instruction.plane_match_2.plane_name_component_2, parent_frame=component_2)
+        obj_2_plane_3 = self._get_plane_obj_from_scene(instruction.plane_match_3.plane_name_component_2, parent_frame=component_2)
+
+
+        comp_1_mate_plane_intersection: Vector3 = point3D_to_vector3(get_point_of_plane_intersection(obj_1_plane_1, obj_1_plane_2, obj_1_plane_3))
+
+        comp_2_mate_plane_intersection: Vector3 = point3D_to_vector3(get_point_of_plane_intersection(obj_2_plane_1, obj_2_plane_2, obj_2_plane_3))
+
+        comp_1_mate_plane_intersection.x = comp_1_mate_plane_intersection.x/SCALE_FACTOR
+        comp_1_mate_plane_intersection.y = comp_1_mate_plane_intersection.y/SCALE_FACTOR
+        comp_1_mate_plane_intersection.z = comp_1_mate_plane_intersection.z/SCALE_FACTOR
+
+        comp_2_mate_plane_intersection.x = comp_2_mate_plane_intersection.x/SCALE_FACTOR
+        comp_2_mate_plane_intersection.y = comp_2_mate_plane_intersection.y/SCALE_FACTOR
+        comp_2_mate_plane_intersection.z = comp_2_mate_plane_intersection.z/SCALE_FACTOR
+
+        transform_component_1 = get_transform_for_frame_in_world(component_1, self.tf_buffer)
+
+        transform_component_2 = get_transform_for_frame_in_world(component_2, self.tf_buffer)
+
+        # Transform the intersection points to the world frame
+        comp_1_mate_plane_intersection = matrix_multiply_vector(get_rotation_matrix_from_tf(transform_component_1), vector3_to_matrix1x3(comp_1_mate_plane_intersection))
+        comp_2_mate_plane_intersection = matrix_multiply_vector(get_rotation_matrix_from_tf(transform_component_2), vector3_to_matrix1x3(comp_2_mate_plane_intersection))
+
+        comp_1_mate_plane_intersection.x += transform_component_1.transform.translation.x
+        comp_1_mate_plane_intersection.y += transform_component_1.transform.translation.y
+        comp_1_mate_plane_intersection.z += transform_component_1.transform.translation.z
+
+        comp_2_mate_plane_intersection.x += transform_component_2.transform.translation.x
+        comp_2_mate_plane_intersection.y += transform_component_2.transform.translation.y
+        comp_2_mate_plane_intersection.z += transform_component_2.transform.translation.z
+
+        self.logger.error(f"Glas_mate_plane_intersection: {comp_1_mate_plane_intersection}")
+        self.logger.error(f"UFC_mate_plane_intersection: {comp_2_mate_plane_intersection}")
+
+        return (comp_1_mate_plane_intersection, comp_2_mate_plane_intersection)
+    
     def calculate_assembly_transformation(self, instruction:ami_msg.AssemblyInstruction)->Pose:
         obj_1_plane_1 = self._get_plane_obj_from_scene(instruction.plane_match_1.plane_name_component_1)
         obj_1_plane_2 = self._get_plane_obj_from_scene(instruction.plane_match_2.plane_name_component_1)
@@ -773,13 +826,26 @@ class AssemblyManagerScene():
         obj_1_name = self.get_parent_frame_for_ref_frame(self.get_plane_from_scene(instruction.plane_match_1.plane_name_component_1).point_names[0])
         obj_2_name = self.get_parent_frame_for_ref_frame(self.get_plane_from_scene(instruction.plane_match_1.plane_name_component_2).point_names[0])
         
-        obj_1_mate_plane_intersection: Vector3 = point3D_to_vector3(get_point_of_plane_intersection(obj_1_plane_1, obj_1_plane_2, obj_1_plane_3))
+        #obj_1_mate_plane_intersection: Vector3 = point3D_to_vector3(get_point_of_plane_intersection(obj_1_plane_1, obj_1_plane_2, obj_1_plane_3))
 
         obj_2_plane_1 = self._get_plane_obj_from_scene(instruction.plane_match_1.plane_name_component_2)
         obj_2_plane_2 = self._get_plane_obj_from_scene(instruction.plane_match_2.plane_name_component_2)
         obj_2_plane_3 = self._get_plane_obj_from_scene(instruction.plane_match_3.plane_name_component_2)
 
-        obj_2_mate_plane_intersection: Vector3 = point3D_to_vector3(get_point_of_plane_intersection(obj_2_plane_1, obj_2_plane_2, obj_2_plane_3))
+        self.logger.error(f"Glas - Plane 1: {obj_1_plane_1}")
+        self.logger.error(f"Glas - Plane 2: {obj_1_plane_2}")
+        self.logger.error(f"Glas - Plane 3: {obj_1_plane_3}")
+
+        self.logger.error(f"UFC - Plane 1: {obj_2_plane_1}")
+        self.logger.error(f"UFC - Plane 2: {obj_2_plane_2}")
+        self.logger.error(f"UFC - Plane 3: {obj_2_plane_3}")
+
+        #obj_2_mate_plane_intersection: Vector3 = point3D_to_vector3(get_point_of_plane_intersection(obj_2_plane_1, obj_2_plane_2, obj_2_plane_3))
+
+        obj_1_mate_plane_intersection, obj_2_mate_plane_intersection = self.calculate_plane_intersections(instruction)
+
+        self.logger.error(f"Glas_mate_plane_intersection: {obj_1_mate_plane_intersection}")
+        self.logger.error(f"UFC_mate_plane_intersection: {obj_2_mate_plane_intersection}")
 
         assembly_transform = Pose()
 
@@ -873,6 +939,7 @@ class AssemblyManagerScene():
         basis_obj_1: sp.Matrix = sp.Matrix.hstack(bvec_obj_1_1, bvec_obj_1_2, bvec_obj_1_3)
         basis_obj_2: sp.Matrix = sp.Matrix.hstack(bvec_obj_2_1, bvec_obj_2_2, bvec_obj_2_3)         
         
+        #self.logger.warn(f"Basis obj 1: {str(obj_1_mate_plane_intersection.y)}")
         # Add the translation to the assembly transformation
         obj_1_mate_plane_intersection.x += float(bvec_obj_1_1[0]*instruction.plane_match_1.plane_offset)
         obj_1_mate_plane_intersection.y += float(bvec_obj_1_1[1]*instruction.plane_match_1.plane_offset)
@@ -885,7 +952,8 @@ class AssemblyManagerScene():
         obj_1_mate_plane_intersection.x += float(bvec_obj_1_3[0]*instruction.plane_match_3.plane_offset)
         obj_1_mate_plane_intersection.y += float(bvec_obj_1_3[1]*instruction.plane_match_3.plane_offset)
         obj_1_mate_plane_intersection.z += float(bvec_obj_1_3[2]*instruction.plane_match_3.plane_offset)
-    
+        #self.logger.warn(f"Basis obj 1: {str(obj_1_mate_plane_intersection.y)}")
+
         if instruction.component_1_is_moving_part:
             moving_component_plane_intersection = obj_1_mate_plane_intersection
             static_component_plane_intersection = obj_2_mate_plane_intersection
@@ -910,8 +978,8 @@ class AssemblyManagerScene():
         #self.logger.warn(f"Eigenvalues Rot: {rot_matrix.eigenvals()}")
         #self.logger.warn(f"Det Rot: {det_rot_matrix}")
                
-        if not round(det_rot_matrix, 9) == 1.0:
-            self.logger.warn(f"Invalid plane selection")
+        #if not round(det_rot_matrix, 9) == 1.0:
+            #self.logger.warn(f"Invalid plane selection")
             #return False
 
         # Calculate the approx quaternion for rotation in euclidean space
@@ -1054,14 +1122,20 @@ class AssemblyManagerScene():
                     break
         return axis_msg
     
-    def get_plane_from_axis_and_frame(self, axis_name: str, frame_name: str)-> sp.Plane:
+    def get_plane_from_axis_and_frame(self, axis_name: str, frame_name: str, parent_frame:str = None)-> sp.Plane:
         axis_msg = self.get_axis_from_scene(axis_name)
 
-        line3d:sp.Line3D = get_line3d_from_frame_names(axis_msg.point_names, tf_buffer=self.tf_buffer, logger=self.logger)
+        line3d:sp.Line3D = get_line3d_from_frame_names(axis_msg.point_names, tf_buffer=self.tf_buffer, parent_frame=parent_frame, logger=self.logger)
 
-        t_point:TransformStamped = get_transform_for_frame_in_world(frame_name, self.tf_buffer, logger=self.logger)
+        if parent_frame is None:
+            t_point:TransformStamped = get_transform_for_frame_in_world(frame_name, self.tf_buffer, logger=self.logger)
+        else:
+            t_point:TransformStamped = get_transform_for_frame(frame_name, parent_frame, self.tf_buffer, logger=self.logger)
+
         point = get_point_from_ros_obj(t_point.transform.translation)
 
         plane = sp.Plane(point, normal_vector = line3d.direction)
 
         return plane
+    
+

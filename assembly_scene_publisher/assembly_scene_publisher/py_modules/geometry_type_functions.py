@@ -7,6 +7,8 @@ import numpy as np
 from typing import Union
 from scipy.spatial.transform import Rotation as R
 
+SCALE_FACTOR = 100.0
+
 def vector3_to_matrix1x4(vector:Vector3)->sp.Matrix:
     return sp.Matrix([[vector.x], [vector.y], [vector.z], [1.0]])
 
@@ -50,12 +52,18 @@ def get_point_from_ros_obj(position: Union[Vector3, Point]) -> sp.Point3D:
     
     if isinstance(position, Vector3):
         position:Vector3
-        point = sp.Point3D(position.x, position.y, position.z, evaluate=False)
+        #point = sp.Point3D(position.x, position.y, position.z)
+        #point = sp.Point3D(position.x, position.y, position.z, evaluate=False)
+        point = sp.Point3D(position.x*SCALE_FACTOR, position.y*SCALE_FACTOR, position.z*SCALE_FACTOR, evaluate=False)
+
     elif isinstance(position, Point):
         position:Point
-        point = sp.Point3D(position.x, position.y, position.z, evaluate=False)
+        #point = sp.Point3D(position.x, position.y, position.z, evaluate=False)
+        point = sp.Point3D(position.x*SCALE_FACTOR, position.y*SCALE_FACTOR, position.z*SCALE_FACTOR, evaluate=False)
+        #point = sp.Point3D(position.x, position.y, position.z)
+
     else:
-        raise ValueError
+        raise ValueError("Invalid input type in method 'get_point_from_ros_obj'!")
     
     return point
 
@@ -149,6 +157,36 @@ def euler_to_quaternion(roll:float, pitch:float, yaw:float)-> Quaternion:
     result.y = y
     result.z = z
     return result
+
+def quaternion_to_euler(quaternion:Quaternion)-> tuple:
+    """
+    Convert quaternion to Euler angles.
+
+    Parameters:
+    - quaternion: Quaternion
+
+    Returns:
+    - tuple(roll, pitch, yaw)
+    """
+    x = quaternion.x
+    y = quaternion.y
+    z = quaternion.z
+    w = quaternion.w
+
+    t0 = 2 * (w * x + y * z)
+    t1 = 1 - 2 * (x * x + y * y)
+    roll = np.arctan2(t0, t1)
+
+    t2 = 2 * (w * y - z * x)
+    t2 = 1 if t2 > 1 else t2
+    t2 = -1 if t2 < -1 else t2
+    pitch = np.arcsin(t2)
+
+    t3 = 2 * (w * z + x * y)
+    t4 = 1 - 2 * (y * y + z * z)
+    yaw = np.arctan2(t3, t4)
+
+    return (roll, pitch, yaw)
 
 def euler_to_matrix(angles:list):
     Rz = sp.Matrix([[sp.cos(angles[2]), -1*sp.sin(angles[2]), 0],
