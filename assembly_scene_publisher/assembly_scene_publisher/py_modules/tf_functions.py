@@ -18,12 +18,12 @@ ROUND_FACTOR = 9
 
 def adapt_transform_for_new_parent_frame(child_frame, new_parent_frame, tf_buffer: Buffer):
     # this function adapts the tf for parent_frame changes
-    t:TransformStamped = tf_buffer.lookup_transform(child_frame, new_parent_frame,rclpy.time.Time())
+    t:TransformStamped = tf_buffer.lookup_transform(new_parent_frame, child_frame,rclpy.time.Time())
     trans = Vector3()
     rot = Quaternion()
-    trans.x = -t.transform.translation.x
-    trans.y = -t.transform.translation.y
-    trans.z = -t.transform.translation.z
+    trans.x = t.transform.translation.x
+    trans.y = t.transform.translation.y
+    trans.z = t.transform.translation.z
 
     rot.x = t.transform.rotation.x
     rot.y = t.transform.rotation.y

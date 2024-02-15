@@ -17,7 +17,7 @@ import os
 import json
 import ast
 from functools import partial
-
+import time
 
 class AssemblyManagerNode(Node):
     def __init__(self):
@@ -230,7 +230,9 @@ class AssemblyManagerNode(Node):
                 return False
 
             self.logger.info(f"Start processing ref frames!")
-            
+            # This is needed for tf to update
+            time.sleep(1.5)
+
             for ref_frame in ref_frames:
                 create_ref_frame_request = ami_srv.CreateRefFrame.Request()
                 create_ref_frame_request.ref_frame.frame_name = f'{comp_name}_{ref_frame.get("name")}'
