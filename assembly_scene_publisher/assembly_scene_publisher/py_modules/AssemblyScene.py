@@ -814,8 +814,8 @@ class AssemblyManagerScene():
         comp_2_mate_plane_intersection.y += transform_component_2.transform.translation.y
         comp_2_mate_plane_intersection.z += transform_component_2.transform.translation.z
 
-        self.logger.error(f"Glas_mate_plane_intersection: {comp_1_mate_plane_intersection}")
-        self.logger.error(f"UFC_mate_plane_intersection: {comp_2_mate_plane_intersection}")
+        self.logger.debug(f"Debug-Info: Plane intersection component 1: {comp_1_mate_plane_intersection}")
+        self.logger.debug(f"Debug-Info: Plane intersection component 2: {comp_2_mate_plane_intersection}")
 
         return (comp_1_mate_plane_intersection, comp_2_mate_plane_intersection)
     
@@ -832,20 +832,17 @@ class AssemblyManagerScene():
         obj_2_plane_2 = self._get_plane_obj_from_scene(instruction.plane_match_2.plane_name_component_2)
         obj_2_plane_3 = self._get_plane_obj_from_scene(instruction.plane_match_3.plane_name_component_2)
 
-        self.logger.error(f"Glas - Plane 1: {obj_1_plane_1}")
-        self.logger.error(f"Glas - Plane 2: {obj_1_plane_2}")
-        self.logger.error(f"Glas - Plane 3: {obj_1_plane_3}")
+        self.logger.debug(f"Glas - Plane 1: {obj_1_plane_1}")
+        self.logger.debug(f"Glas - Plane 2: {obj_1_plane_2}")
+        self.logger.debug(f"Glas - Plane 3: {obj_1_plane_3}")
 
-        self.logger.error(f"UFC - Plane 1: {obj_2_plane_1}")
-        self.logger.error(f"UFC - Plane 2: {obj_2_plane_2}")
-        self.logger.error(f"UFC - Plane 3: {obj_2_plane_3}")
+        self.logger.debug(f"UFC - Plane 1: {obj_2_plane_1}")
+        self.logger.debug(f"UFC - Plane 2: {obj_2_plane_2}")
+        self.logger.debug(f"UFC - Plane 3: {obj_2_plane_3}")
 
         #obj_2_mate_plane_intersection: Vector3 = point3D_to_vector3(get_point_of_plane_intersection(obj_2_plane_1, obj_2_plane_2, obj_2_plane_3))
 
         obj_1_mate_plane_intersection, obj_2_mate_plane_intersection = self.calculate_plane_intersections(instruction)
-
-        self.logger.error(f"Glas_mate_plane_intersection: {obj_1_mate_plane_intersection}")
-        self.logger.error(f"UFC_mate_plane_intersection: {obj_2_mate_plane_intersection}")
 
         assembly_transform = Pose()
 
@@ -905,7 +902,8 @@ class AssemblyManagerScene():
 
         self.logger.debug(f"All normal vectors obj 1 are: {bvec_obj_1_1.evalf()}, {bvec_obj_1_2.evalf()}, {bvec_obj_1_3.evalf}")
         self.logger.debug(f"All normal vectors obj2 are: {bvec_obj_2_1.evalf()}, {bvec_obj_2_2.evalf()}, {bvec_obj_2_3.evalf}")
-
+        self.logger.debug(f"All normal vectors obj2 are: {comp_2_plane_1_ideal_norm_vector}, {comp_2_plane_2_ideal_norm_vector}, {comp_2_plane_3_ideal_norm_vector}")
+        
         # get the multiplicator for the normal vectors calculated from the planes and match their direction to the ideal normal vectors
         mult_1 = norm_vec_direction(bvec_obj_1_1,comp_1_plane_1_ideal_norm_vector, logger=self.logger)
         mult_2 = norm_vec_direction(bvec_obj_1_2,comp_1_plane_2_ideal_norm_vector, logger=self.logger)
@@ -973,6 +971,7 @@ class AssemblyManagerScene():
             rot_matrix = basis_obj_1 * basis_obj_2.inv()
 
         det_rot_matrix= rot_matrix.det()
+
         #self.logger.warn(f"Rot obj 2 to 1: {rot_matrix.evalf()}")
 
         #self.logger.warn(f"Eigenvalues Rot: {rot_matrix.eigenvals()}")

@@ -8,7 +8,6 @@ from typing import Union
 from scipy.spatial.transform import Rotation as R
 
 SCALE_FACTOR = 100.0
-
 def vector3_to_matrix1x4(vector:Vector3)->sp.Matrix:
     return sp.Matrix([[vector.x], [vector.y], [vector.z], [1.0]])
 

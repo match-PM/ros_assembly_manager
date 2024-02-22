@@ -23,9 +23,9 @@ class TolMeasurment():
         self.random_max_y = 0.002
         self.random_max_z = 0.002
 
-        self.iterations = 10
+        self.iterations = 100
         success = True
-        #success = self.execute_n_iterations(self.iterations)
+        success = self.execute_n_iterations(self.iterations)
         if success:
             self.assess_results()
             print("Calculations done!!!")

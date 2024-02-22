@@ -111,11 +111,13 @@ def norm_vec_direction(norm_vector_1: sp.Matrix, norm_vector_2: Union[sp.Matrix,
     angle_rad = calc_angle_between_vectors(norm_vector_1, norm_vector_2)
 
     if logger is not None:
-        logger.error(f"Angle between the two vectors [rad]: {angle_rad}")
+        logger.warn(f"Debug-Info: Angle between the two vectors [rad]: {angle_rad}")
 
     if angle_rad > sp.pi/2 or angle_rad < -sp.pi/2:
+        logger.debug(f"Return -1")
         return -1
     else:
+        logger.debug(f"Return 1")
         return 1
     
 

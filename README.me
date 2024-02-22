@@ -1,0 +1,123 @@
+
+# ROS2 Assembly Manager
+
+!!!
+This Readme needs an update!
+!!!
+
+
+## 1. Description
+This package provides services to spawn objects (parts to be handled or assembled) and to interact with them. It uses the “planning_scene_interface” from Moveit2 to visualize objects in Rviz2 and to account for collision detection. It also interacts with the TF node. For more details read “2. Concept of the Object Spawner Manager”.
+
+## 2. Concept of the Object Spawner Manger
+In an assembly process, the assembly parts (also referred as to objects) geometry and position within the assembly machine are crucial information. To be able to assemble goods in a digital simulation of a precision assembly machine, this package provides an interface to handle objects within ROS2. For more information on how an object is defined in this context see “4. Messages”. Besides geometry and pose of objects, precision assembly processes generally rely on several teach points at which different tasks are performed. These teach points can be related to poses of metrology systems, assembly chucks or to specific assembly parts (objects). To account for these teach points in ROS2 this package allows to create so called “reference frames” (ref_frames), which simply represent a transformation from a given parent frame to the reference_frame.  
+
+When launching the object spawner manager the following nodes are run:
+* ` object_spawner_manager`: This node can be seen as an information handler (service forwarder). It is primarily used to spawn and to destroy objects. As calling these services is relevant for multiple nodes, the object spawner manger handles the initial service call and forwards it to the respective nodes. If spawning or destroying fails at some point during the process, the node will guarantee information consistency along all nodes.
+* ` object_publisher`: In this node all active objects and active reference frames are registered. All information are published in the namespace “/objects/OBJECT_ID” (or “/objects/_REF_FRAME_ID”) using the message types described in “4. Messages”. The node provides multiple services to modify or interact with active objects and reference frames. All changes are then published to the "tf_static" topic so that other nodes (e.a. object_spawner_moveit or Rviz”) are updated. In this node, validity checking of a service call is performed (e.a. to prevent naming conflicts or invalid transformations). For more details regarding services provided by this node see fig. X.
+* ` object_spawner_moveit`: This node serves as the interface to the planning_scene_interface, with which objects can be spawned in the planning_scene and thus in Rviz2. The objects are then also considered for collision detection. This node subscribes to the “tf_static” topic and thus updates objects pose information automatically, when a change in the object_publisher occurs. Spawning or destroying objects is called from the object_spawner_manger and is only initiated if spawning and destroying an object in the object_publisher is successful. 
+
+![Image - Concept of the Object Spawner Manager](https://github.com/match-PM/ros2_pm_robot_control/blob/main/object_spawner_manager/2023_10_30_Concept_of_object_spawner_manager.png)
+
+## 3. Installation & Launch
+To be able to execute the objtect_spawner_manager, you need to follow the process for installation described on the top level of this repository.
+
+To launch the object spawner manager use the following launch command.
+```
+ros2 launch object_spawner_manager object_spawner.launch.py
+```
+To-Do: launch argument for sim_time (true or false)
+
+## 4. Messages
+Messages and Services are sourced from the spawn_object_interfaces package.
+```
+ObjectMsg
+```
+The ObjectMsg message describes an object.
+* `obj_name`: Name of the object. This is a unique name.
+* `parent_frame`: Name of the parent frame that the object is connected to.
+* `pose` (Pose): Pose of the object in reference to the parent frame.
+* `cad_data` (str): Geometry information of the object (Path of the STL-file; currently only .STL supported). The geometry is spawned at the given pose. Make sure your CAD-data is exported with respect to the correct spawning pose.
+```
+RefFrameMsg
+```
+The RefFrameMsg message describes an reference frame.
+* `frame_name`: Name of the ref_frame. This is a unique name.
+* `parent_frame`: Name of the parent frame that the ref_frame is connected to
+* `pose` (Pose): Pose of the ref_frame in reference to the parent frame
+## 5. Services
+Messages and Services are sourced from the spawn_object_interfaces package.
+The object_spawner_manager offers the following services:
+```
+SpawnObject
+```
+Call this service to spawn an object.
+* `obj_name` (str): Name of the object to spawn. This should be a unique name!
+* `parent_frame` (str): Name of the parent frame, the object should be connected to and spawned at
+* `translation` (Vector3): Rel. translation at which the object should be spawned with respect to the parent_frame
+* `rotation` (Quaternion): Rel. orientation at which the object should be spawned with respect to the parent_frame
+* `cad_data` (str): Path to the stl-file of the object
+------------------------
+* `success` (bool): Returns true if spawning was successful
+
+```
+DestroyObject
+```
+Call this to destroy an object. Calling this will also destroy all ref_frames that are connected to the object.
+* `obj_name` (str): Name of the object to destroy
+------------------------
+* `success` (bool): Returns true if destroying was successful
+
+```
+CreateRefFrame
+```
+Call this service to spawn a ref_frame.
+* `frame_name` (str): Name of the ref_frame to be spawned. This should be a unique name!
+* `parent_frame` (str): Name of the parent frame, the ref_frame should be connected to
+* `pose` (Pose): Rel. pose of the ref_frame to the parent_frame
+------------------------
+* `success` (bool): Returns true if spawning was successful
+```
+DeleteRefFrame
+```
+Call this to destroy a ref_frame.
+* `frame_name`: Name of the ref_frame to destroy
+------------------------
+* `success` (bool): Returns true if destroying was successful
+```
+ChangeParentFrame
+```
+Call this to change the parent_frame of an object. This call can be only used for objects and not for ref_frames.
+* `obj_name`: Name of the object
+* `parent_frame`: New parent_frame
+------------------------
+* `success` (bool): Returns true if successful
+```
+SpawnFromDict
+```
+This service call can be used to spawn multiple objects and ref_frames at once. Input of the service can be one of the following.
+
+* `JSON-dictionary`: Dictionary of object to spawn and ref_frames to spawn. One  dictionary should only contain a single object to spawn, but can contain multiple ref_frames.
+* `List of JSON-Dictionaries`: JSON containing a list of JSON-dictionaries. Thus multiple objects and their ref_frames can be called using a single call.
+* `Path to a JSON-file containing a JSON-dictionary or a list of JSON-dictionaries`
+
+Service call definition:
+* `dict` (str): see above
+------------------------
+* `success` (bool): Returns true if successful
+```
+ModifyPose
+```
+This service can be called to modify a the pose of an object or a ref_frame.
+* `frame_name`: Object or ref_frame name
+* `rel_pose`: Relative pose to modify the current pose of the object/ref_frame. Translations will be added on current pose; rotations will be applied to current pose.
+------------------------
+* `success` (bool): Returns true if successful
+```
+GetInfo
+```
+This service returns all of the current objects and reference frames.
+* None
+------------------------
+* `obj_names (string[])`: List of all the object names listed in the object_publisher
+* `ref_frame_names (string[])`: List of all the ref_frames listed in the object_publisher
