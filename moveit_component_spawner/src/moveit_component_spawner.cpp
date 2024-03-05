@@ -122,6 +122,8 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
         component_parents_list.push_back(request->parent_frame);
         component_pose_list.push_back(translation_rotation_to_pose(request->translation,request->rotation));
         RCLCPP_INFO(this->get_logger(), "Spawning %s in Moveit", request->obj_name.c_str());
+        geometry_msgs::msg::Pose object_pose = translation_rotation_to_pose(request->translation,request->rotation);
+        bool object_applied_success = apply_object_to_moveit(request->obj_name, request->parent_frame, object_pose, request->cad_data);
       }
       // update frame
       else
