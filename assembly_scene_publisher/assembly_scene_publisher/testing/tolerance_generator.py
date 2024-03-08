@@ -17,17 +17,19 @@ class TolMeasurment():
         self.programmer = RosSequentialActionProgrammer(just_a_node)
         self.programmer.load_from_JSON('/home/niklas/Documents/SolidWorks_ASsembly_Instructor/examples/SWASI_Paper_Demonstrator_V2/Tolerance_Measurement_SWASI_Paper.json')
         self.components_path = '/home/niklas/Documents/SolidWorks_ASsembly_Instructor/examples/SWASI_Paper_Demonstrator_V2/SWASI_Exports/components'
-        self.results_path = '/home/niklas/Documents/SolidWorks_ASsembly_Instructor/examples/SWASI_Paper_Demonstrator_V2/logs/'
-        
+        #self.results_path = '/home/niklas/Documents/SolidWorks_ASsembly_Instructor/examples/SWASI_Paper_Demonstrator_V2/logs/'
+        self.results_path = '/home/mll/SolidWorks_ASsembly_Instructor/examples/SWASI_Paper_Demonstrator_V2/logs/'
+
         self.random_max_x = 0.002
         self.random_max_y = 0.002
         self.random_max_z = 0.002
 
         self.iterations = 100
         success = True
-        success = self.execute_n_iterations(self.iterations)
+        #success = self.execute_n_iterations(self.iterations)
         if success:
-            self.assess_results()
+            self.assess_results_intersections()
+            #self.assess_results()
             print("Calculations done!!!")
         self.ros_node.destroy_node()
 
@@ -96,6 +98,7 @@ class TolMeasurment():
                 quat.x = data["action_log"][1]["1_Calculate Assembly Instruction"]["srv_response"]["assembly_transform"]["orientation"]["x"]
                 quat.y = data["action_log"][1]["1_Calculate Assembly Instruction"]["srv_response"]["assembly_transform"]["orientation"]["y"]
                 quat.z = data["action_log"][1]["1_Calculate Assembly Instruction"]["srv_response"]["assembly_transform"]["orientation"]["z"]
+                # this function does not work poperly
                 roll, pitch, yaw = quaternion_to_euler(quat)
                 roll_values.append(roll)
                 pitch_values.append(pitch)
@@ -145,6 +148,91 @@ class TolMeasurment():
         print(f"Standard deviation pitch: {sdt_pitch*180/np.pi} deg")
         print(f"Standard deviation yaw: {sdt_yaw*180/np.pi} deg")
 
+    def get_pose_from_frame_log(self, file_path:str)->tuple:
+        with open(file_path, 'r') as json_file:
+            data:dict = json.load(json_file)
+        
+        frames = data.get("action_log")[2]["2_Get Scene"]["srv_response"]["scene"]["objects_in_scene"][0]["ref_frames"]
+        keyword = "assembly_frame"
+
+        #frames = data.get("action_log")[2]["2_Get Scene"]["srv_response"]["scene"]["objects_in_scene"][1]["ref_frames"]
+        #keyword = "target_frame"
+        
+        for frame in frames:
+            if keyword in frame["frame_name"]:
+                transform_x = frame["pose"]["position"]["x"]
+                transform_y = frame["pose"]["position"]["y"]
+                transform_z = frame["pose"]["position"]["z"]
+
+                quat = Quaternion()
+                quat.w = frame["pose"]["orientation"]["w"]
+                quat.x = frame["pose"]["orientation"]["x"]
+                quat.y = frame["pose"]["orientation"]["y"]
+                quat.z = frame["pose"]["orientation"]["z"]
+                roll, pitch, yaw = quaternion_to_euler(quat)
+                print(quat)
+                return (transform_x, transform_y, transform_z, roll, pitch, yaw)
+        
+        return None
+
+    
+    def assess_results_intersections(self):
+        pose_x_values = []
+        pose_y_values = []
+        pose_z_values = []
+
+        roll_values = []
+        pitch_values = []
+        yaw_values = []
+
+        for file in os.listdir(self.results_path):
+            if file is None:
+                return
+            if file.endswith('.json'):
+                _pose_x, pose_y, pose_z, pose_roll, pose_pitch, pose_yaw = self.get_pose_from_frame_log(f"{self.results_path}/{file}")
+
+                pose_x_values.append(_pose_x*1e6)
+                pose_y_values.append(pose_y*1e6)
+                pose_z_values.append(pose_z*1e6)
+                roll_values.append(pose_roll)
+                pitch_values.append(pose_pitch)
+                yaw_values.append(pose_yaw)
+
+        mean_transform_x = sum(pose_x_values)/len(pose_x_values)
+        mean_transform_y = sum(pose_y_values)/len(pose_y_values)
+        mean_transform_z = sum(pose_z_values)/len(pose_z_values)
+
+        mean_roll = sum(roll_values)/len(roll_values)
+        mean_pitch = sum(pitch_values)/len(pitch_values)
+        mean_yaw = sum(yaw_values)/len(yaw_values)
+
+        transform_x_values_mean_cleaned = [(x - mean_transform_x) for x in pose_x_values]
+        transform_y_values_mean_cleaned = [(y - mean_transform_y) for y in pose_y_values]
+        transform_z_values_mean_cleaned = [(z - mean_transform_z) for z in pose_z_values]
+
+        roll_values_mean_cleaned = [(r - mean_roll) for r in roll_values]
+        pitch_values_mean_cleaned = [(p - mean_pitch) for p in pitch_values]
+        yaw_values_mean_cleaned = [(y - mean_yaw) for y in yaw_values]
+        
+        print(f"Mean transform x: {mean_transform_x} um")
+        print(f"Mean transform y: {mean_transform_y} um")
+        print(f"Mean transform z: {mean_transform_z} um")
+
+        sdt_transform_x =statistics.stdev(transform_x_values_mean_cleaned)
+        sdt_transform_y =statistics.stdev(transform_y_values_mean_cleaned)
+        sdt_transform_z =statistics.stdev(transform_z_values_mean_cleaned)
+
+        sdt_roll =statistics.stdev(roll_values_mean_cleaned)
+        sdt_pitch =statistics.stdev(pitch_values_mean_cleaned)
+        sdt_yaw =statistics.stdev(yaw_values_mean_cleaned)
+
+        print(f"Standard deviation transform x: {sdt_transform_x} um")
+        print(f"Standard deviation transform y: {sdt_transform_y} um")
+        print(f"Standard deviation transform z: {sdt_transform_z} um")
+
+        print(f"Standard deviation roll: {sdt_roll*180/np.pi} deg")
+        print(f"Standard deviation pitch: {sdt_pitch*180/np.pi} deg")
+        print(f"Standard deviation yaw: {sdt_yaw*180/np.pi} deg")
 
 if __name__ == '__main__':  
     # create ros node

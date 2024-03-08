@@ -503,6 +503,11 @@ class AssemblyManagerScene():
                 offset_values:list[float] = constraint_dict["constraints"]["centroid"]['offset_values']
                 unit:str = constraint_dict["constraints"]['units']
 
+                if unit == 'mm':
+                    offset_values = [x/1000 for x in offset_values]
+                if unit == 'um':
+                    offset_values = [x/1000000 for x in offset_values]
+
                 self.logger.debug(f"Centroid constraint for '{ref_frame.frame_name}' is given!")
                 frame_names_list = []
                 if component_name is not None:
@@ -522,16 +527,13 @@ class AssemblyManagerScene():
                     self.logger.error(f"Parent frame of ref frame '{frame_names_list[0]}': {self.get_parent_frame_for_ref_frame(ref_frames[0])}")
                     return False
                 
-                ref_frame.pose = self.caluclate_frame_centroid(initial_pose=ref_frame.pose, 
-                                                               ref_frames=frame_names_list, 
+                ref_frame.pose = self.caluclate_frame_centroid(ref_frames=frame_names_list, 
                                                                dim=dim, 
-                                                               offset_values=offset_values, 
-                                                               unit=unit)
+                                                               offset_values=offset_values)
                 
                 self.logger.debug(f"Centroid constraint for ref frame '{ref_frame.frame_name}' created!")
             except KeyError as e:
                 self.logger.error(f"KeyError: {str(e)}")
-                pass
 
             return True
         
@@ -541,7 +543,7 @@ class AssemblyManagerScene():
             self.logger.error(f"Unknown Error. Constraint could not be updated!")
             return False
 
-    def caluclate_frame_centroid(self, initial_pose: Pose, ref_frames: list[str], dim: str, offset_values: list[float], unit: str) -> Pose:
+    def caluclate_frame_centroid(self, ref_frames: list[str], dim: str, offset_values: list[float]) -> Pose:
         """
         This function calculates the centroid of the given ref frames and returns the pose of the centroid.
         """
@@ -572,13 +574,14 @@ class AssemblyManagerScene():
         #     centroid_pose.position.x = centroid_pose.position.x/1000000
         #     centroid_pose.position.y = centroid_pose.position.y/1000000
         #     centroid_pose.position.z = centroid_pose.position.z/1000000
+        _pose = Pose()
         if 'x' in dim:
-            initial_pose.position.x = centroid_pose.position.x
+            _pose.position.x = centroid_pose.position.x
         if 'y' in dim:
-            initial_pose.position.y = centroid_pose.position.y
+            _pose.position.y = centroid_pose.position.y
         if 'z' in dim:
-            initial_pose.position.z = centroid_pose.position.z
-        return initial_pose
+            _pose.position.z = centroid_pose.position.z
+        return _pose
 
     def get_ref_frame_by_name(self, frame_name:str) -> ami_msg.RefFrame:
         """
