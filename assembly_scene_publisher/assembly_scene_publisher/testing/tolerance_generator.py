@@ -152,11 +152,11 @@ class TolMeasurment():
         with open(file_path, 'r') as json_file:
             data:dict = json.load(json_file)
         
-        frames = data.get("action_log")[2]["2_Get Scene"]["srv_response"]["scene"]["objects_in_scene"][0]["ref_frames"]
-        keyword = "assembly_frame"
+        # frames = data.get("action_log")[2]["2_Get Scene"]["srv_response"]["scene"]["objects_in_scene"][0]["ref_frames"]
+        # keyword = "assembly_frame"
 
-        #frames = data.get("action_log")[2]["2_Get Scene"]["srv_response"]["scene"]["objects_in_scene"][1]["ref_frames"]
-        #keyword = "target_frame"
+        frames = data.get("action_log")[2]["2_Get Scene"]["srv_response"]["scene"]["objects_in_scene"][1]["ref_frames"]
+        keyword = "target_frame"
         
         for frame in frames:
             if keyword in frame["frame_name"]:
