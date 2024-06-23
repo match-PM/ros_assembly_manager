@@ -61,6 +61,7 @@ class AssemblyManagerNode(Node):
         request_forwarding = ami_srv.DestroyObject.Request()
         request_forwarding.obj_name         = request.obj_name 
         call_async = False
+
         if not self.object_topic_publisher_client_destroy.wait_for_service(timeout_sec=2.0):
             self.logger.info('Destroy component service not available')
             object_destroy_executed =  False
@@ -75,20 +76,25 @@ class AssemblyManagerNode(Node):
             else:
                 response = self.object_topic_publisher_client_destroy.call(request_forwarding)
                 object_destroy_executed = response.success
+
         self.logger.error('Test')
+
         # spawning part in moveit
         if not self.moveit_object_destroyer_client.wait_for_service(timeout_sec=2.0):
-            
             moveit_destroy_executed =  False
         
         if moveit_destroy_executed is None:
             if call_async:
+                self.logger.error('Test1')
                 future = self.moveit_object_destroyer_client.call_async(request_forwarding)
+                self.logger.error('Test2')
                 while not future.done():
                     rclpy.spin_once(self)
                 moveit_destroy_executed =future.result().success
             else:
+                self.logger.error('Test12')
                 result = self.moveit_object_destroyer_client.call(request_forwarding)
+                self.logger.error('Test13')
                 moveit_destroy_executed = result.success
 
         response.success = object_destroy_executed and moveit_destroy_executed

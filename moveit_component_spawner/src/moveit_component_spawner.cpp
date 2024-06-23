@@ -151,7 +151,7 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
     void destroy_object(const std::shared_ptr<assembly_manager_interfaces::srv::DestroyObject::Request> request, std::shared_ptr<assembly_manager_interfaces::srv::DestroyObject::Response>      response)
     {
       response->success = false;
-
+      RCLCPP_ERROR(this->get_logger(),"TESST!");
       for (const auto& obj_name : component_names_list) {
         if (obj_name == request->obj_name){
           //Deleting stl from stl_path_list
@@ -167,6 +167,7 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
           else {
             RCLCPP_ERROR(this->get_logger(),"Error in Destroy Object. Stl not found in list!");
           }
+          RCLCPP_INFO(this->get_logger(), "Destroying Object 1%s", request->obj_name.c_str());
           response->success = remove_object_from_moveit(request->obj_name);
           RCLCPP_INFO(this->get_logger(), "Destroying Object %s", request->obj_name.c_str());
           break;
@@ -354,51 +355,95 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
         double rounded_number = std::round(value * std::pow(10, digits)) / std::pow(10, digits);
         return rounded_number;
     }
-    bool remove_object_from_moveit(std::string obj_name){
-      try{
+    // bool remove_object_from_moveit(std::string obj_name){
+    //   try{
 
+    //     moveit_msgs::msg::AttachedCollisionObject detach_object;
+    //     detach_object.object.id = obj_name;
+    //     detach_object.object.operation = detach_object.object.REMOVE;
+        
+    //     moveit_msgs::msg::AttachedCollisionObject attached_object;
+    //     attached_object.object.id = obj_name;
+    //     attached_object.object.operation=attached_object.object.ADD;
+
+
+    //     planning_scene.robot_state.attached_collision_objects.clear();
+    //     planning_scene.world.collision_objects.clear(); 
+    //     planning_scene.robot_state.is_diff = true;
+    //     planning_scene.is_diff = true;
+
+    //     planning_scene.robot_state.attached_collision_objects.push_back(detach_object);
+    //     planning_scene.world.collision_objects.push_back(attached_object.object);
+        
+    //     planning_scene_diff_publisher->publish(planning_scene);
+
+    //     moveit_msgs::msg::CollisionObject remove_object;
+    //     remove_object.id = obj_name;
+    //     remove_object.operation = remove_object.REMOVE;
+        
+    //     planning_scene.robot_state.attached_collision_objects.clear();
+    //     planning_scene.world.collision_objects.clear(); 
+    //     planning_scene.robot_state.is_diff = true;
+    //     planning_scene.is_diff = true;
+
+    //     planning_scene.world.collision_objects.push_back(remove_object);
+    //     planning_scene_diff_publisher->publish(planning_scene);
+
+    //     RCLCPP_WARN(this->get_logger(), "INFO");
+    //     std::vector<std::string> myVector = planning_scene_interface_.getKnownObjectNames();
+    //     for (const auto& element : myVector) {
+    //       RCLCPP_ERROR(this->get_logger(), "Exception : %s", element.c_str());
+    //     }
+    //     return true;
+
+    //   }catch(const std::exception& ex){
+    //     return false;
+    //   }
+    // }
+
+    bool remove_object_from_moveit(const std::string &obj_name)
+    {
+    try {
+        // Detach the object if attached
+        RCLCPP_ERROR(this->get_logger(), "Test1");
         moveit_msgs::msg::AttachedCollisionObject detach_object;
         detach_object.object.id = obj_name;
         detach_object.object.operation = detach_object.object.REMOVE;
-        
-        moveit_msgs::msg::AttachedCollisionObject attached_object;
-        attached_object.object.id = obj_name;
-        attached_object.object.operation=attached_object.object.ADD;
-
-
         planning_scene.robot_state.attached_collision_objects.clear();
-        planning_scene.world.collision_objects.clear(); 
+        RCLCPP_ERROR(this->get_logger(), "Test2");
+        planning_scene.robot_state.attached_collision_objects.push_back(detach_object);
         planning_scene.robot_state.is_diff = true;
         planning_scene.is_diff = true;
-
-        planning_scene.robot_state.attached_collision_objects.push_back(detach_object);
-        planning_scene.world.collision_objects.push_back(attached_object.object);
-        
+        RCLCPP_ERROR(this->get_logger(), "Test3");
         planning_scene_diff_publisher->publish(planning_scene);
-
+        RCLCPP_ERROR(this->get_logger(), "Test4");
+        // Remove the object from the world
         moveit_msgs::msg::CollisionObject remove_object;
         remove_object.id = obj_name;
         remove_object.operation = remove_object.REMOVE;
-        
-        planning_scene.robot_state.attached_collision_objects.clear();
-        planning_scene.world.collision_objects.clear(); 
+        RCLCPP_ERROR(this->get_logger(), "Test5");
+        planning_scene.world.collision_objects.clear();
+        RCLCPP_ERROR(this->get_logger(), "Test6");
+        planning_scene.world.collision_objects.push_back(remove_object);
         planning_scene.robot_state.is_diff = true;
         planning_scene.is_diff = true;
-
-        planning_scene.world.collision_objects.push_back(remove_object);
+        RCLCPP_ERROR(this->get_logger(), "Test7");
         planning_scene_diff_publisher->publish(planning_scene);
-
-        RCLCPP_WARN(this->get_logger(), "INFO");
-        std::vector<std::string> myVector = planning_scene_interface_.getKnownObjectNames();
-        for (const auto& element : myVector) {
-          RCLCPP_ERROR(this->get_logger(), "Exception : %s", element.c_str());
+        RCLCPP_ERROR(this->get_logger(), "Test8");
+        // Verify if the object is indeed removed
+        auto known_objects = planning_scene_interface_.getKnownObjectNames();
+        if (std::find(known_objects.begin(), known_objects.end(), obj_name) != known_objects.end()) {
+            RCLCPP_WARN(this->get_logger(), "Object %s still exists in the planning scene.", obj_name.c_str());
+            return false;
         }
-        return true;
+        RCLCPP_ERROR(this->get_logger(), "Test9");
 
-      }catch(const std::exception& ex){
+        return true;
+    } catch (const std::exception &ex) {
+        RCLCPP_ERROR(this->get_logger(), "Exception during object removal: %s", ex.what());
         return false;
-      }
     }
+}
 
   };
 

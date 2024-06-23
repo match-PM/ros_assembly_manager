@@ -31,7 +31,9 @@ class AssemblyScenePublisherNode(Node):
 
         self.change_parent_frame_srv = self.create_service(ami_srv.ChangeParentFrame,f'assembly_manager/change_obj_parent_frame',self.change_obj_parent_frame,callback_group=self.callback_group)  
         
-        self.change_parent_frame_srv = self.create_service(ami_srv.ModifyPose,'assembly_manager/modify_pose',self.modify_pose,callback_group=self.callback_group)  
+        self.modify_frame_absolut_srv = self.create_service(ami_srv.ModifyPoseAbsolut,'assembly_manager/modify_frame_absolut',self.modify_frame_absolut,callback_group=self.callback_group)  
+        
+        self.modify_frame_relative_srv = self.create_service(ami_srv.ModifyPoseRelative,'assembly_manager/modify_frame_relative',self.modify_frame_relative,callback_group=self.callback_group)  
 
         self.get_info_srv = self.create_service(ami_srv.GetScene,f'assembly_manager/get_scene',self.get_scene,callback_group=self.callback_group)      
 
@@ -110,12 +112,16 @@ class AssemblyScenePublisherNode(Node):
         response.success = del_success
         return response
 
-    def modify_pose(self, request: ami_srv.ModifyPose.Request, response: ami_srv.ModifyPose.Response):
-        modify_success = self.object_scene.modify_pose(frame_obj_name= request.frame_name,
-                                                       rel_pose = request.rel_pose)
+    def modify_frame_absolut(self, request: ami_srv.ModifyPoseAbsolut.Request, response: ami_srv.ModifyPoseAbsolut.Response):
+        modify_success = self.object_scene.modify_frame_absolut(request.frame_name, new_world_pose=request.pose)
         response.success = modify_success
         return response
-    
+
+    def modify_frame_relative(self, request: ami_srv.ModifyPoseRelative.Request, response: ami_srv.ModifyPoseRelative.Response):
+        modify_success = self.object_scene.modify_frame_relative(request.frame_name, translation=request.rel_position, rotation=request.rel_rotation)
+        response.success = modify_success
+        return response
+        
     def srv_create_assembly_instructions(self, request: ami_srv.CreateAssemblyInstructions.Request, response: ami_srv.CreateAssemblyInstructions.Response):
         create_success = self.object_scene.create_assembly_instructions(instruction=request.assembly_instruction)
         response.instruction_id = request.assembly_instruction.id

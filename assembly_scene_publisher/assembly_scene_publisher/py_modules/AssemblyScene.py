@@ -632,8 +632,8 @@ class AssemblyManagerScene():
 
     
     def modify_pose(self,frame_obj_name:str, rel_pose: Pose)-> bool:
-
-        pose_to_modify = None
+        # Dep
+        pose_to_modify: Pose = None
 
         for obj in self.scene.objects_in_scene:
             obj: ami_msg.Object
@@ -662,7 +662,62 @@ class AssemblyManagerScene():
         else:
             self.logger.warn(f"Pose could not be updated. Frame '{frame_obj_name}' not found!")
             return False
-    
+
+    def modify_frame_relative(self,frame_name:str, translation: Point, rotation: Quaternion)-> bool:
+        self.logger.warn(f"Pose of frame '{frame_name}' will be updated relative to its parent frame!")
+        pose_to_modify: Pose = None
+
+        if not self.check_if_frame_exists(frame_name):
+            self.logger.error("Frame does not exist")
+            return False
+        
+        # Find the parent Frame
+        parent_frame = self.get_parent_frame_for_ref_frame(frame_name)
+        pose_to_modify = self.get_ref_frame_by_name(frame_name).pose
+        
+        if parent_frame is not None:
+            pose_to_modify.position.x += translation.x
+            pose_to_modify.position.y += translation.y
+            pose_to_modify.position.z += translation.z
+            pose_to_modify.orientation = quaternion_multiply(pose_to_modify.orientation,rotation)
+            self.publish_information()
+            self.logger.info(f'Pose for object {frame_name} updated!')
+            return True
+        else:
+            self.logger.warn(f"Pose could not be updated. Frame '{frame_name}' not found!")
+            return False   
+
+    def modify_frame_absolut(self,frame_name:str, new_world_pose: Pose)-> bool:
+        # Give pose in world coordinates
+        pose_to_modify: Pose = Pose()
+        if not self.check_if_frame_exists(frame_name):
+            self.logger.error("Frame does not exist")
+            return False
+        
+        # Find the parent Frame
+        parent_frame = self.get_parent_frame_for_ref_frame(frame_name)
+        self.get_ref_frame_by_name
+        #self.logger(f"{pose_to_modify},{parent_frame}")
+        if  parent_frame is not None:
+        
+            # Transform of point in world       
+            transform_global_parent:sp.Matrix = get_transform_matrix_from_tf(get_transform_for_frame_in_world(parent_frame, self.tf_buffer, logger=self.logger))
+            new_pose_frame:sp.Matrix = get_transform_matrix_from_tf(new_world_pose)
+
+            new_transform:sp.Matrix = transform_global_parent.inv()*new_pose_frame
+
+            pose_to_modify = transform_matrix_to_pose(new_transform)
+
+            self.logger.info(f'Frame {frame_name} updated!') 
+            
+            frame = self.get_ref_frame_by_name(frame_name)
+            frame.pose = pose_to_modify
+            self.publish_information()
+            return True
+        else:
+            return False
+
+
     def create_assembly_instructions(self,instruction: ami_msg.AssemblyInstruction)->bool:
         # Get plane msgs for object 1
         if instruction.id == "":
@@ -1124,6 +1179,21 @@ class AssemblyManagerScene():
                     break
         return axis_msg
     
+    def log_secene(self):
+        self.logger.info("Objects in scene:")
+        for obj in self.scene.objects_in_scene:
+            obj: ami_msg.Object
+            self.logger.warn(f"Object: {obj.obj_name}")
+            self.logger.warn(f"Pose: {obj.obj_pose}")
+            self.logger.warn(f"Ref Frames: {obj.ref_frames}")
+            #self.logger.info(f"Ref Planes: {obj.ref_planes}")
+            #self.logger.info(f"Ref Axes: {obj.ref_axis}")
+            #self.logger.info(f"Ref Points: {obj.ref_points}")
+            #self.logger.info(f"Ref Lines: {obj.ref_lines}")
+            #self.logger.info(f"Ref Planes: {obj.ref_planes}")
+            #self.logger.info(f"Ref Planes: {obj.ref_planes}")
+
+
     def get_plane_from_axis_and_frame(self, axis_name: str, frame_name: str, parent_frame:str = None)-> sp.Plane:
         axis_msg = self.get_axis_from_scene(axis_name)
 
