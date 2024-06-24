@@ -39,18 +39,20 @@ class AssemblyManagerScene():
         self.scene = ami_msg.ObjectScene()
         self.node = node
 
-        self._scene_publisher = node.create_publisher(ami_msg.ObjectScene,'/object_spawner_manager/scene',10)
+        self._scene_publisher = node.create_publisher(ami_msg.ObjectScene,'/assembly_manager/scene',10)
         self.logger = node.get_logger()
         self.tf_broadcaster = StaticTransformBroadcaster(node)
         #self.tf_broadcaster = TransformBroadcaster(node)
         self.tf_buffer = Buffer(cache_time=rclpy.duration.Duration(seconds=10.0))
         self.tf_listener = TransformListener(self.tf_buffer, node,spin_thread=True)
+        self.timer = node.create_timer(5.0, self.publish_scene)
 
     def publish_information(self):
         self.publish_scene()
         self.publish_to_tf()
 
     def publish_scene(self):
+        #self.logger.warn("Object Scene has been published")
         self._scene_publisher.publish(self.scene)
         #self.logger.info("Object Scene has been published")
 

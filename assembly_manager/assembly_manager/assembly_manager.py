@@ -30,7 +30,7 @@ class AssemblyManagerNode(Node):
 
         # create service for obj
         self.object_topic_publisher_srv_spawn = self.create_service(ami_srv.SpawnObject,'assembly_manager/spawn_object',self.spawn_object_callback,callback_group=self.callback_group_re)
-        self.object_topic_publisher_srv_destroy = self.create_service(ami_srv.DestroyObject,'assembly_manager/destroy_object',self.destroy_object_callback,callback_group=self.callback_group_re)
+        self.object_topic_publisher_srv_destroy = self.create_service(ami_srv.DestroyObject,'assembly_manager/destroy_object',self.destroy_component_callback,callback_group=self.callback_group_re)
         
         # create service for spawning from description
         self.spawn_component_from_description_srv = self.create_service(ami_srv.SpawnComponentFromDescription,'assembly_manager/spawn_component_from_description',self.spawn_component_from_description_callback,callback_group=self.callback_group_re)
@@ -54,7 +54,7 @@ class AssemblyManagerNode(Node):
         self.logger.info("Assembly manager started!")
         
 
-    def destroy_object_callback(self, request: ami_srv.DestroyObject.Request, response: ami_srv.DestroyObject.Response):
+    def destroy_component(self, request: ami_srv.DestroyObject.Request)->bool:
         self.logger.info('Destroy component request received!')
         moveit_destroy_executed = None
         object_destroy_executed =  None
@@ -77,28 +77,26 @@ class AssemblyManagerNode(Node):
                 response = self.object_topic_publisher_client_destroy.call(request_forwarding)
                 object_destroy_executed = response.success
 
-        self.logger.error('Test')
-
         # spawning part in moveit
         if not self.moveit_object_destroyer_client.wait_for_service(timeout_sec=2.0):
             moveit_destroy_executed =  False
         
         if moveit_destroy_executed is None:
             if call_async:
-                self.logger.error('Test1')
                 future = self.moveit_object_destroyer_client.call_async(request_forwarding)
-                self.logger.error('Test2')
                 while not future.done():
                     rclpy.spin_once(self)
                 moveit_destroy_executed =future.result().success
             else:
-                self.logger.error('Test12')
                 result = self.moveit_object_destroyer_client.call(request_forwarding)
-                self.logger.error('Test13')
                 moveit_destroy_executed = result.success
 
-        response.success = object_destroy_executed and moveit_destroy_executed
+        success = object_destroy_executed and moveit_destroy_executed
 
+        return success
+    
+    def destroy_component_callback(self, request: ami_srv.DestroyObject.Request, response: ami_srv.DestroyObject.Response):
+        response.success = self.destroy_component(request)
         return response
     
     def spawn_object_callback(self, request: ami_srv.SpawnObject.Request, response: ami_srv.SpawnObject.Response):
