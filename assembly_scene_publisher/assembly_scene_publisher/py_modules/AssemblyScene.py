@@ -476,6 +476,7 @@ class AssemblyManagerScene():
         """
         This function updates all ref frame constraints.
         """
+        self.logger.debug(f"Update all ref frame constraints")
         for obj in self.scene.objects_in_scene:
             obj: ami_msg.Object
             for ref_frame in obj.ref_frames:
@@ -494,15 +495,15 @@ class AssemblyManagerScene():
                 self.logger.debug(f"No constraints for ref frame '{ref_frame.frame_name}' given.")
                 return True
 
-            if constraint_dict.get("constraints", []).get("centroid", []).get("ref_frame_names", []) == []:
+            if constraint_dict.get("constraints", []).get("centroid", []).get("refFrameNames", []) == []:
                 self.logger.debug(f"No constraints for ref frame '{ref_frame.frame_name}' given.")
                 return True
             
             try:
 
-                ref_frames:list[str] = constraint_dict["constraints"]["centroid"]['ref_frame_names']
+                ref_frames:list[str] = constraint_dict["constraints"]["centroid"]['refFrameNames']
                 dim:str = constraint_dict["constraints"]["centroid"]['dim']
-                offset_values:list[float] = constraint_dict["constraints"]["centroid"]['offset_values']
+                offset_values:list[float] = constraint_dict["constraints"]["centroid"]['offsetValues']
                 unit:str = constraint_dict["constraints"]['units']
 
                 if unit == 'mm':
@@ -532,7 +533,6 @@ class AssemblyManagerScene():
                 ref_frame.pose = self.caluclate_frame_centroid(ref_frames=frame_names_list, 
                                                                dim=dim, 
                                                                offset_values=offset_values)
-                
                 self.logger.debug(f"Centroid constraint for ref frame '{ref_frame.frame_name}' created!")
             except KeyError as e:
                 self.logger.error(f"KeyError: {str(e)}")
@@ -682,6 +682,7 @@ class AssemblyManagerScene():
             pose_to_modify.position.y += translation.y
             pose_to_modify.position.z += translation.z
             pose_to_modify.orientation = quaternion_multiply(pose_to_modify.orientation,rotation)
+            self.update_all_ref_frame_constraints()
             self.publish_information()
             self.logger.info(f'Pose for object {frame_name} updated!')
             return True
@@ -714,6 +715,9 @@ class AssemblyManagerScene():
             
             frame = self.get_ref_frame_by_name(frame_name)
             frame.pose = pose_to_modify
+
+            self.update_all_ref_frame_constraints()
+
             self.publish_information()
             return True
         else:
