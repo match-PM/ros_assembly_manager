@@ -518,10 +518,10 @@ class AssemblyManagerScene():
                         frame_names_list.append(f"{component_name}_{frame}")
                 else:
                     frame_names_list = ref_frames
-
+                self.logger.debug(f"Frame names list: {str(frame_names_list)}")
                 if not self.check_ref_frames_for_same_parent_frame(frame_names_list):
                     self.logger.error(f"Tried to create constraint for ref frame '{ref_frame.frame_name}', but given ref frames do not have the same parent frame. Constraint could not be created!")
-                    self.logger.error(f"{frame_names_list}")
+                    self.logger.debug(f"{frame_names_list}")
                     return False
 
                 if ref_frame.parent_frame != self.get_parent_frame_for_ref_frame(frame_names_list[0]):
@@ -532,7 +532,8 @@ class AssemblyManagerScene():
                 
                 ref_frame.pose = self.caluclate_frame_centroid(ref_frames=frame_names_list, 
                                                                dim=dim, 
-                                                               offset_values=offset_values)
+                                                               offset_values=offset_values,
+                                                               initial_pose=ref_frame.pose)
                 self.logger.debug(f"Centroid constraint for ref frame '{ref_frame.frame_name}' created!")
             except KeyError as e:
                 self.logger.error(f"KeyError: {str(e)}")
@@ -545,7 +546,7 @@ class AssemblyManagerScene():
             self.logger.error(f"Unknown Error. Constraint could not be updated!")
             return False
 
-    def caluclate_frame_centroid(self, ref_frames: list[str], dim: str, offset_values: list[float]) -> Pose:
+    def caluclate_frame_centroid(self, ref_frames: list[str], dim: str, offset_values: list[float], initial_pose: Pose) -> Pose:
         """
         This function calculates the centroid of the given ref frames and returns the pose of the centroid.
         """
@@ -579,10 +580,20 @@ class AssemblyManagerScene():
         _pose = Pose()
         if 'x' in dim:
             _pose.position.x = centroid_pose.position.x
+        else:
+            _pose.position.x = initial_pose.position.x
         if 'y' in dim:
             _pose.position.y = centroid_pose.position.y
+        else:
+            _pose.position.y = initial_pose.position.y
         if 'z' in dim:
             _pose.position.z = centroid_pose.position.z
+        else:
+            _pose.position.z = initial_pose.position.z
+
+        _pose.orientation = initial_pose.orientation
+
+        self.logger.debug(f"Centroid pose: {str(_pose)}")
         return _pose
 
     def get_ref_frame_by_name(self, frame_name:str) -> ami_msg.RefFrame:
@@ -627,6 +638,7 @@ class AssemblyManagerScene():
         - frame_names: list of strings with the names of the ref frames to check
         """
         parent_frame = self.get_parent_frame_for_ref_frame(frame_names[0])
+        self.logger.debug(f"Parent frame: {str(parent_frame)}")
         for frame in frame_names:
             if parent_frame != self.get_parent_frame_for_ref_frame(frame) or parent_frame is None:
                 return False
@@ -699,22 +711,37 @@ class AssemblyManagerScene():
         
         # Find the parent Frame
         parent_frame = self.get_parent_frame_for_ref_frame(frame_name)
-        self.get_ref_frame_by_name
+        
         #self.logger(f"{pose_to_modify},{parent_frame}")
         if  parent_frame is not None:
         
             # Transform of point in world       
             transform_global_parent:sp.Matrix = get_transform_matrix_from_tf(get_transform_for_frame_in_world(parent_frame, self.tf_buffer, logger=self.logger))
+            
+            parent_frame = get_transform_for_frame_in_world(parent_frame, self.tf_buffer, logger=self.logger)
+            
+            self.logger.warn(f"Parent frame: {parent_frame}")
+
+            self.logger.warn(f"New pose: {new_world_pose}")
+            
             new_pose_frame:sp.Matrix = get_transform_matrix_from_tf(new_world_pose)
 
             new_transform:sp.Matrix = transform_global_parent.inv()*new_pose_frame
 
+            self.logger.warn(f"New transform: {new_transform}")
+
             pose_to_modify = transform_matrix_to_pose(new_transform)
+
+            self.logger.warn(f"Pose to modify: {pose_to_modify}")
 
             self.logger.info(f'Frame {frame_name} updated!') 
             
             frame = self.get_ref_frame_by_name(frame_name)
-            frame.pose = pose_to_modify
+            # only modify the position !!!!
+            frame.pose.position = pose_to_modify.position
+
+            # right now there is an error with the orientation. Beside that, the question is, how we would like to handle the orientation (should it actually be modified).
+            # frame.pose = pose_to_modify
 
             self.update_all_ref_frame_constraints()
 
@@ -969,6 +996,12 @@ class AssemblyManagerScene():
         self.logger.debug(f"All normal vectors obj2 are: {comp_2_plane_1_ideal_norm_vector}, {comp_2_plane_2_ideal_norm_vector}, {comp_2_plane_3_ideal_norm_vector}")
         
         # get the multiplicator for the normal vectors calculated from the planes and match their direction to the ideal normal vectors
+        self.logger.warn(f"Norm vec obj 1_1: {instruction.plane_match_1.plane_name_component_1}")
+        self.logger.warn(f"Norm vec obj 1_2: {instruction.plane_match_2.plane_name_component_1}")
+        self.logger.warn(f"Norm vec obj 1_3: {instruction.plane_match_3.plane_name_component_1}")
+        self.logger.warn(f"Norm vec obj 2_1: {instruction.plane_match_1.plane_name_component_2}")
+        self.logger.warn(f"Norm vec obj 2_2: {instruction.plane_match_2.plane_name_component_2}")
+        self.logger.warn(f"Norm vec obj 2_3: {instruction.plane_match_3.plane_name_component_2}")
         mult_1 = norm_vec_direction(bvec_obj_1_1,comp_1_plane_1_ideal_norm_vector, logger=self.logger)
         mult_2 = norm_vec_direction(bvec_obj_1_2,comp_1_plane_2_ideal_norm_vector, logger=self.logger)
         mult_3 = norm_vec_direction(bvec_obj_1_3,comp_1_plane_3_ideal_norm_vector, logger=self.logger)

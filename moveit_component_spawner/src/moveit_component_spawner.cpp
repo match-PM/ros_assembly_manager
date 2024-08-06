@@ -23,6 +23,35 @@
 // #include "spawn_object_interfaces/srv/destroy_object.hpp"
 // #include "spawn_object_interfaces/srv/disable_obj_collision.hpp"
 
+geometry_msgs::msg::Quaternion quaternion_multiply(geometry_msgs::msg::Quaternion q0, geometry_msgs::msg::Quaternion q1)
+{
+  // Extract the values from q0
+  auto w0 = q0.w;
+  auto x0 = q0.x;
+  auto y0 = q0.y;
+  auto z0 = q0.z;
+
+  // Extract the values from q1
+  auto w1 = q1.w;
+  auto x1 = q1.x;
+  auto y1 = q1.y;
+  auto z1 = q1.z;
+
+  // Computer the product of the two quaternions, term by term
+  auto q0q1_w = w0 * w1 - x0 * x1 - y0 * y1 - z0 * z1;
+  auto q0q1_x = w0 * x1 + x0 * w1 + y0 * z1 - z0 * y1;
+  auto q0q1_y = w0 * y1 - x0 * z1 + y0 * w1 + z0 * x1;
+  auto q0q1_z = w0 * z1 + x0 * y1 - y0 * x1 + z0 * w1;
+
+  auto result = geometry_msgs::msg::Quaternion();
+  result.x = q0q1_x;
+  result.y = q0q1_y;
+  result.z = q0q1_z;
+  result.w = q0q1_w;
+
+  return result;
+}
+
 using std::placeholders::_1;
 
 std::shared_ptr<robot_model_loader::RobotModelLoader> PM_Robot_Model_Loader;
@@ -173,6 +202,16 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
       }      
     }
 
+    geometry_msgs::msg::Pose get_pose_of_object(std::string obj_name){
+      int index = get_index_component_in_list(obj_name);
+      if (index != -1) {
+        return component_pose_list[index];
+      }
+      else{
+        RCLCPP_ERROR(this->get_logger(),"Error in get_pose_of_object. Object not found in list!");
+      }
+    }
+
     void logRegisteredObjects()
     {
       // List all registered objects in terminal
@@ -183,6 +222,7 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
            i++;
       }
     }
+
 
     void tfCallback(const tf2_msgs::msg::TFMessage::SharedPtr msg)
     {
@@ -247,8 +287,44 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
                   std::string new_movei_parent_frame;
                   tf_buffer_->_getParent(moveit_parent_frame, tf2::TimePointZero, new_movei_parent_frame);
                   moveit_parent_frame=new_movei_parent_frame;
+                  RCLCPP_DEBUG(this->get_logger(), "Debug-Info: Parent frame is not a robot link. New parent frame: %s", moveit_parent_frame.c_str());
+
                 }
               } 
+
+              geometry_msgs::msg::TransformStamped transform_stamped_parent;
+
+              try{
+                // now
+                transform_stamped_parent = tf_buffer_->lookupTransform(moveit_parent_frame, c_frame , tf2::get_now());
+                // From p_frame to moveit_parent_frame
+                RCLCPP_WARN(this->get_logger(), "Debug-Info: p_frame: %s, moveit_parent_frame: %s", p_frame.c_str(), moveit_parent_frame.c_str());
+              }
+              catch (tf2::TransformException &ex) {
+                RCLCPP_ERROR(this->get_logger(), "Exception: %s", ex.what());
+                return;
+              }
+
+              geometry_msgs::msg::TransformStamped transform_stamped_parent_2;
+
+              try{
+                // now
+                //transform_stamped_parent_2 = tf_buffer_->lookupTransform(moveit_parent_frame, p_frame , tf2::get_now());
+                transform_stamped_parent_2 = tf_buffer_->lookupTransform(moveit_parent_frame, p_frame , tf2::TimePointZero);
+
+                // From p_frame to moveit_parent_frame
+                RCLCPP_WARN(this->get_logger(), "Debug-Info: p_frame: %s, moveit_parent_frame: %s", p_frame.c_str(), moveit_parent_frame.c_str());
+              }
+              catch (tf2::TransformException &ex) {
+                RCLCPP_ERROR(this->get_logger(), "Exception: %s", ex.what());
+                return;
+              }
+
+              object_pose.position.x = transform_stamped_parent.transform.translation.x; //+ transform_stamped_parent_2.transform.translation.x;
+              object_pose.position.y = transform_stamped_parent.transform.translation.y; //+ transform_stamped_parent_2.transform.translation.y;
+              object_pose.position.z = transform_stamped_parent.transform.translation.z; //+ transform_stamped_parent_2.transform.translation.z;
+              object_pose.orientation = (transform_stamped_parent_2.transform.rotation,transform_stamped_parent.transform.rotation);
+
               // RCLCPP_INFO(this->get_logger(), "Moveit_Parent_frame %s", moveit_parent_frame.c_str());
               bool object_applied_success = apply_object_to_moveit(c_frame, moveit_parent_frame, object_pose, stl_path);
             }
