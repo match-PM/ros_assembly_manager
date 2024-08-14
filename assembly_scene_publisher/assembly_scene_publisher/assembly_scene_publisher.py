@@ -11,6 +11,8 @@ import assembly_manager_interfaces.msg as ami_msg
 
 from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
 
+import os
+import json
 from typing import Union
 from assembly_scene_publisher.py_modules.AssemblyScene import AssemblyManagerScene
 
@@ -44,6 +46,8 @@ class AssemblyScenePublisherNode(Node):
         self.create_assembly_instructions_srv = self.create_service(ami_srv.CreateAssemblyInstructions,f'assembly_manager/create_assembly_instructions',self.srv_create_assembly_instructions,callback_group=self.callback_group)      
 
         self.calculate_assembly_instructions_srv = self.create_service(ami_srv.CalculateAssemblyInstructions,f'assembly_manager/calculate_assembly_instructions',self.calculate_assembly_instructions,callback_group=self.callback_group)      
+
+        self.spawn_frames_from_description_srv = self.create_service(ami_srv.SpawnFramesFromDescription,f'assembly_manager/spawn_frames_from_description',self.spawn_frames_from_description,callback_group=self.callback_group) 
 
         self.timer = self.create_timer(5.0, self.object_scene.publish_information,callback_group=self.callback_group)
        
@@ -138,7 +142,31 @@ class AssemblyScenePublisherNode(Node):
             response.assembly_transform = transfrom
         return response
     
+    def spawn_frames_from_description(self, request: ami_srv.SpawnFramesFromDescription.Request, response: ami_srv.SpawnFramesFromDescription.Response):
+        frames_dictionary = {}
 
+        if os.path.exists(request.dict_or_path):
+
+            try:
+                with open(request.dict_or_path, 'r') as file:
+                    frames_dictionary = json.loads(file.read())
+            except FileNotFoundError:
+                self.get_logger().error(f"File not found {request.dict_or_path}")
+            except json.JSONDecodeError as e:
+                self.get_logger().error(f"Error loading the json file {e}")
+        else:
+            try:
+                frames_dictionary = json.loads(request.dict_or_path)
+            except json.JSONDecodeError as e:
+                self.get_logger().error(f"Error loading the json string {e}")
+        
+        if frames_dictionary == {}:
+            response.success = False
+            return response
+        
+        response.success = self.object_scene.add_ref_frames_to_scene_from_dict(frames_dictionary)
+        return response
+    
 
 
 

@@ -67,6 +67,8 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
     rclcpp::Service<assembly_manager_interfaces::srv::SpawnObject>::SharedPtr spawn_object_service;
     rclcpp::Service<assembly_manager_interfaces::srv::DestroyObject>::SharedPtr destroy_object_service;
     rclcpp::Service<assembly_manager_interfaces::srv::DisableObjCollision>::SharedPtr disable_collision_service;
+    rclcpp::Subscription<moveit_msgs::msg::PlanningScene>::SharedPtr planning_scene_subscriber;
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr robot_description_subscriber_;
     std::string robot_description_string;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_{nullptr};
     std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
@@ -86,6 +88,9 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
 
       tf_subscriber_ = this->create_subscription<tf2_msgs::msg::TFMessage>("/tf_static", 10, std::bind(&MoveitObjectSpawnerNode::tfCallback, this, _1),options);
       planning_scene_diff_publisher =this->create_publisher<moveit_msgs::msg::PlanningScene>("planning_scene", 1);
+
+      robot_description_subscriber_ = this->create_subscription<std_msgs::msg::String>(
+        "robot_description", 10, std::bind(&MoveitObjectSpawnerNode::robot_description_callback, this, _1));
 
       while (planning_scene_diff_publisher->get_subscription_count() < 1)
       {
@@ -474,6 +479,23 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
     //     return false;
     //   }
     // }
+
+    void robot_description_callback(const std_msgs::msg::String::SharedPtr msg)
+    {
+      robot_description_string = msg->data;
+      RCLCPP_WARN(this->get_logger(), "Detected publishing of robot_description. Respawn all objects in Moveit in 10 seconds.");
+      rclcpp::sleep_for(std::chrono::seconds(10));
+      for (const auto& obj_name : component_names_list) {
+        geometry_msgs::msg::Pose object_pose = get_pose_of_object(obj_name);
+        std::string stl_path;
+        int index = get_index_component_in_list(obj_name);
+        stl_path = component_stl_paths_list[index];
+        std::string parent_frame = component_parents_list[index];
+        bool object_applied_success = apply_object_to_moveit(obj_name, parent_frame, object_pose, stl_path);
+        RCLCPP_WARN(this->get_logger(), "Respawned %s in Moveit", obj_name.c_str());
+      }
+
+    }
 
     bool remove_object_from_moveit(const std::string &obj_name)
     {

@@ -156,6 +156,57 @@ class AssemblyManagerScene():
         self.publish_information()
         return True
 
+    def add_ref_frames_to_scene_from_dict(self, ref_frames_dict:dict)-> bool:
+        """
+        This function adds multiple ref frames to the scene from a dictionary.
+        """
+
+        list_of_ref_frames = ref_frames_dict.get('frames', [])
+        document_units = ref_frames_dict.get('document_units', 'm')
+        multiplicator = 1
+        if document_units == 'mm':
+            multiplicator = 1000
+        elif document_units == 'um':
+            multiplicator = 1000000
+        elif document_units == 'm':
+            multiplicator = 1
+        else:
+            self.logger.error(f"Document units '{document_units}' not supported! Frames could not be added!")
+            return False
+
+        try:
+            for index, frame in enumerate(list_of_ref_frames):
+                new_ref_frame = ami_msg.RefFrame()
+                new_ref_frame.frame_name = frame.get('name', "")
+                new_ref_frame.parent_frame = frame.get('parent_frame', "")
+                x = frame["transformation"]["translation"]["X"]/multiplicator
+                y = frame["transformation"]["translation"]["Y"]/multiplicator
+                z = frame["transformation"]["translation"]["Z"]/multiplicator
+                position = Point()
+                position.x = x
+                position.y = y
+                position.z = z
+                new_ref_frame.pose.position = position
+                r_x = frame["transformation"]["rotation"]["X"]
+                r_y = frame["transformation"]["rotation"]["Y"]
+                r_z = frame["transformation"]["rotation"]["Z"]
+                r_w = frame["transformation"]["rotation"]["W"]
+                orientation = Quaternion()
+                orientation.x = r_x
+                orientation.y = r_y
+                orientation.z = r_z
+                orientation.w = r_w
+                new_ref_frame.pose.orientation = orientation 
+                add_success = self.add_ref_frame_to_scene(new_ref_frame)
+                if not add_success:
+                    self.logger.error(f"Ref frame {new_ref_frame.frame_name} could not be created!")
+                    return False
+            return True 
+        
+        except Exception as e:
+            self.logger.error(f"Error while adding ref frames to scene from dictionary: {str(e)}")
+            return False
+    
     def destroy_object(self, obj_id:str)-> bool:
         """
         This method will delete an object from the objects list
@@ -489,6 +540,13 @@ class AssemblyManagerScene():
     def update_ref_frame_constraint(self, ref_frame:ami_msg.RefFrame,component_name:str)-> bool:
         try:
             default_dicts = [{},{"constraints": {"units": "m"}}, {"constraints": {"units": "mm"}}, {"constraints": {"units": "um"}}, ""]         
+            if ref_frame.constraints_dict is None:
+                self.logger.debug(f"For ref frame '{ref_frame.frame_name}' no constraints are given (None).")
+                return True
+            if ref_frame.constraints_dict == "":
+                self.logger.debug(f"For ref frame '{ref_frame.frame_name}' no constraints are given (EmptyString).")
+                return True
+            
             constraint_dict = eval(ref_frame.constraints_dict)
 
             if constraint_dict in default_dicts:
@@ -1248,5 +1306,29 @@ class AssemblyManagerScene():
         plane = sp.Plane(point, normal_vector = line3d.direction)
 
         return plane
+    
+    @staticmethod
+    def is_frame_from_scene( scene:ami_msg.ObjectScene, frame_name:str)->tuple[Union[str,None], Union[str,None]]:
+        """
+        If associated with an object returns
+        (object_name, frame_name)
+        If associated with a ref_frame returns
+        (None, frame_name)
+        """
+
+        for obj in scene.objects_in_scene:
+            obj:ami_msg.Object
+            
+            for ref_frame in obj.ref_frames:
+                ref_frame:ami_msg.RefFrame
+                if f"{obj.obj_name}_{ref_frame.frame_name}" == frame_name:
+                    return (obj.obj_name, ref_frame.frame_name)
+
+        for ref_frame in scene.ref_frames_in_scene:
+            ref_frame:ami_msg.RefFrame
+            if ref_frame.frame_name == frame_name:
+                return None, ref_frame.frame_name
+            
+        return None, None
     
 

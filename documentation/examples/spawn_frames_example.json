@@ -1,0 +1,141 @@
+{
+  "document_units": "mm",
+  "frames": [
+    {
+      "name": "Vision_Point_1",
+      "parent_frame": "world",
+      "transformation": {
+        "translation": {
+          "X": -1.36904907,
+          "Y": -2.46658325,
+          "Z": 2.0
+        },
+        "rotation": {
+          "X": 0.0,
+          "Y": 0.0,
+          "Z": 0.0,
+          "W": 1.0
+        }
+      }
+    },
+    {
+      "name": "Vision_Point_1_helper",
+      "parent_frame": "world",
+      "transformation": {
+        "translation": {
+          "X": -1.36904907,
+          "Y": -2.46658325,
+          "Z": 0.0
+        },
+        "rotation": {
+          "X": 0.0,
+          "Y": 0.0,
+          "Z": 0.0,
+          "W": 1.0
+        }
+      }
+    },
+    {
+      "name": "Vision_Point_2",
+      "parent_frame": "world",
+      "transformation": {
+        "translation": {
+          "X": -1.77000046,
+          "Y": -20.0,
+          "Z": 2.0
+        },
+        "rotation": {
+          "X": 0.0,
+          "Y": 0.0,
+          "Z": 0.0,
+          "W": 1.0
+        }
+      }
+    },
+    {
+      "name": "Vision_Point_2_helper",
+      "parent_frame": "world",
+      "transformation": {
+        "translation": {
+          "X": -1.77000046,
+          "Y": -20.0,
+          "Z": 0.0
+        },
+        "rotation": {
+          "X": 0.0,
+          "Y": 0.0,
+          "Z": 0.0,
+          "W": 1.0
+        }
+      }
+    },
+    {
+      "name": "Vision_Point_3",
+      "parent_frame": "world",
+      "transformation": {
+        "translation": {
+          "X": -30.0,
+          "Y": -20.0,
+          "Z": 2.0
+        },
+        "rotation": {
+          "X": 0.0,
+          "Y": 0.0,
+          "Z": 0.0,
+          "W": 1.0
+        }
+      }
+    },
+    {
+      "name": "Vision_Point_3_helper",
+      "parent_frame": "world",
+      "transformation": {
+        "translation": {
+          "X": -30.0,
+          "Y": -20.0,
+          "Z": 0.0
+        },
+        "rotation": {
+          "X": 0.0,
+          "Y": 0.0,
+          "Z": 0.0,
+          "W": 1.0
+        }
+      }
+    },
+    {
+      "name": "Vision_Point_4",
+      "parent_frame": "world",
+      "transformation": {
+        "translation": {
+          "X": -30.3424168,
+          "Y": -0.382987976,
+          "Z": 2.0
+        },
+        "rotation": {
+          "X": 0.0,
+          "Y": 0.0,
+          "Z": 0.0,
+          "W": 1.0
+        }
+      }
+    },
+    {
+      "name": "Surface_Center_Point",
+      "parent_frame": "world",
+      "transformation": {
+        "translation": {
+          "X": -15.885,
+          "Y": -20.0,
+          "Z": 1.0
+        },
+        "rotation": {
+          "X": 0.0,
+          "Y": 0.0,
+          "Z": 0.0,
+          "W": 1.0
+        }
+      }
+    }
+  ]
+}
