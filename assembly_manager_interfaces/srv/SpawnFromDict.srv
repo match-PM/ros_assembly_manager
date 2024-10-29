@@ -1,3 +1,3 @@
-string dict
+string dict_or_path
 ---
 bool success
