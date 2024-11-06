@@ -19,7 +19,14 @@ import ast
 from functools import partial
 import time
 
+# import standard srv msg with empty request and response
+from std_srvs.srv import Empty
+
 class AssemblyManagerNode(Node):
+
+    SPAWN_COMPONENT_OFFSET_X = 0.0
+    SPAWN_COMPONENT_OFFSET_Y = 0.0
+    SPAWN_COMPONENT_OFFSET_Z = 0.000001
     def __init__(self):
         super().__init__("assembly_manager")
 
@@ -31,7 +38,7 @@ class AssemblyManagerNode(Node):
         # create service for obj
         self.object_topic_publisher_srv_spawn = self.create_service(ami_srv.SpawnObject,'assembly_manager/spawn_object',self.spawn_object_callback,callback_group=self.callback_group_re)
         self.object_topic_publisher_srv_destroy = self.create_service(ami_srv.DestroyObject,'assembly_manager/destroy_object',self.destroy_component_callback,callback_group=self.callback_group_re)
-        
+
         # create service for spawning from description
         self.spawn_component_from_description_srv = self.create_service(ami_srv.SpawnComponentFromDescription,'assembly_manager/spawn_component_from_description',self.spawn_component_from_description_callback,callback_group=self.callback_group_re)
         self.create_assembly_instruction_from_description_srv = self.create_service(ami_srv.CreateAssemblyInstructionFromDescription,'assembly_manager/create_assembly_instruction_from_description',self.create_assembly_instruction_from_description_callback,callback_group=self.callback_group_re)
@@ -112,6 +119,10 @@ class AssemblyManagerNode(Node):
         moveit_spawner_executed =  None
         object_publish_success = False
         moveit_spawner_success = False
+
+        SpawnRequest.translation.x = SpawnRequest.translation.x + self.SPAWN_COMPONENT_OFFSET_X
+        SpawnRequest.translation.y = SpawnRequest.translation.y + self.SPAWN_COMPONENT_OFFSET_Y
+        SpawnRequest.translation.z = SpawnRequest.translation.z + self.SPAWN_COMPONENT_OFFSET_Z
 
         if not self.object_topic_publisher_client_spawn.wait_for_service(timeout_sec=2.0):
             self.logger.info('Spawn Service not available')
@@ -296,7 +307,7 @@ class AssemblyManagerNode(Node):
             self.logger.error(f"Error while spawning component '{comp_name}' from description: {e}")
             return False
 
-
+    
     def create_assembly_instruction_from_description_callback(self, request: ami_srv.CreateAssemblyInstructionFromDescription.Request, response: ami_srv.CreateAssemblyInstructionFromDescription.Response):
         self.logger.info("Creating assembly instructions!")
         try:
@@ -370,6 +381,8 @@ class AssemblyManagerNode(Node):
                 create_assembly_instruction_request.assembly_instruction.plane_match_3.plane_name_component_2 =     f'{component_2}_{constraint.get("description").get("planeMatch_3").get("planeNameComponent_2")}'
                 create_assembly_instruction_request.assembly_instruction.plane_match_3.plane_offset =               constraint.get("description").get("planeMatch_3").get("planeOffset") * multiplier
                 create_assembly_instruction_request.assembly_instruction.plane_match_3.inv_normal_vector =          constraint.get("description").get("planeMatch_3").get("invertNormalVector")
+                create_assembly_instruction_request.assembly_instruction.component_1 = component_1
+                create_assembly_instruction_request.assembly_instruction.component_2 = component_2
                 create_success = self.create_assembly_instructions(create_assembly_instruction_request)
                 if not create_success:
                     self.logger.error(f"Error while creating assembly instruction {create_assembly_instruction_request.assembly_instruction.id}!")

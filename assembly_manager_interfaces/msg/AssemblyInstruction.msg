@@ -1,4 +1,6 @@
 string id
+string component_1
+string component_2
 bool component_1_is_moving_part 
 ConstraintPlanes plane_match_1
 ConstraintPlanes plane_match_2
