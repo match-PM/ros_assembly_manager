@@ -1,0 +1,28 @@
+{
+    "name": "Spawn_frames_from_dictionary",
+    "saved_at": "2024-11-07 19:05:27.409212",
+    "action_list": [
+        {
+            "action_position": 0,
+            "action_type": "ServiceAction",
+            "name": "Create Frames",
+            "service_client": "/assembly_manager/spawn_frames_from_description",
+            "service_type": "assembly_manager_interfaces/srv/SpawnFramesFromDescription",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "dict_or_path": "/home/ros2/src/ros_assembly_manager/documentation/examples/spawn_frames_example.json"
+            }
+        },
+        {
+            "action_position": 1,
+            "action_type": "ServiceAction",
+            "name": "/assembly_manager/get_scene",
+            "service_client": "/assembly_manager/get_scene",
+            "service_type": "assembly_manager_interfaces/srv/GetScene",
+            "error_identifier": null,
+            "description": "",
+            "service_request": {}
+        }
+    ]
+}

@@ -197,6 +197,11 @@ class AssemblyManagerScene():
                 orientation.z = r_z
                 orientation.w = r_w
                 new_ref_frame.pose.orientation = orientation 
+                constraints = frame.get('constraints',None)
+                
+                if constraints is not None:
+                    constraints['units'] = document_units
+                    new_ref_frame.constraints_dict = str({"constraints": constraints})
                 add_success = self.add_ref_frame_to_scene(new_ref_frame)
                 if not add_success:
                     self.logger.error(f"Ref frame {new_ref_frame.frame_name} could not be created!")
