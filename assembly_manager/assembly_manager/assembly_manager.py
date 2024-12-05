@@ -8,6 +8,7 @@ from geometry_msgs.msg import Pose
 from tf2_ros import Buffer, TransformListener, TransformBroadcaster, StaticTransformBroadcaster
 import assembly_manager_interfaces.srv as ami_srv
 import assembly_manager_interfaces.msg as ami_msg
+import assembly_scene_publisher.py_modules.frame_constraints as f_constraints
 from rclpy.time import Duration
 from threading import Event
 from rclpy.callback_groups import ReentrantCallbackGroup, MutuallyExclusiveCallbackGroup
@@ -248,6 +249,7 @@ class AssemblyManagerNode(Node):
             # This is needed for tf to update
             time.sleep(1.5)
 
+            # go through the dictionary
             for ref_frame in ref_frames:
                 create_ref_frame_request = ami_srv.CreateRefFrame.Request()
                 create_ref_frame_request.ref_frame.frame_name = f'{comp_name}_{ref_frame.get("name")}'
@@ -263,6 +265,11 @@ class AssemblyManagerNode(Node):
                 constraint_dict['units'] = doc_units
                 constraint_dict = {"constraints": constraint_dict}
                 create_ref_frame_request.ref_frame.constraints_dict = str(constraint_dict)
+
+                frame_constraint_handler = f_constraints.FrameConstraintsHandler.return_handler_from_dict(constraint_dict,logger = self.logger)
+                frame_constraint_handler.unit = doc_units
+                msg = frame_constraint_handler.return_as_msg()
+
                 spawn_ref_frame_success = self.create_ref_frame(create_ref_frame_request)
 
                 if not spawn_ref_frame_success:
