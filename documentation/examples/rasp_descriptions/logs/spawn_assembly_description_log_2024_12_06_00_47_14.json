@@ -1,0 +1,127 @@
+{
+    "action_sequence_name": "spawn_assembly_description",
+    "action_log": [
+        {
+            "0_/assembly_manager/create_assembly_instruction_from_description": {
+                "service_client": "/assembly_manager/create_assembly_instruction_from_description",
+                "service_type": "assembly_manager_interfaces/srv/CreateAssemblyInstructionFromDescription",
+                "srv_start_time": "2024-12-06_00:47:06.086684",
+                "srv_end_time": "2024-12-06_00:47:13.006257",
+                "execution_time": "0:00:06.919573",
+                "srv_request": {
+                    "file_path": "/home/niklas/SolidWorks_ASsembly_Instructor/examples/SWASI_Paper_Demonstrator_V2/SWASI_Exports/assemblies/Baugruppe_S17.json",
+                    "spawn_components": true
+                },
+                "srv_response": {
+                    "instruction_id": "Description_Glas_Platelet_Paper-1_UFC_Paper-2",
+                    "success": true
+                },
+                "success": true,
+                "message": "Client not available! Exited with error!"
+            }
+        },
+        {
+            "0_/assembly_manager/create_assembly_instruction_from_description": {
+                "service_client": "/assembly_manager/create_assembly_instruction_from_description",
+                "service_type": "assembly_manager_interfaces/srv/CreateAssemblyInstructionFromDescription",
+                "srv_start_time": "2024-12-06_00:47:06.086684",
+                "srv_end_time": "2024-12-06_00:47:13.006257",
+                "execution_time": "0:00:06.919573",
+                "srv_request": {
+                    "file_path": "/home/niklas/SolidWorks_ASsembly_Instructor/examples/SWASI_Paper_Demonstrator_V2/SWASI_Exports/assemblies/Baugruppe_S17.json",
+                    "spawn_components": true
+                },
+                "srv_response": {
+                    "instruction_id": "Description_Glas_Platelet_Paper-1_UFC_Paper-2",
+                    "success": true
+                },
+                "success": true,
+                "message": "Client not available! Exited with error!"
+            }
+        },
+        {
+            "0_/assembly_manager/create_assembly_instruction_from_description": {
+                "service_client": "/assembly_manager/create_assembly_instruction_from_description",
+                "service_type": "assembly_manager_interfaces/srv/CreateAssemblyInstructionFromDescription",
+                "srv_start_time": "2024-12-06_00:47:06.086684",
+                "srv_end_time": "2024-12-06_00:47:13.006257",
+                "execution_time": "0:00:06.919573",
+                "srv_request": {
+                    "file_path": "/home/niklas/SolidWorks_ASsembly_Instructor/examples/SWASI_Paper_Demonstrator_V2/SWASI_Exports/assemblies/Baugruppe_S17.json",
+                    "spawn_components": true
+                },
+                "srv_response": {
+                    "instruction_id": "Description_Glas_Platelet_Paper-1_UFC_Paper-2",
+                    "success": true
+                },
+                "success": true,
+                "message": "Client not available! Exited with error!"
+            }
+        },
+        {
+            "0_/assembly_manager/create_assembly_instruction_from_description": {
+                "service_client": "/assembly_manager/create_assembly_instruction_from_description",
+                "service_type": "assembly_manager_interfaces/srv/CreateAssemblyInstructionFromDescription",
+                "srv_start_time": "2024-12-06_00:47:06.086684",
+                "srv_end_time": "2024-12-06_00:47:13.006257",
+                "execution_time": "0:00:06.919573",
+                "srv_request": {
+                    "file_path": "/home/niklas/SolidWorks_ASsembly_Instructor/examples/SWASI_Paper_Demonstrator_V2/SWASI_Exports/assemblies/Baugruppe_S17.json",
+                    "spawn_components": true
+                },
+                "srv_response": {
+                    "instruction_id": "Description_Glas_Platelet_Paper-1_UFC_Paper-2",
+                    "success": true
+                },
+                "success": true,
+                "message": "Client not available! Exited with error!"
+            }
+        },
+        {
+            "0_/assembly_manager/create_assembly_instruction_from_description": {
+                "service_client": "/assembly_manager/create_assembly_instruction_from_description",
+                "service_type": "assembly_manager_interfaces/srv/CreateAssemblyInstructionFromDescription",
+                "srv_start_time": "2024-12-06_00:47:06.086684",
+                "srv_end_time": "2024-12-06_00:47:13.006257",
+                "execution_time": "0:00:06.919573",
+                "srv_request": {
+                    "file_path": "/home/niklas/SolidWorks_ASsembly_Instructor/examples/SWASI_Paper_Demonstrator_V2/SWASI_Exports/assemblies/Baugruppe_S17.json",
+                    "spawn_components": true
+                },
+                "srv_response": {
+                    "instruction_id": "Description_Glas_Platelet_Paper-1_UFC_Paper-2",
+                    "success": true
+                },
+                "success": true,
+                "message": "Client not available! Exited with error!"
+            }
+        },
+        {
+            "2_/assembly_manager/modify_frame_relative": {
+                "service_client": "/assembly_manager/modify_frame_relative",
+                "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+                "srv_start_time": "2024-12-06_00:47:14.235684",
+                "srv_end_time": "2024-12-06_00:47:14.296339",
+                "execution_time": "0:00:00.060655",
+                "srv_request": {
+                    "frame_name": "UFC_Paper-2_Vision_Point_1",
+                    "rel_position": {
+                        "x": 0.01,
+                        "y": 0.01,
+                        "z": 0.0
+                    },
+                    "rel_rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    }
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        }
+    ]
+}

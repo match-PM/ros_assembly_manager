@@ -12,6 +12,9 @@ from geometry_msgs.msg import Vector3, Quaternion
 import sympy as sp
 from typing import Union
 from scipy.optimize import minimize, least_squares
+from assembly_scene_publisher.py_modules.frame_constraints import FrameConstraintsHandler
+from copy import deepcopy,copy
+
 
 from assembly_scene_publisher.py_modules.geometry_functions import (get_point_of_plane_intersection, 
             get_euler_rotation_matrix, quaternion_multiply, matrix_multiply_vector, norm_vec_direction)
@@ -197,11 +200,16 @@ class AssemblyManagerScene():
                 orientation.z = r_z
                 orientation.w = r_w
                 new_ref_frame.pose.orientation = orientation 
-                constraints = frame.get('constraints',None)
                 
-                if constraints is not None:
-                    constraints['units'] = document_units
-                    new_ref_frame.constraints_dict = str({"constraints": constraints})
+                constraints_dict = frame.get('constraints', {})
+                
+                frame_constraint_handler = FrameConstraintsHandler.return_handler_from_dict(dictionary=constraints_dict,
+                                                                                                logger = self.logger)
+                
+                frame_constraint_handler.unit = document_units
+                msg = frame_constraint_handler.return_as_msg()
+                new_ref_frame.constraints = msg
+        
                 add_success = self.add_ref_frame_to_scene(new_ref_frame)
                 if not add_success:
                     self.logger.error(f"Ref frame {new_ref_frame.frame_name} could not be created!")
@@ -544,120 +552,27 @@ class AssemblyManagerScene():
 
     def update_ref_frame_constraint(self, ref_frame:ami_msg.RefFrame,component_name:str)-> bool:
         try:
-            default_dicts = [{},{"constraints": {"units": "m"}}, {"constraints": {"units": "mm"}}, {"constraints": {"units": "um"}}, ""]         
-            if ref_frame.constraints_dict is None:
-                self.logger.debug(f"For ref frame '{ref_frame.frame_name}' no constraints are given (None).")
-                return True
-            if ref_frame.constraints_dict == "":
-                self.logger.debug(f"For ref frame '{ref_frame.frame_name}' no constraints are given (EmptyString).")
-                return True
+            # make a deep copy just to be sure that the original ref frame is not modified
+            copy_ref_frame = deepcopy(ref_frame)
+            scene_copy = deepcopy(self.scene)
             
-            constraint_dict = eval(ref_frame.constraints_dict)
-
-            if constraint_dict in default_dicts:
-                self.logger.debug(f"No constraints for ref frame '{ref_frame.frame_name}' given.")
-                return True
-
-            if constraint_dict.get("constraints", []).get("centroid", []).get("refFrameNames", []) == []:
-                self.logger.debug(f"No constraints for ref frame '{ref_frame.frame_name}' given.")
-                return True
+            frame_constraints_handler:FrameConstraintsHandler = FrameConstraintsHandler.return_handler_from_msg(msg=copy_ref_frame.constraints,
+                                                                                                                scene=scene_copy,
+                                                                                                                logger=self.logger)
             
-            try:
-
-                ref_frames:list[str] = constraint_dict["constraints"]["centroid"]['refFrameNames']
-                dim:str = constraint_dict["constraints"]["centroid"]['dim']
-                offset_values:list[float] = constraint_dict["constraints"]["centroid"]['offsetValues']
-                unit:str = constraint_dict["constraints"]['units']
-
-                if unit == 'mm':
-                    offset_values = [x/1000 for x in offset_values]
-                if unit == 'um':
-                    offset_values = [x/1000000 for x in offset_values]
-
-                self.logger.debug(f"Centroid constraint for '{ref_frame.frame_name}' is given!")
-                frame_names_list = []
-                if component_name is not None:
-                    for frame in ref_frames:
-                        frame_names_list.append(f"{component_name}_{frame}")
-                else:
-                    frame_names_list = ref_frames
-                self.logger.debug(f"Frame names list: {str(frame_names_list)}")
-                if not self.check_ref_frames_for_same_parent_frame(frame_names_list):
-                    self.logger.error(f"Tried to create constraint for ref frame '{ref_frame.frame_name}', but given ref frames do not have the same parent frame. Constraint could not be created!")
-                    self.logger.debug(f"{frame_names_list}")
-                    return False
-
-                if ref_frame.parent_frame != self.get_parent_frame_for_ref_frame(frame_names_list[0]):
-                    self.logger.error(f"Tried to create constraint for ref frame '{ref_frame.frame_name}', but given ref frames do not have the same parent frame as the ref frame. Constraint could not be created!")
-                    self.logger.error(f"Parent frame of ref frame '{ref_frame.frame_name}': {ref_frame.parent_frame}")
-                    self.logger.error(f"Parent frame of ref frame '{frame_names_list[0]}': {self.get_parent_frame_for_ref_frame(ref_frames[0])}")
-                    return False
-                
-                ref_frame.pose = self.caluclate_frame_centroid(ref_frames=frame_names_list, 
-                                                               dim=dim, 
-                                                               offset_values=offset_values,
-                                                               initial_pose=ref_frame.pose)
-                self.logger.debug(f"Centroid constraint for ref frame '{ref_frame.frame_name}' created!")
-            except KeyError as e:
-                self.logger.error(f"KeyError: {str(e)}")
+            pose = frame_constraints_handler.calculate_frame_constraints(initial_pose = copy_ref_frame.pose, 
+                                                                         component_name = component_name,
+                                                                         scene=self.scene,
+                                                                         logger=self.logger)
+            
+            ref_frame.pose = pose
 
             return True
-        
         
         except Exception as e:
             self.logger.error(str(e))
             self.logger.error(f"Unknown Error. Constraint could not be updated!")
             return False
-
-    def caluclate_frame_centroid(self, ref_frames: list[str], dim: str, offset_values: list[float], initial_pose: Pose) -> Pose:
-        """
-        This function calculates the centroid of the given ref frames and returns the pose of the centroid.
-        """
-        centroid_pose = Pose()
-        for index, frame in enumerate(ref_frames):
-            fr: ami_msg.RefFrame = self.get_ref_frame_by_name(frame)
-            frame_pose = fr.pose
-            if 'x' in dim:
-                centroid_pose.position.x += frame_pose.position.x
-            if 'y' in dim:
-                centroid_pose.position.y += frame_pose.position.y
-            if 'z' in dim:
-                centroid_pose.position.z += frame_pose.position.z
-        centroid_pose.position.x = centroid_pose.position.x/len(ref_frames)
-        centroid_pose.position.y = centroid_pose.position.y/len(ref_frames)
-        centroid_pose.position.z = centroid_pose.position.z/len(ref_frames)
-        if offset_values[0] is not None:
-            centroid_pose.position.x += offset_values[0]
-        if offset_values[1] is not None:
-            centroid_pose.position.y += offset_values[1]
-        if offset_values[2] is not None:
-            centroid_pose.position.z += offset_values[2]
-        # if unit == 'mm':
-        #     centroid_pose.position.x = centroid_pose.position.x/1000
-        #     centroid_pose.position.y = centroid_pose.position.y/1000
-        #     centroid_pose.position.z = centroid_pose.position.z/1000
-        # if unit == 'um':
-        #     centroid_pose.position.x = centroid_pose.position.x/1000000
-        #     centroid_pose.position.y = centroid_pose.position.y/1000000
-        #     centroid_pose.position.z = centroid_pose.position.z/1000000
-        _pose = Pose()
-        if 'x' in dim:
-            _pose.position.x = centroid_pose.position.x
-        else:
-            _pose.position.x = initial_pose.position.x
-        if 'y' in dim:
-            _pose.position.y = centroid_pose.position.y
-        else:
-            _pose.position.y = initial_pose.position.y
-        if 'z' in dim:
-            _pose.position.z = centroid_pose.position.z
-        else:
-            _pose.position.z = initial_pose.position.z
-
-        _pose.orientation = initial_pose.orientation
-
-        self.logger.debug(f"Centroid pose: {str(_pose)}")
-        return _pose
 
     def get_ref_frame_by_name(self, frame_name:str) -> ami_msg.RefFrame:
         """

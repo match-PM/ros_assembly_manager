@@ -1,0 +1,1112 @@
+{
+    "action_sequence_name": "spawn_assembly_description",
+    "action_log": [
+        {
+            "0_/assembly_manager/create_assembly_instruction_from_description": {
+                "service_client": "/assembly_manager/create_assembly_instruction_from_description",
+                "service_type": "assembly_manager_interfaces/srv/CreateAssemblyInstructionFromDescription",
+                "srv_start_time": "2024-12-05_20:39:55.035241",
+                "srv_end_time": "2024-12-05_20:40:00.884685",
+                "execution_time": "0:00:05.849444",
+                "srv_request": {
+                    "file_path": "/home/niklas/SolidWorks_ASsembly_Instructor/examples/SWASI_Paper_Demonstrator_V2/SWASI_Exports/assemblies/Baugruppe_S17.json",
+                    "spawn_components": true
+                },
+                "srv_response": {
+                    "instruction_id": "Description_Glas_Platelet_Paper-1_UFC_Paper-2",
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "0_/assembly_manager/create_assembly_instruction_from_description": {
+                "service_client": "/assembly_manager/create_assembly_instruction_from_description",
+                "service_type": "assembly_manager_interfaces/srv/CreateAssemblyInstructionFromDescription",
+                "srv_start_time": "2024-12-05_20:39:55.035241",
+                "srv_end_time": "2024-12-05_20:40:00.884685",
+                "execution_time": "0:00:05.849444",
+                "srv_request": {
+                    "file_path": "/home/niklas/SolidWorks_ASsembly_Instructor/examples/SWASI_Paper_Demonstrator_V2/SWASI_Exports/assemblies/Baugruppe_S17.json",
+                    "spawn_components": true
+                },
+                "srv_response": {
+                    "instruction_id": "Description_Glas_Platelet_Paper-1_UFC_Paper-2",
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "0_/assembly_manager/create_assembly_instruction_from_description": {
+                "service_client": "/assembly_manager/create_assembly_instruction_from_description",
+                "service_type": "assembly_manager_interfaces/srv/CreateAssemblyInstructionFromDescription",
+                "srv_start_time": "2024-12-05_20:39:55.035241",
+                "srv_end_time": "2024-12-05_20:40:00.884685",
+                "execution_time": "0:00:05.849444",
+                "srv_request": {
+                    "file_path": "/home/niklas/SolidWorks_ASsembly_Instructor/examples/SWASI_Paper_Demonstrator_V2/SWASI_Exports/assemblies/Baugruppe_S17.json",
+                    "spawn_components": true
+                },
+                "srv_response": {
+                    "instruction_id": "Description_Glas_Platelet_Paper-1_UFC_Paper-2",
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "1_/assembly_manager/get_scene": {
+                "service_client": "/assembly_manager/get_scene",
+                "service_type": "assembly_manager_interfaces/srv/GetScene",
+                "srv_start_time": "2024-12-05_20:40:28.873327",
+                "srv_end_time": "2024-12-05_20:40:28.879357",
+                "execution_time": "0:00:00.006030",
+                "srv_request": {},
+                "srv_response": {
+                    "scene": {
+                        "objects_in_scene": [
+                            {
+                                "obj_name": "UFC_Paper-2",
+                                "parent_frame": "Gonio_Right_Part_1_Origin",
+                                "obj_pose": {
+                                    "position": {
+                                        "x": 0.0,
+                                        "y": 0.0,
+                                        "z": 1e-06
+                                    },
+                                    "orientation": {
+                                        "x": 0.0,
+                                        "y": 0.0,
+                                        "z": 0.0,
+                                        "w": 1.0
+                                    }
+                                },
+                                "cad_data": "/home/niklas/SolidWorks_ASsembly_Instructor/examples/SWASI_Paper_Demonstrator_V2/SWASI_Exports/components/UFC_Paper.STL",
+                                "ref_frames": [
+                                    {
+                                        "frame_name": "UFC_Paper-2_Vision_Point_1",
+                                        "parent_frame": "UFC_Paper-2",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.00136904907,
+                                                "y": -0.00246658325,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_Paper-2_Vision_Point_1_helper",
+                                        "parent_frame": "UFC_Paper-2",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.00136904907,
+                                                "y": -0.00246658325,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_Paper-2_Vision_Point_2",
+                                        "parent_frame": "UFC_Paper-2",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.0017700004600000002,
+                                                "y": -0.02,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_Paper-2_Vision_Point_2_helper",
+                                        "parent_frame": "UFC_Paper-2",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.0017700004600000002,
+                                                "y": -0.02,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_Paper-2_Vision_Point_3",
+                                        "parent_frame": "UFC_Paper-2",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.03,
+                                                "y": -0.02,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_Paper-2_Vision_Point_3_helper",
+                                        "parent_frame": "UFC_Paper-2",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.03,
+                                                "y": -0.02,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_Paper-2_Vision_Point_4",
+                                        "parent_frame": "UFC_Paper-2",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.0303424168,
+                                                "y": -0.000382987976,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_Paper-2_Surface_Center_Point",
+                                        "parent_frame": "UFC_Paper-2",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.015885,
+                                                "y": -0.02,
+                                                "z": 0.001
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'centroid': {'ref_frame_names': ['Vision_Point_2_helper', 'Vision_Point_3_helper'], 'dim': 'xyz', 'offset_values': [0, 0, 0]}, 'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "UFC_Paper-2_Vision_Point_2_helper",
+                                                    "UFC_Paper-2_Vision_Point_3_helper"
+                                                ],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_Paper-2_Gripping_Point",
+                                        "parent_frame": "UFC_Paper-2",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.016468982700000002,
+                                                "y": -0.009952321,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'centroid': {'ref_frame_names': ['Vision_Point_1', 'Vision_Point_2', 'Vision_Point_3', 'Vision_Point_4'], 'dim': 'xyz', 'offset_values': [0, 0, 0]}, 'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "UFC_Paper-2_Vision_Point_1",
+                                                    "UFC_Paper-2_Vision_Point_2",
+                                                    "UFC_Paper-2_Vision_Point_3",
+                                                    "UFC_Paper-2_Vision_Point_4"
+                                                ],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_Paper-2_Laser_Mes_Frame_1",
+                                        "parent_frame": "UFC_Paper-2",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.00185573387,
+                                                "y": -0.00223329163,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_Paper-2_Laser_Mes_Frame_2",
+                                        "parent_frame": "UFC_Paper-2",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.00185573387,
+                                                "y": -0.0202332916,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_Paper-2_Laser_Mes_Frame_3",
+                                        "parent_frame": "UFC_Paper-2",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.029855732,
+                                                "y": -0.0202332916,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_Paper-2_Laser_Mes_Frame_4",
+                                        "parent_frame": "UFC_Paper-2",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.029855732,
+                                                "y": -0.00223329163,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "assembly_frame_Description_Glas_Platelet_Paper-1_UFC_Paper-2",
+                                        "parent_frame": "UFC_Paper-2",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.015884999999998706,
+                                                "y": -0.0199999999999963,
+                                                "z": 1.354472090042691e-14
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 1.0,
+                                                "w": 0.0
+                                            }
+                                        },
+                                        "constraints_dict": "{}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    }
+                                ],
+                                "ref_axis": [
+                                    {
+                                        "axis_name": "UFC_Paper-2_Norm_Alignment_Plane_3",
+                                        "point_names": [
+                                            "UFC_Paper-2_Vision_Point_2_helper",
+                                            "UFC_Paper-2_Vision_Point_3_helper"
+                                        ]
+                                    }
+                                ],
+                                "ref_planes": [
+                                    {
+                                        "ref_plane_name": "UFC_Paper-2_Alignment_Plane_1",
+                                        "point_names": [
+                                            "UFC_Paper-2_Vision_Point_2_helper",
+                                            "UFC_Paper-2_Vision_Point_2",
+                                            "UFC_Paper-2_Vision_Point_3"
+                                        ],
+                                        "axis_names": [
+                                            ""
+                                        ],
+                                        "ideal_norm_vector": {
+                                            "x": -1.64540865e-17,
+                                            "y": -1.0,
+                                            "z": 6.519618e-30
+                                        }
+                                    },
+                                    {
+                                        "ref_plane_name": "UFC_Paper-2_Alignment_Plane_2ddasd",
+                                        "point_names": [
+                                            "UFC_Paper-2_Vision_Point_3_helper",
+                                            "UFC_Paper-2_Vision_Point_2_helper",
+                                            "UFC_Paper-2_Vision_Point_1_helper"
+                                        ],
+                                        "axis_names": [
+                                            ""
+                                        ],
+                                        "ideal_norm_vector": {
+                                            "x": 0.0,
+                                            "y": 0.0,
+                                            "z": 1.0
+                                        }
+                                    },
+                                    {
+                                        "ref_plane_name": "UFC_Paper-2_Alignment_Plane_3",
+                                        "point_names": [
+                                            "UFC_Paper-2_Surface_Center_Point",
+                                            "",
+                                            ""
+                                        ],
+                                        "axis_names": [
+                                            "UFC_Paper-2_Norm_Alignment_Plane_3"
+                                        ],
+                                        "ideal_norm_vector": {
+                                            "x": -1.0,
+                                            "y": 1.64540865e-17,
+                                            "z": 0.0
+                                        }
+                                    }
+                                ]
+                            },
+                            {
+                                "obj_name": "Glas_Platelet_Paper-1",
+                                "parent_frame": "Gonio_Left_Part_Origin",
+                                "obj_pose": {
+                                    "position": {
+                                        "x": -0.0005,
+                                        "y": -0.0005,
+                                        "z": 0.000501
+                                    },
+                                    "orientation": {
+                                        "x": 0.0,
+                                        "y": 0.0,
+                                        "z": 0.0,
+                                        "w": 1.0
+                                    }
+                                },
+                                "cad_data": "/home/niklas/SolidWorks_ASsembly_Instructor/examples/SWASI_Paper_Demonstrator_V2/SWASI_Exports/components/Glas_Platelet_Paper.STL",
+                                "ref_frames": [
+                                    {
+                                        "frame_name": "Glas_Platelet_Paper-1_Vision_Point_1",
+                                        "parent_frame": "Glas_Platelet_Paper-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": 5.66425323e-05,
+                                                "y": -0.00041711998,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_Platelet_Paper-1_Vision_Point_1_helper",
+                                        "parent_frame": "Glas_Platelet_Paper-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": 5.66425323e-05,
+                                                "y": -0.00041711998,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_Platelet_Paper-1_Vision_Point_2",
+                                        "parent_frame": "Glas_Platelet_Paper-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": 0.000125,
+                                                "y": -0.02,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_Platelet_Paper-1_Vision_Point_2_helper",
+                                        "parent_frame": "Glas_Platelet_Paper-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": 0.000125,
+                                                "y": -0.02,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_Platelet_Paper-1_Vision_Point_3",
+                                        "parent_frame": "Glas_Platelet_Paper-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.03,
+                                                "y": -0.02,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_Platelet_Paper-1_Vision_Point_3_helper",
+                                        "parent_frame": "Glas_Platelet_Paper-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.03,
+                                                "y": -0.02,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_Platelet_Paper-1_Vision_Point_4",
+                                        "parent_frame": "Glas_Platelet_Paper-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.0276998367,
+                                                "y": -0.0004196415,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_Platelet_Paper-1_Surface_Center_Point",
+                                        "parent_frame": "Glas_Platelet_Paper-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.014937500000000001,
+                                                "y": -0.02,
+                                                "z": 0.001
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'centroid': {'ref_frame_names': ['Vision_Point_2_helper', 'Vision_Point_3_helper'], 'dim': 'xyz', 'offset_values': [0, 0, 0]}, 'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "Glas_Platelet_Paper-1_Vision_Point_2_helper",
+                                                    "Glas_Platelet_Paper-1_Vision_Point_3_helper"
+                                                ],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_Platelet_Paper-1_Laser_Mes_Frame_1",
+                                        "parent_frame": "Glas_Platelet_Paper-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": 0.000178403854,
+                                                "y": -0.001208559,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_Platelet_Paper-1_Laser_Mes_Frame_2",
+                                        "parent_frame": "Glas_Platelet_Paper-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": 0.000178403854,
+                                                "y": -0.019208559,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_Platelet_Paper-1_Laser_Mes_Frame_3",
+                                        "parent_frame": "Glas_Platelet_Paper-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.027821596100000002,
+                                                "y": -0.019208559,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_Platelet_Paper-1_Laser_Mes_Frame_4",
+                                        "parent_frame": "Glas_Platelet_Paper-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.027821596100000002,
+                                                "y": -0.001208559,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{'constraints': {'units': 'mm'}}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "target_frame_Description_Glas_Platelet_Paper-1_UFC_Paper-2",
+                                        "parent_frame": "Glas_Platelet_Paper-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.014937500002074888,
+                                                "y": -0.01899999995467677,
+                                                "z": 0.002500000027609861
+                                            },
+                                            "orientation": {
+                                                "x": 3.676118076612056e-09,
+                                                "y": 1.0428462754291615e-17,
+                                                "z": 1.0,
+                                                "w": 8.674683193987676e-10
+                                            }
+                                        },
+                                        "constraints_dict": "{}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            }
+                                        }
+                                    }
+                                ],
+                                "ref_axis": [
+                                    {
+                                        "axis_name": "Glas_Platelet_Paper-1_Norm_Alignment_Plane_3",
+                                        "point_names": [
+                                            "Glas_Platelet_Paper-1_Vision_Point_2_helper",
+                                            "Glas_Platelet_Paper-1_Vision_Point_3_helper"
+                                        ]
+                                    }
+                                ],
+                                "ref_planes": [
+                                    {
+                                        "ref_plane_name": "Glas_Platelet_Paper-1_Alignment_Plane_1",
+                                        "point_names": [
+                                            "Glas_Platelet_Paper-1_Vision_Point_2_helper",
+                                            "Glas_Platelet_Paper-1_Vision_Point_2",
+                                            "Glas_Platelet_Paper-1_Vision_Point_3"
+                                        ],
+                                        "axis_names": [
+                                            ""
+                                        ],
+                                        "ideal_norm_vector": {
+                                            "x": -1.64540865e-17,
+                                            "y": -1.0,
+                                            "z": 6.519618e-30
+                                        }
+                                    },
+                                    {
+                                        "ref_plane_name": "Glas_Platelet_Paper-1_Alignment_Plane_2",
+                                        "point_names": [
+                                            "Glas_Platelet_Paper-1_Vision_Point_2",
+                                            "Glas_Platelet_Paper-1_Vision_Point_3",
+                                            "Glas_Platelet_Paper-1_Vision_Point_1"
+                                        ],
+                                        "axis_names": [
+                                            ""
+                                        ],
+                                        "ideal_norm_vector": {
+                                            "x": 0.0,
+                                            "y": 0.0,
+                                            "z": -1.0
+                                        }
+                                    },
+                                    {
+                                        "ref_plane_name": "Glas_Platelet_Paper-1_Alignment_Plane_3_G",
+                                        "point_names": [
+                                            "Glas_Platelet_Paper-1_Surface_Center_Point",
+                                            "",
+                                            ""
+                                        ],
+                                        "axis_names": [
+                                            "Glas_Platelet_Paper-1_Norm_Alignment_Plane_3"
+                                        ],
+                                        "ideal_norm_vector": {
+                                            "x": -1.0,
+                                            "y": 1.547762e-17,
+                                            "z": 0.0
+                                        }
+                                    }
+                                ]
+                            }
+                        ],
+                        "ref_frames_in_scene": [],
+                        "axis_in_scene": [],
+                        "planes_in_scene": [],
+                        "assembly_instructions": [
+                            {
+                                "id": "Description_Glas_Platelet_Paper-1_UFC_Paper-2",
+                                "component_1": "Glas_Platelet_Paper-1",
+                                "component_2": "UFC_Paper-2",
+                                "component_1_is_moving_part": false,
+                                "plane_match_1": {
+                                    "plane_name_component_1": "Glas_Platelet_Paper-1_Alignment_Plane_1",
+                                    "plane_name_component_2": "UFC_Paper-2_Alignment_Plane_1",
+                                    "plane_offset": -0.0010000000474974513,
+                                    "inv_normal_vector": false
+                                },
+                                "plane_match_2": {
+                                    "plane_name_component_1": "Glas_Platelet_Paper-1_Alignment_Plane_2",
+                                    "plane_name_component_2": "UFC_Paper-2_Alignment_Plane_2ddasd",
+                                    "plane_offset": -0.0005000000237487257,
+                                    "inv_normal_vector": true
+                                },
+                                "plane_match_3": {
+                                    "plane_name_component_1": "Glas_Platelet_Paper-1_Alignment_Plane_3_G",
+                                    "plane_name_component_2": "UFC_Paper-2_Alignment_Plane_3",
+                                    "plane_offset": 0.0,
+                                    "inv_normal_vector": false
+                                }
+                            }
+                        ]
+                    },
+                    "success": true
+                },
+                "success": true
+            }
+        }
+    ]
+}

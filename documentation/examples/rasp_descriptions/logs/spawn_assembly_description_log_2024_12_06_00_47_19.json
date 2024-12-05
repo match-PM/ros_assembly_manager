@@ -1,0 +1,32 @@
+{
+    "action_sequence_name": "spawn_assembly_description",
+    "action_log": [
+        {
+            "2_/assembly_manager/modify_frame_relative": {
+                "service_client": "/assembly_manager/modify_frame_relative",
+                "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+                "srv_start_time": "2024-12-06_00:47:19.428028",
+                "srv_end_time": "2024-12-06_00:47:19.496181",
+                "execution_time": "0:00:00.068153",
+                "srv_request": {
+                    "frame_name": "UFC_Paper-2_Vision_Point_1",
+                    "rel_position": {
+                        "x": 0.01,
+                        "y": 0.01,
+                        "z": 0.0
+                    },
+                    "rel_rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    }
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        }
+    ]
+}

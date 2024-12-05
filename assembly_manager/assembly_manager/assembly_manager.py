@@ -262,14 +262,19 @@ class AssemblyManagerNode(Node):
                 create_ref_frame_request.ref_frame.pose.orientation.y = ref_frame.get("transformation").get("rotation").get("Y")
                 create_ref_frame_request.ref_frame.pose.orientation.z = ref_frame.get("transformation").get("rotation").get("Z")
                 constraint_dict = ref_frame.get("constraints",{})
-                constraint_dict['units'] = doc_units
-                constraint_dict = {"constraints": constraint_dict}
-                create_ref_frame_request.ref_frame.constraints_dict = str(constraint_dict)
+                #constraint_dict['units'] = doc_units
+                #constraint_dict = {"constraints": constraint_dict}
+                #create_ref_frame_request.ref_frame.constraints_dict = str(constraint_dict)
 
-                frame_constraint_handler = f_constraints.FrameConstraintsHandler.return_handler_from_dict(constraint_dict,logger = self.logger)
+                frame_constraint_handler = f_constraints.FrameConstraintsHandler.return_handler_from_dict(dictionary=constraint_dict,
+                                                                                                          component_name=comp_name,
+                                                                                                          logger = self.logger)
                 frame_constraint_handler.unit = doc_units
+                
                 msg = frame_constraint_handler.return_as_msg()
-
+                                
+                create_ref_frame_request.ref_frame.constraints = msg
+                
                 spawn_ref_frame_success = self.create_ref_frame(create_ref_frame_request)
 
                 if not spawn_ref_frame_success:
