@@ -1,0 +1,604 @@
+{
+    "action_sequence_name": "Spawn_frames_from_dictionary",
+    "action_log": [
+        {
+            "1_/assembly_manager/modify_frame_relative": {
+                "service_client": "/assembly_manager/modify_frame_relative",
+                "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+                "srv_start_time": "2025-01-16_18:54:40.880384",
+                "srv_end_time": "2025-01-16_18:54:40.897358",
+                "execution_time": "0:00:00.016974",
+                "srv_request": {
+                    "frame_name": "Vision_Point_1",
+                    "rel_position": {
+                        "x": 0.0,
+                        "y": 0.01,
+                        "z": 0.0
+                    },
+                    "rel_rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    }
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "0_Create Frames": {
+                "service_client": "/assembly_manager/spawn_frames_from_description",
+                "service_type": "assembly_manager_interfaces/srv/SpawnFramesFromDescription",
+                "srv_start_time": "2025-01-16_18:54:29.627587",
+                "srv_end_time": "2025-01-16_18:54:29.779791",
+                "execution_time": "0:00:00.152204",
+                "srv_request": {
+                    "dict_or_path": "/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/examples/spawn_frames_example.json"
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "0_Create Frames": {
+                "service_client": "/assembly_manager/spawn_frames_from_description",
+                "service_type": "assembly_manager_interfaces/srv/SpawnFramesFromDescription",
+                "srv_start_time": "2025-01-16_18:54:29.627587",
+                "srv_end_time": "2025-01-16_18:54:29.779791",
+                "execution_time": "0:00:00.152204",
+                "srv_request": {
+                    "dict_or_path": "/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/examples/spawn_frames_example.json"
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "0_Create Frames": {
+                "service_client": "/assembly_manager/spawn_frames_from_description",
+                "service_type": "assembly_manager_interfaces/srv/SpawnFramesFromDescription",
+                "srv_start_time": "2025-01-16_18:54:29.627587",
+                "srv_end_time": "2025-01-16_18:54:29.779791",
+                "execution_time": "0:00:00.152204",
+                "srv_request": {
+                    "dict_or_path": "/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/examples/spawn_frames_example.json"
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "1_/assembly_manager/modify_frame_relative": {
+                "service_client": "/assembly_manager/modify_frame_relative",
+                "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+                "srv_start_time": "2025-01-16_18:54:40.880384",
+                "srv_end_time": "2025-01-16_18:54:40.897358",
+                "execution_time": "0:00:00.016974",
+                "srv_request": {
+                    "frame_name": "Vision_Point_1",
+                    "rel_position": {
+                        "x": 0.0,
+                        "y": 0.01,
+                        "z": 0.0
+                    },
+                    "rel_rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    }
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "1_/assembly_manager/modify_frame_relative": {
+                "service_client": "/assembly_manager/modify_frame_relative",
+                "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+                "srv_start_time": "2025-01-16_18:54:40.880384",
+                "srv_end_time": "2025-01-16_18:54:40.897358",
+                "execution_time": "0:00:00.016974",
+                "srv_request": {
+                    "frame_name": "Vision_Point_1",
+                    "rel_position": {
+                        "x": 0.0,
+                        "y": 0.01,
+                        "z": 0.0
+                    },
+                    "rel_rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    }
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "1_/assembly_manager/modify_frame_relative": {
+                "service_client": "/assembly_manager/modify_frame_relative",
+                "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+                "srv_start_time": "2025-01-16_18:54:40.880384",
+                "srv_end_time": "2025-01-16_18:54:40.897358",
+                "execution_time": "0:00:00.016974",
+                "srv_request": {
+                    "frame_name": "Vision_Point_1",
+                    "rel_position": {
+                        "x": 0.0,
+                        "y": 0.01,
+                        "z": 0.0
+                    },
+                    "rel_rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    }
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "0_Create Frames": {
+                "service_client": "/assembly_manager/spawn_frames_from_description",
+                "service_type": "assembly_manager_interfaces/srv/SpawnFramesFromDescription",
+                "srv_start_time": "2025-01-16_18:54:29.627587",
+                "srv_end_time": "2025-01-16_18:54:29.779791",
+                "execution_time": "0:00:00.152204",
+                "srv_request": {
+                    "dict_or_path": "/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/examples/spawn_frames_example.json"
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "1_/assembly_manager/modify_frame_relative": {
+                "service_client": "/assembly_manager/modify_frame_relative",
+                "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+                "srv_start_time": "2025-01-16_18:54:40.880384",
+                "srv_end_time": "2025-01-16_18:54:40.897358",
+                "execution_time": "0:00:00.016974",
+                "srv_request": {
+                    "frame_name": "Vision_Point_1",
+                    "rel_position": {
+                        "x": 0.0,
+                        "y": 0.01,
+                        "z": 0.0
+                    },
+                    "rel_rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    }
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "2_/assembly_manager/get_scene": {
+                "service_client": "/assembly_manager/get_scene",
+                "service_type": "assembly_manager_interfaces/srv/GetScene",
+                "srv_start_time": "2025-01-16_18:54:41.555416",
+                "srv_end_time": "2025-01-16_18:54:41.558891",
+                "execution_time": "0:00:00.003475",
+                "srv_request": {},
+                "srv_response": {
+                    "scene": {
+                        "objects_in_scene": [],
+                        "ref_frames_in_scene": [
+                            {
+                                "frame_name": "Vision_Point_1",
+                                "parent_frame": "world",
+                                "pose": {
+                                    "position": {
+                                        "x": -0.00136904907,
+                                        "y": 0.007533416750000001,
+                                        "z": 0.002
+                                    },
+                                    "orientation": {
+                                        "x": 0.0,
+                                        "y": 0.0,
+                                        "z": 0.0,
+                                        "w": 1.0
+                                    }
+                                },
+                                "constraints_dict": "",
+                                "constraints": {
+                                    "unit": "mm",
+                                    "centroid": {
+                                        "is_active": false,
+                                        "ref_frame_names": [],
+                                        "dim": "xyz",
+                                        "offset_values": {
+                                            "x": 0.0,
+                                            "y": 0.0,
+                                            "z": 0.0
+                                        }
+                                    },
+                                    "orthogonal": {
+                                        "is_active": false,
+                                        "frame_1": "",
+                                        "frame_2": "",
+                                        "frame_3": "",
+                                        "distance_from_f1": 0.0,
+                                        "unit_distance_from_f1": "%",
+                                        "distance_from_f1_f2_connection": 0.0,
+                                        "frame_normal_plane_axis": "z",
+                                        "frame_orthogonal_connection_axis": "x"
+                                    }
+                                }
+                            },
+                            {
+                                "frame_name": "Vision_Point_1_helper",
+                                "parent_frame": "world",
+                                "pose": {
+                                    "position": {
+                                        "x": -0.00136904907,
+                                        "y": -0.00246658325,
+                                        "z": 0.0
+                                    },
+                                    "orientation": {
+                                        "x": 0.0,
+                                        "y": 0.0,
+                                        "z": 0.0,
+                                        "w": 1.0
+                                    }
+                                },
+                                "constraints_dict": "",
+                                "constraints": {
+                                    "unit": "mm",
+                                    "centroid": {
+                                        "is_active": false,
+                                        "ref_frame_names": [],
+                                        "dim": "xyz",
+                                        "offset_values": {
+                                            "x": 0.0,
+                                            "y": 0.0,
+                                            "z": 0.0
+                                        }
+                                    },
+                                    "orthogonal": {
+                                        "is_active": false,
+                                        "frame_1": "",
+                                        "frame_2": "",
+                                        "frame_3": "",
+                                        "distance_from_f1": 0.0,
+                                        "unit_distance_from_f1": "%",
+                                        "distance_from_f1_f2_connection": 0.0,
+                                        "frame_normal_plane_axis": "z",
+                                        "frame_orthogonal_connection_axis": "x"
+                                    }
+                                }
+                            },
+                            {
+                                "frame_name": "Vision_Point_2",
+                                "parent_frame": "world",
+                                "pose": {
+                                    "position": {
+                                        "x": -0.0017700004600000002,
+                                        "y": -0.02,
+                                        "z": 0.002
+                                    },
+                                    "orientation": {
+                                        "x": 0.0,
+                                        "y": 0.0,
+                                        "z": 0.0,
+                                        "w": 1.0
+                                    }
+                                },
+                                "constraints_dict": "",
+                                "constraints": {
+                                    "unit": "mm",
+                                    "centroid": {
+                                        "is_active": false,
+                                        "ref_frame_names": [],
+                                        "dim": "xyz",
+                                        "offset_values": {
+                                            "x": 0.0,
+                                            "y": 0.0,
+                                            "z": 0.0
+                                        }
+                                    },
+                                    "orthogonal": {
+                                        "is_active": false,
+                                        "frame_1": "",
+                                        "frame_2": "",
+                                        "frame_3": "",
+                                        "distance_from_f1": 0.0,
+                                        "unit_distance_from_f1": "%",
+                                        "distance_from_f1_f2_connection": 0.0,
+                                        "frame_normal_plane_axis": "z",
+                                        "frame_orthogonal_connection_axis": "x"
+                                    }
+                                }
+                            },
+                            {
+                                "frame_name": "Vision_Point_2_helper",
+                                "parent_frame": "world",
+                                "pose": {
+                                    "position": {
+                                        "x": -0.0017700004600000002,
+                                        "y": -0.02,
+                                        "z": 0.0
+                                    },
+                                    "orientation": {
+                                        "x": 0.0,
+                                        "y": 0.0,
+                                        "z": 0.0,
+                                        "w": 1.0
+                                    }
+                                },
+                                "constraints_dict": "",
+                                "constraints": {
+                                    "unit": "mm",
+                                    "centroid": {
+                                        "is_active": false,
+                                        "ref_frame_names": [],
+                                        "dim": "xyz",
+                                        "offset_values": {
+                                            "x": 0.0,
+                                            "y": 0.0,
+                                            "z": 0.0
+                                        }
+                                    },
+                                    "orthogonal": {
+                                        "is_active": false,
+                                        "frame_1": "",
+                                        "frame_2": "",
+                                        "frame_3": "",
+                                        "distance_from_f1": 0.0,
+                                        "unit_distance_from_f1": "%",
+                                        "distance_from_f1_f2_connection": 0.0,
+                                        "frame_normal_plane_axis": "z",
+                                        "frame_orthogonal_connection_axis": "x"
+                                    }
+                                }
+                            },
+                            {
+                                "frame_name": "Vision_Point_3",
+                                "parent_frame": "world",
+                                "pose": {
+                                    "position": {
+                                        "x": -0.03,
+                                        "y": -0.02,
+                                        "z": 0.002
+                                    },
+                                    "orientation": {
+                                        "x": 0.0,
+                                        "y": 0.0,
+                                        "z": 0.0,
+                                        "w": 1.0
+                                    }
+                                },
+                                "constraints_dict": "",
+                                "constraints": {
+                                    "unit": "mm",
+                                    "centroid": {
+                                        "is_active": false,
+                                        "ref_frame_names": [],
+                                        "dim": "xyz",
+                                        "offset_values": {
+                                            "x": 0.0,
+                                            "y": 0.0,
+                                            "z": 0.0
+                                        }
+                                    },
+                                    "orthogonal": {
+                                        "is_active": false,
+                                        "frame_1": "",
+                                        "frame_2": "",
+                                        "frame_3": "",
+                                        "distance_from_f1": 0.0,
+                                        "unit_distance_from_f1": "%",
+                                        "distance_from_f1_f2_connection": 0.0,
+                                        "frame_normal_plane_axis": "z",
+                                        "frame_orthogonal_connection_axis": "x"
+                                    }
+                                }
+                            },
+                            {
+                                "frame_name": "Vision_Point_3_helper",
+                                "parent_frame": "world",
+                                "pose": {
+                                    "position": {
+                                        "x": -0.03,
+                                        "y": -0.02,
+                                        "z": 0.0
+                                    },
+                                    "orientation": {
+                                        "x": 0.0,
+                                        "y": 0.0,
+                                        "z": 0.0,
+                                        "w": 1.0
+                                    }
+                                },
+                                "constraints_dict": "",
+                                "constraints": {
+                                    "unit": "mm",
+                                    "centroid": {
+                                        "is_active": false,
+                                        "ref_frame_names": [],
+                                        "dim": "xyz",
+                                        "offset_values": {
+                                            "x": 0.0,
+                                            "y": 0.0,
+                                            "z": 0.0
+                                        }
+                                    },
+                                    "orthogonal": {
+                                        "is_active": false,
+                                        "frame_1": "",
+                                        "frame_2": "",
+                                        "frame_3": "",
+                                        "distance_from_f1": 0.0,
+                                        "unit_distance_from_f1": "%",
+                                        "distance_from_f1_f2_connection": 0.0,
+                                        "frame_normal_plane_axis": "z",
+                                        "frame_orthogonal_connection_axis": "x"
+                                    }
+                                }
+                            },
+                            {
+                                "frame_name": "Vision_Point_4",
+                                "parent_frame": "world",
+                                "pose": {
+                                    "position": {
+                                        "x": -0.030342416799999997,
+                                        "y": -0.000382987976,
+                                        "z": 0.002
+                                    },
+                                    "orientation": {
+                                        "x": 0.0,
+                                        "y": 0.0,
+                                        "z": 0.0,
+                                        "w": 1.0
+                                    }
+                                },
+                                "constraints_dict": "",
+                                "constraints": {
+                                    "unit": "mm",
+                                    "centroid": {
+                                        "is_active": false,
+                                        "ref_frame_names": [],
+                                        "dim": "xyz",
+                                        "offset_values": {
+                                            "x": 0.0,
+                                            "y": 0.0,
+                                            "z": 0.0
+                                        }
+                                    },
+                                    "orthogonal": {
+                                        "is_active": false,
+                                        "frame_1": "",
+                                        "frame_2": "",
+                                        "frame_3": "",
+                                        "distance_from_f1": 0.0,
+                                        "unit_distance_from_f1": "%",
+                                        "distance_from_f1_f2_connection": 0.0,
+                                        "frame_normal_plane_axis": "z",
+                                        "frame_orthogonal_connection_axis": "x"
+                                    }
+                                }
+                            },
+                            {
+                                "frame_name": "Surface_Center_Point",
+                                "parent_frame": "world",
+                                "pose": {
+                                    "position": {
+                                        "x": -0.015885,
+                                        "y": -0.02,
+                                        "z": 0.001
+                                    },
+                                    "orientation": {
+                                        "x": 0.0,
+                                        "y": 0.0,
+                                        "z": 0.0,
+                                        "w": 1.0
+                                    }
+                                },
+                                "constraints_dict": "",
+                                "constraints": {
+                                    "unit": "mm",
+                                    "centroid": {
+                                        "is_active": false,
+                                        "ref_frame_names": [],
+                                        "dim": "xyz",
+                                        "offset_values": {
+                                            "x": 0.0,
+                                            "y": 0.0,
+                                            "z": 0.0
+                                        }
+                                    },
+                                    "orthogonal": {
+                                        "is_active": false,
+                                        "frame_1": "",
+                                        "frame_2": "",
+                                        "frame_3": "",
+                                        "distance_from_f1": 0.0,
+                                        "unit_distance_from_f1": "%",
+                                        "distance_from_f1_f2_connection": 0.0,
+                                        "frame_normal_plane_axis": "z",
+                                        "frame_orthogonal_connection_axis": "x"
+                                    }
+                                }
+                            },
+                            {
+                                "frame_name": "Othogonal_Test_Frame",
+                                "parent_frame": "world",
+                                "pose": {
+                                    "position": {
+                                        "x": 0.008484282675521773,
+                                        "y": -0.0026111312198551805,
+                                        "z": 0.002
+                                    },
+                                    "orientation": {
+                                        "x": 0.0,
+                                        "y": 0.0,
+                                        "z": 0.0,
+                                        "w": 1.0
+                                    }
+                                },
+                                "constraints_dict": "",
+                                "constraints": {
+                                    "unit": "mm",
+                                    "centroid": {
+                                        "is_active": false,
+                                        "ref_frame_names": [],
+                                        "dim": "xyz",
+                                        "offset_values": {
+                                            "x": 0.0,
+                                            "y": 0.0,
+                                            "z": 0.0
+                                        }
+                                    },
+                                    "orthogonal": {
+                                        "is_active": true,
+                                        "frame_1": "Vision_Point_1",
+                                        "frame_2": "Vision_Point_2",
+                                        "frame_3": "Vision_Point_3",
+                                        "distance_from_f1": 10.0,
+                                        "unit_distance_from_f1": "%",
+                                        "distance_from_f1_f2_connection": 10.0,
+                                        "frame_normal_plane_axis": "z",
+                                        "frame_orthogonal_connection_axis": "x"
+                                    }
+                                }
+                            }
+                        ],
+                        "axis_in_scene": [],
+                        "planes_in_scene": [],
+                        "assembly_instructions": []
+                    },
+                    "success": true
+                },
+                "success": true
+            }
+        }
+    ]
+}

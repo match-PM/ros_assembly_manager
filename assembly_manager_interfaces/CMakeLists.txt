@@ -40,6 +40,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/ConstraintPlanes.msg"
   "msg/FrConstraintCentroid.msg"
   "msg/FrConstraints.msg"
+  "msg/FrConstraintOrthogonal.msg"
   DEPENDENCIES geometry_msgs # Add packages that above messages depend on, in this case geometry_msgs for Sphere.msg
 )
 if(BUILD_TESTING)

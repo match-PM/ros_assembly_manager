@@ -1,2 +1,3 @@
 string unit 'mm'
 FrConstraintCentroid centroid
+FrConstraintOrthogonal orthogonal

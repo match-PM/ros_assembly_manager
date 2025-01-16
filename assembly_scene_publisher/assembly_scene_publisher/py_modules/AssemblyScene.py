@@ -546,15 +546,18 @@ class AssemblyManagerScene():
             for ref_frame in obj.ref_frames:
                 ref_frame:ami_msg.RefFrame
                 self.update_ref_frame_constraint(ref_frame, obj.obj_name)
+                
         for ref_frame in self.scene.ref_frames_in_scene:
             ref_frame: ami_msg.RefFrame
             self.update_ref_frame_constraint(ref_frame, None)
 
-    def update_ref_frame_constraint(self, ref_frame:ami_msg.RefFrame,component_name:str)-> bool:
+    def update_ref_frame_constraint(self, ref_frame:ami_msg.RefFrame, component_name:str)-> bool:
         try:
             # make a deep copy just to be sure that the original ref frame is not modified
             copy_ref_frame = deepcopy(ref_frame)
             scene_copy = deepcopy(self.scene)
+            
+            #self.logger.warn(f"Update ref frame constraints for frame '{ref_frame.frame_name}'")
             
             frame_constraints_handler:FrameConstraintsHandler = FrameConstraintsHandler.return_handler_from_msg(msg=copy_ref_frame.constraints,
                                                                                                                 scene=scene_copy,
@@ -562,6 +565,7 @@ class AssemblyManagerScene():
             
             pose = frame_constraints_handler.calculate_frame_constraints(initial_pose = copy_ref_frame.pose, 
                                                                          component_name = component_name,
+                                                                         frame_name=copy_ref_frame.frame_name,
                                                                          scene=self.scene,
                                                                          logger=self.logger)
             

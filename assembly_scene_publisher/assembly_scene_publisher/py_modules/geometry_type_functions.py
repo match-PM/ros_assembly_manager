@@ -114,9 +114,60 @@ def transform_matrix_to_pose(transform_matrix:sp.Matrix, logger = None)-> Pose:
         orientation=Quaternion(x=float(quaternion[1]), y=float(quaternion[2]), z=float(quaternion[3]), w=float(quaternion[0])))
     return pose_msg 
 
-def rotation_matrix_to_quaternion(Rot_mat)-> sp.Matrix:
-    r = R.from_matrix(Rot_mat)
-    return sp.Matrix(r.as_quat())
+# def rotation_matrix_to_quaternion(Rot_mat)-> sp.Matrix:
+#     r = R.from_matrix(Rot_mat)
+#     return sp.Matrix(r.as_quat())
+
+# def rotation_matrix_to_quaternion_q(Rot_mat)-> Quaternion:
+#     r = R.from_matrix(Rot_mat)
+#     return Quaternion(x=r.as_quat()[1], y=r.as_quat()[2], z=r.as_quat()[3], w=r.as_quat()[0])
+
+def rotation_matrix_to_quaternion(rotation_matrix:sp.Matrix)-> Quaternion:
+    """
+    Convert a 3x3 rotation matrix to a quaternion.
+    
+    Args:
+        rotation_matrix: A 3x3 sympy.Matrix representing the rotation matrix.
+        
+    Returns:
+        A sympy.Matrix representing the quaternion (w, x, y, z).
+    """
+    # Extract elements of the rotation matrix
+    r = rotation_matrix
+    r00, r01, r02 = r[0, 0], r[0, 1], r[0, 2]
+    r10, r11, r12 = r[1, 0], r[1, 1], r[1, 2]
+    r20, r21, r22 = r[2, 0], r[2, 1], r[2, 2]
+    
+    # Calculate the trace of the rotation matrix
+    trace = r00 + r11 + r22
+    
+    if trace > 0:
+        s = sp.sqrt(trace + 1.0) * 2
+        w = 0.25 * s
+        x = (r21 - r12) / s
+        y = (r02 - r20) / s
+        z = (r10 - r01) / s
+    elif (r00 > r11) and (r00 > r22):
+        s = sp.sqrt(1.0 + r00 - r11 - r22) * 2
+        w = (r21 - r12) / s
+        x = 0.25 * s
+        y = (r01 + r10) / s
+        z = (r02 + r20) / s
+    elif r11 > r22:
+        s = sp.sqrt(1.0 + r11 - r00 - r22) * 2
+        w = (r02 - r20) / s
+        x = (r01 + r10) / s
+        y = 0.25 * s
+        z = (r12 + r21) / s
+    else:
+        s = sp.sqrt(1.0 + r22 - r00 - r11) * 2
+        w = (r10 - r01) / s
+        x = (r02 + r20) / s
+        y = (r12 + r21) / s
+        z = 0.25 * s
+    
+    # Return the quaternion as a sympy Matrix
+    return Quaternion(x=float(x), y=float(y), z=float(z), w=float(w))
 
 def quaternion_to_rotation_matrix(quaternion:Quaternion)-> sp.Matrix:
     w, x, y, z = quaternion.w, quaternion.x, quaternion.y, quaternion.z

@@ -1,6 +1,6 @@
 {
     "name": "Spawn_frames_from_dictionary",
-    "saved_at": "2024-11-07 19:05:27.409212",
+    "saved_at": "2024-12-13 22:47:17.462899",
     "action_list": [
         {
             "action_position": 0,
@@ -11,11 +11,34 @@
             "error_identifier": "success",
             "description": "",
             "service_request": {
-                "dict_or_path": "/home/ros2/src/ros_assembly_manager/documentation/examples/spawn_frames_example.json"
+                "dict_or_path": "/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/examples/spawn_frames_example.json"
             }
         },
         {
             "action_position": 1,
+            "action_type": "ServiceAction",
+            "name": "/assembly_manager/modify_frame_relative",
+            "service_client": "/assembly_manager/modify_frame_relative",
+            "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+            "error_identifier": null,
+            "description": "",
+            "service_request": {
+                "frame_name": "Vision_Point_1",
+                "rel_position": {
+                    "x": 0.01,
+                    "y": 0.0,
+                    "z": 0.0
+                },
+                "rel_rotation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 1.0
+                }
+            }
+        },
+        {
+            "action_position": 2,
             "action_type": "ServiceAction",
             "name": "/assembly_manager/get_scene",
             "service_client": "/assembly_manager/get_scene",

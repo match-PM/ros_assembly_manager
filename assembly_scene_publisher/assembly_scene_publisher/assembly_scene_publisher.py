@@ -155,6 +155,7 @@ class AssemblyScenePublisherNode(Node):
             except json.JSONDecodeError as e:
                 self.get_logger().error(f"Error loading the json file {e}")
         else:
+            self.get_logger().warn(f"Did not find the file {request.dict_or_path}. Assuming the input is a json string!")
             try:
                 frames_dictionary = json.loads(request.dict_or_path)
             except json.JSONDecodeError as e:
