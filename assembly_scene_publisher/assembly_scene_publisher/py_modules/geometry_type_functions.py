@@ -111,7 +111,7 @@ def transform_matrix_to_pose(transform_matrix:sp.Matrix, logger = None)-> Pose:
     # Create a Pose message
     pose_msg = Pose(
         position=Point(x=float(translation_vector[0]), y=float(translation_vector[1]), z=float(translation_vector[2])),
-        orientation=Quaternion(x=float(quaternion[1]), y=float(quaternion[2]), z=float(quaternion[3]), w=float(quaternion[0])))
+        orientation=Quaternion(x=float(quaternion.x), y=float(quaternion.y), z=float(quaternion.z), w=float(quaternion.w)))
     return pose_msg 
 
 # def rotation_matrix_to_quaternion(Rot_mat)-> sp.Matrix:

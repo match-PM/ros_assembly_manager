@@ -1091,7 +1091,6 @@ class AssemblyManagerScene():
                                         moving_component_plane_intersection:sp.Point3D, 
                                         static_component_plane_intersection:sp.Point3D, 
                                         assembly_transform: Pose)-> bool:
-
         assembly_frame = ami_msg.RefFrame()
         assembly_frame.frame_name = f"assembly_frame_{instruction_id}"
         assembly_frame.parent_frame = moving_component
@@ -1130,6 +1129,7 @@ class AssemblyManagerScene():
         target_frame.pose = helper_pose_2
         add_target_frame_success = self.add_ref_frame_to_scene(target_frame)
         result = add_assembly_frame_success and add_target_frame_success
+
         return result
         
     def calc_approx_quat_from_matrix(self, rot_mat: sp.Matrix) -> Quaternion:
