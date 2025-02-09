@@ -14,6 +14,14 @@ from typing import Union
 from scipy.optimize import minimize, least_squares
 from assembly_scene_publisher.py_modules.frame_constraints import FrameConstraintsHandler
 from copy import deepcopy,copy
+from assembly_scene_publisher.py_modules.scene_functions import (get_parent_frame_for_ref_frame,
+                                                                 get_ref_frame_by_name,
+                                                                 get_axis_from_scene,
+                                                                 get_plane_from_scene,
+                                                                 get_frames_for_plane,
+                                                                 get_frame_names_from_list,
+                                                                 get_frames_for_axis,
+                                                                 get_frames_for_component)
 
 
 from assembly_scene_publisher.py_modules.geometry_functions import (get_point_of_plane_intersection, 
@@ -1230,6 +1238,36 @@ class AssemblyManagerScene():
         plane = sp.Plane(point, normal_vector = line3d.direction)
 
         return plane
+    
+    def get_core_frames_for_component(self, component_name:str)->list[str]:
+        if not self.check_object_exists(component_name):
+            self.logger.error("Object does not exist")
+            return []
+        
+        frames = get_frames_for_component(self.scene, 
+                                          component_name,
+                                          self.logger)
+        final_list = []
+        
+        for frame in frames:
+            frame: ami_msg.RefFrame
+            constraints_handler = FrameConstraintsHandler()
+            constraints_handler.set_from_msg(frame.constraints)
+            
+            fri = constraints_handler.get_frame_references()
+            if len(fri) > 0:
+                final_list.extend(fri)
+            else:
+                final_list.append(frame.frame_name)
+        
+        self.logger.error(f"Addition list: {final_list}")
+        
+        # frames_str = get_frame_names_from_list(frames)        
+        # delete doupliates
+        
+        final_list = list(dict.fromkeys(final_list))
+        
+        return final_list
     
     @staticmethod
     def is_frame_from_scene( scene:ami_msg.ObjectScene, frame_name:str)->tuple[Union[str,None], Union[str,None]]:

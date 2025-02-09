@@ -8,11 +8,11 @@ from copy import deepcopy, copy
 import sympy as sp
 from assembly_scene_publisher.py_modules.geometry_type_functions import rotation_matrix_to_quaternion
 
-from assembly_scene_publisher.py_modules.assembly_scene_message_functions import (check_frames_exist_in_scene, 
-                                                                                    check_for_duplicate_frames, 
-                                                                                    get_ref_frame_by_name,
-                                                                                    check_ref_frames_for_same_parent_frame,
-                                                                                    get_parent_frame_for_ref_frame)                                    
+from assembly_scene_publisher.py_modules.scene_functions import     (check_frames_exist_in_scene, 
+                                                                    check_for_duplicate_frames, 
+                                                                    get_ref_frame_by_name,
+                                                                    check_ref_frames_for_same_parent_frame,
+                                                                    get_parent_frame_for_ref_frame)                                    
 
 from assembly_scene_publisher.py_modules.CentroidConstraintHandler import CentroidConstraintHandler
 from assembly_scene_publisher.py_modules.OrthogonalConstraintHandler import OrthogonalConstraintHandler
@@ -27,16 +27,16 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
     def __init__(self, logger: RcutilsLogger = None):
         super(FrameConstraintsHandler, self).__init__()
         self.logger = logger
+        self.centroid_handler = CentroidConstraintHandler(logger=logger)
+        self.orthogonal_handler = OrthogonalConstraintHandler(logger=logger)
 
     @staticmethod
     def return_handler_from_dict(dictionary: dict, 
                                     component_name: str = None,
                                     scene: ami_msg.ObjectScene = None, 
                                     logger: RcutilsLogger = None):
-        
+            
         frame_constraints = FrameConstraintsHandler(logger=logger)
-        
-        
         # init centroid constraint handler
         centroid_handler = CentroidConstraintHandler.return_handler_from_dict(dictionary.get('centroid',{}), 
                                                                                 component_name=component_name,
@@ -45,16 +45,19 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
                                        component_name=component_name)
         
         frame_constraints.centroid = centroid_handler.return_as_msg()
-        
+        frame_constraints.centroid_handler = centroid_handler
+
         # init orthogonal constraint handler
         orthogonal_handler = OrthogonalConstraintHandler.return_handler_from_dict(dictionary.get('orthogonal',{}),
                                                                                   component_name=component_name,
                                                                                   logger=logger)
+        
         orthogonal_handler.set_is_active(scene=scene,
                                             component_name=component_name)
         
         frame_constraints.orthogonal = orthogonal_handler.return_as_msg()
-        
+        frame_constraints.orthogonal_handler = orthogonal_handler
+    
         return frame_constraints
     
     @staticmethod
@@ -70,11 +73,13 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
         centroid_handler = CentroidConstraintHandler.return_handler_from_msg(msg_copy.centroid, logger)
         centroid_handler.set_is_active(scene,component_name=component_name)
         handler.centroid = centroid_handler.return_as_msg()
+        handler.centroid_handler = centroid_handler
         
         orthogonal_handler = OrthogonalConstraintHandler.return_handler_from_msg(msg_copy.orthogonal, logger)
         orthogonal_handler.set_is_active(scene,component_name=component_name)
         handler.orthogonal = orthogonal_handler.return_as_msg()
-
+        handler.orthogonal_handler = orthogonal_handler
+        
         return handler
     
     def return_as_msg(self):
@@ -88,7 +93,19 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
         msg_copy = deepcopy(msg)
         self.unit = msg_copy.unit
         self.centroid = msg_copy.centroid
+        self.centroid_handler = CentroidConstraintHandler.return_handler_from_msg(msg_copy.centroid, self.logger)
         self.orthogonal = msg_copy.orthogonal
+        self.orthogonal_handler = OrthogonalConstraintHandler.return_handler_from_msg(msg_copy.orthogonal, self.logger)
+    
+    def get_frame_references(self):
+        frame_references = []
+        
+        if self.centroid.is_active:
+            frame_references.extend(self.centroid_handler.get_frame_references())
+        if self.orthogonal.is_active:
+            frame_references.extend(self.orthogonal_handler.get_frame_references())
+            
+        return frame_references
     
     def calculate_frame_constraints(self, 
                                     initial_pose: Pose,

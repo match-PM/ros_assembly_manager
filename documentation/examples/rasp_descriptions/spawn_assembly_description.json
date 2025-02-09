@@ -1,6 +1,6 @@
 {
     "name": "spawn_assembly_description",
-    "saved_at": "2024-12-06 00:49:13.896197",
+    "saved_at": "2025-02-10 00:13:58.994773",
     "action_list": [
         {
             "action_position": 0,
@@ -18,6 +18,18 @@
         {
             "action_position": 1,
             "action_type": "ServiceAction",
+            "name": "/assembly_manager/get_frames_for_component",
+            "service_client": "/assembly_manager/get_frames_for_component",
+            "service_type": "assembly_manager_interfaces/srv/FramesForComponent",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "component_name": "UFC_Paper-2"
+            }
+        },
+        {
+            "action_position": 2,
+            "action_type": "ServiceAction",
             "name": "/assembly_manager/get_scene",
             "service_client": "/assembly_manager/get_scene",
             "service_type": "assembly_manager_interfaces/srv/GetScene",
@@ -26,7 +38,7 @@
             "service_request": {}
         },
         {
-            "action_position": 2,
+            "action_position": 3,
             "action_type": "ServiceAction",
             "name": "/assembly_manager/modify_frame_relative",
             "service_client": "/assembly_manager/modify_frame_relative",

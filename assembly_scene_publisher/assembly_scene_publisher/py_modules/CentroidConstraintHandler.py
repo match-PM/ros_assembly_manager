@@ -8,7 +8,7 @@ from copy import deepcopy, copy
 import sympy as sp
 from assembly_scene_publisher.py_modules.geometry_type_functions import rotation_matrix_to_quaternion
 
-from assembly_scene_publisher.py_modules.assembly_scene_message_functions import (check_frames_exist_in_scene, 
+from assembly_scene_publisher.py_modules.scene_functions import (check_frames_exist_in_scene, 
                                                                                     check_for_duplicate_frames, 
                                                                                     get_ref_frame_by_name,
                                                                                     check_ref_frames_for_same_parent_frame,
@@ -89,7 +89,11 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
                 self.logger.error('Reference frames do not have the same parent frame!')
             return
         
-
+    def get_frame_references(self)->list[str]:
+        
+        frame_names = self.ref_frame_names
+        
+        return frame_names
     
     def calculate_constraint(self, 
                              initial_frame_pose:Pose,

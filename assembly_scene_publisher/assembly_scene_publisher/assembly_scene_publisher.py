@@ -49,6 +49,8 @@ class AssemblyScenePublisherNode(Node):
 
         self.spawn_frames_from_description_srv = self.create_service(ami_srv.SpawnFramesFromDescription,f'assembly_manager/spawn_frames_from_description',self.spawn_frames_from_description,callback_group=self.callback_group) 
 
+        self.get_frames_for_component_srv = self.create_service(ami_srv.FramesForComponent,f'assembly_manager/get_frames_for_component', self.get_frames_for_component,callback_group=self.callback_group)
+        
         self.timer = self.create_timer(5.0, self.object_scene.publish_information,callback_group=self.callback_group)
        
         self.get_logger().info("Assembly scene publisher started!")
@@ -166,6 +168,21 @@ class AssemblyScenePublisherNode(Node):
             return response
         
         response.success = self.object_scene.add_ref_frames_to_scene_from_dict(frames_dictionary)
+        return response
+    
+    def get_frames_for_component(self, request: ami_srv.FramesForComponent.Request, response: ami_srv.FramesForComponent.Response):
+        frames = self.object_scene.get_core_frames_for_component(component_name = request.component_name)
+        
+        if frames == None:
+            response.success = False
+            return response
+        
+        if len(frames) == 0:
+            response.success = False
+            return response
+        
+        response.frame_names = frames
+        response.success = True
         return response
     
 

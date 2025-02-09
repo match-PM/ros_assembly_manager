@@ -30,6 +30,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/SpawnComponentFromDescription.srv"
   "srv/CreateAssemblyInstructionFromDescription.srv"
   "srv/SpawnFramesFromDescription.srv"
+  "srv/FramesForComponent.srv"
 
   "msg/AssemblyInstruction.msg"
   "msg/Object.msg"

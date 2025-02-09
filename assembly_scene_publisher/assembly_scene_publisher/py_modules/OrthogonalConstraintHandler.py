@@ -8,7 +8,7 @@ from copy import deepcopy, copy
 import sympy as sp
 from assembly_scene_publisher.py_modules.geometry_type_functions import rotation_matrix_to_quaternion
 
-from assembly_scene_publisher.py_modules.assembly_scene_message_functions import (check_frames_exist_in_scene, 
+from assembly_scene_publisher.py_modules.scene_functions import (check_frames_exist_in_scene, 
                                                                                     check_for_duplicate_frames, 
                                                                                     get_ref_frame_by_name,
                                                                                     check_ref_frames_for_same_parent_frame,
@@ -87,6 +87,15 @@ class OrthogonalConstraintHandler(ami_msg.FrConstraintOrthogonal):
             if self.logger is not None:
                 self.logger.error('Duplicate reference frames provided for orthogonal constraint')
             return
+        
+    def get_frame_references(self)->list[str]:
+        
+        frame_names = []
+        frame_names.append(self.frame_1)
+        frame_names.append(self.frame_2)
+        frame_names.append(self.frame_3)
+                
+        return frame_names
     
     def calculate_constraint(self,
                             initial_frame_pose:Pose,
