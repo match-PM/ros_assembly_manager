@@ -16,6 +16,7 @@ from assembly_scene_publisher.py_modules.scene_functions import     (check_frame
 
 from assembly_scene_publisher.py_modules.CentroidConstraintHandler import CentroidConstraintHandler
 from assembly_scene_publisher.py_modules.OrthogonalConstraintHandler import OrthogonalConstraintHandler
+from assembly_scene_publisher.py_modules.InPlaneConstraintHandler import InPlaneConstraintHandler
 
 
 class FrameConstraintsHandler(ami_msg.FrConstraints):
@@ -29,6 +30,7 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
         self.logger = logger
         self.centroid_handler = CentroidConstraintHandler(logger=logger)
         self.orthogonal_handler = OrthogonalConstraintHandler(logger=logger)
+        self.in_plane_handler = InPlaneConstraintHandler(logger=logger)
 
     @staticmethod
     def return_handler_from_dict(dictionary: dict, 
@@ -47,6 +49,9 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
         frame_constraints.centroid = centroid_handler.return_as_msg()
         frame_constraints.centroid_handler = centroid_handler
 
+        
+        
+        
         # init orthogonal constraint handler
         orthogonal_handler = OrthogonalConstraintHandler.return_handler_from_dict(dictionary.get('orthogonal',{}),
                                                                                   component_name=component_name,
@@ -57,7 +62,19 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
         
         frame_constraints.orthogonal = orthogonal_handler.return_as_msg()
         frame_constraints.orthogonal_handler = orthogonal_handler
-    
+
+        
+        
+        in_plane_handler = InPlaneConstraintHandler.return_handler_from_dict(dictionary.get('inPlane',{}),
+                                                                             component_name=component_name,
+                                                                                logger=logger)
+        
+        in_plane_handler.set_is_active(scene=scene,
+                                       component_name=component_name)
+        
+        frame_constraints.in_plane = in_plane_handler.return_as_msg()
+        frame_constraints.in_plane_handler = in_plane_handler
+        
         return frame_constraints
     
     @staticmethod
@@ -80,6 +97,11 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
         handler.orthogonal = orthogonal_handler.return_as_msg()
         handler.orthogonal_handler = orthogonal_handler
         
+        in_plane_handler = InPlaneConstraintHandler.return_handler_from_msg(msg_copy.in_plane, logger)
+        in_plane_handler.set_is_active(scene,component_name=component_name)
+        handler.in_plane = in_plane_handler.return_as_msg()
+        handler.in_plane_handler = in_plane_handler
+        
         return handler
     
     def return_as_msg(self):
@@ -87,6 +109,7 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
         msg.unit = self.unit
         msg.centroid = self.centroid
         msg.orthogonal = self.orthogonal
+        msg.in_plane = self.in_plane
         return msg
     
     def set_from_msg(self, msg: ami_msg.FrConstraints):
@@ -96,6 +119,8 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
         self.centroid_handler = CentroidConstraintHandler.return_handler_from_msg(msg_copy.centroid, self.logger)
         self.orthogonal = msg_copy.orthogonal
         self.orthogonal_handler = OrthogonalConstraintHandler.return_handler_from_msg(msg_copy.orthogonal, self.logger)
+        self.in_plane = msg_copy.in_plane
+        self.in_plane_handler = InPlaneConstraintHandler.return_handler_from_msg(msg_copy.in_plane, self.logger)
     
     def get_frame_references(self):
         frame_references = []
@@ -104,6 +129,8 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
             frame_references.extend(self.centroid_handler.get_frame_references())
         if self.orthogonal.is_active:
             frame_references.extend(self.orthogonal_handler.get_frame_references())
+        if self.in_plane.is_active:
+            frame_references.extend(self.in_plane_handler.get_frame_references())
             
         return frame_references
     
@@ -129,10 +156,14 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
                                                                     unit=self.unit,
                                                                     frame_name=frame_name)
             if constraint == 'in_plane':
-                pass
-                # result_pose = self.calculateconstraint(initial_pose=initial_pose,
-                #                                                   scene=scene,
-                #                                                   logger=logger)
+                # calculate the in-plane constraint
+                in_plane_handler = InPlaneConstraintHandler(logger=self.logger)
+                in_plane_handler.set_from_msg(self.in_plane)
+                result_pose = in_plane_handler.calculate_constraint(initial_frame_pose=initial_pose,
+                                                                    scene=scene,
+                                                                    component_name=component_name,
+                                                                    unit=self.unit,
+                                                                    frame_name=frame_name)
 
             if constraint == 'orthogonal':
                 # calculate the orthogonal constraint

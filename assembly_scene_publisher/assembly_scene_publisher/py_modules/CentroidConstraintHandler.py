@@ -36,10 +36,11 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
         self.ref_frame_names = msg_copy.ref_frame_names
 
     def set_is_active(self, scene: ami_msg.ObjectScene = None, component_name = None):
-        
+                        
         # check if enough reference frames are provided
         if len(self.ref_frame_names)>1:
             self.is_active = True
+            
             if self.logger is not None:
                 self.logger.debug(f'Enough reference frames provided for centroid constraint {self.ref_frame_names}.')
         else:
@@ -53,7 +54,7 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
         if self.dim == '':
             self.is_active = False
             if self.logger is not None:
-                self.logger.error('Dimension not provided for centroid constraint')
+                self.logger.error(f'Dimension not provided for centroid constraint {self.ref_frame_names}.')
             return
         
         if not ((self.dim == 'xyz' or self.dim == 'xzy' or self.dim == 'yxz' or self.dim == 'yzx' or self.dim == 'zxy' or self.dim == 'zyx')
@@ -117,6 +118,7 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
             self.logger.debug('Centroid constraint is active')
         
         centroid_pose = Pose()
+        
         for index, frame in enumerate(self.ref_frame_names):
             fr: ami_msg.RefFrame = get_ref_frame_by_name(frame_name=frame,
                                                          scene=scene)
@@ -190,14 +192,14 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
             return CentroidConstraintHandler(logger)
 
         constraint_handler = CentroidConstraintHandler(logger)
-        constraint_handler.dim = dictionary.get('dim','')
-        constraint_handler.ref_frame_names = dictionary.get('ref_frame_names',[])
+        constraint_handler.dim = dictionary.get('dim','xyz')
+        constraint_handler.ref_frame_names = dictionary.get('refFrameNames',[])
         
         if component_name is not None:
             for index, frame_name in enumerate(constraint_handler.ref_frame_names):
                 constraint_handler.ref_frame_names[index] = component_name + '_' + frame_name
-            
-        offset_value_vector = dictionary.get('offset_values',[])
+        
+        offset_value_vector = dictionary.get('offsetValues',[])
         
         if len(offset_value_vector) < 3:
             offset_value_vector = [0,0,0]

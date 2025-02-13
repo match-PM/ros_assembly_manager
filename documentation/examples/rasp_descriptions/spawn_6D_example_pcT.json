@@ -1,0 +1,29 @@
+{
+    "name": "spawn_6D_example_pcT",
+    "saved_at": "2025-02-13 10:38:55.972706",
+    "action_list": [
+        {
+            "action_position": 0,
+            "action_type": "ServiceAction",
+            "name": "Spawn Assembly",
+            "service_client": "/assembly_manager/create_assembly_instruction_from_description",
+            "service_type": "assembly_manager_interfaces/srv/CreateAssemblyInstructionFromDescription",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "file_path": "/home/niklas/SolidWorks_ASsembly_Instructor/examples/SWASI_6D_Example/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_tol.json",
+                "spawn_components": true
+            }
+        },
+        {
+            "action_position": 1,
+            "action_type": "ServiceAction",
+            "name": "/assembly_manager/get_scene",
+            "service_client": "/assembly_manager/get_scene",
+            "service_type": "assembly_manager_interfaces/srv/GetScene",
+            "error_identifier": null,
+            "description": "",
+            "service_request": {}
+        }
+    ]
+}

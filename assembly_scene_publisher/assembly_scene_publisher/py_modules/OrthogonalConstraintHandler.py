@@ -47,6 +47,12 @@ class OrthogonalConstraintHandler(ami_msg.FrConstraintOrthogonal):
 
     def set_is_active(self, scene: ami_msg.ObjectScene = None, component_name = None):
         
+        if self.frame_1 == '' and self.frame_2 == '' and self.frame_3 == '':
+            self.is_active = False
+            #if self.logger is not None:
+            #    self.logger.error('No reference frames provided for orthogonal constraint')
+            return
+        
         # check if enough reference frames are provided
         if self.frame_1 != '' and self.frame_2 != '' and self.frame_3 != '':
             self.is_active = True
@@ -82,10 +88,10 @@ class OrthogonalConstraintHandler(ami_msg.FrConstraintOrthogonal):
                 self.logger.error(f'Reference frames "{self.frame_1}, {self.frame_2}, {self.frame_3}" not found in the scene!')
         
         
-        if check_for_duplicate_frames([self.frame_1,self.frame_2,self.frame_3]):
+        if check_for_duplicate_frames([self.frame_1, self.frame_2, self.frame_3]):
             self.is_active = False
             if self.logger is not None:
-                self.logger.error('Duplicate reference frames provided for orthogonal constraint')
+                self.logger.error('asdf Duplicate reference frames provided for orthogonal constraint')
             return
         
     def get_frame_references(self)->list[str]:
@@ -232,8 +238,11 @@ class OrthogonalConstraintHandler(ami_msg.FrConstraintOrthogonal):
         constraint_handler.unit_distance_from_f1 = dictionary.get('unit_distance_from_f1','%')
         constraint_handler.frame_orthogonal_connection_axis = dictionary.get('frame_orthogonal_connection_axis','x')
         constraint_handler.frame_normal_plane_axis = dictionary.get('frame_normal_plane_axis','z')
-                
-        if component_name is not None:
+        
+        if (component_name is not None and 
+            constraint_handler.frame_1 != '' and
+            constraint_handler.frame_2 != '' and
+            constraint_handler.frame_3 != ''):
             constraint_handler.frame_1 = component_name + '_' + constraint_handler.frame_1
             constraint_handler.frame_2 = component_name + '_' + constraint_handler.frame_2
             constraint_handler.frame_3 = component_name + '_' + constraint_handler.frame_3
