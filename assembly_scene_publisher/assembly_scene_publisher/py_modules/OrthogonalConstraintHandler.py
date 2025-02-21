@@ -85,7 +85,7 @@ class OrthogonalConstraintHandler(ami_msg.FrConstraintOrthogonal):
                                                                     logger=self.logger):
             self.is_active = False
             if self.logger is not None:
-                self.logger.error(f'Reference frames "{self.frame_1}, {self.frame_2}, {self.frame_3}" not found in the scene!')
+                self.logger.warn(f'Constraint warning: Reference frames "{self.frame_1}, {self.frame_2}, {self.frame_3}" not found in the scene!')
         
         
         if check_for_duplicate_frames([self.frame_1, self.frame_2, self.frame_3]):

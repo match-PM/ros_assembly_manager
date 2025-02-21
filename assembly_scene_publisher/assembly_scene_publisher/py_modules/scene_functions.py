@@ -159,6 +159,20 @@ def get_ref_frame_by_name(  scene: ami_msg.ObjectScene,
         if ref_frame.frame_name == frame_name:
             return ref_frame
     return None
+
+
+def get_ref_frame_poses_by_names(   scene: ami_msg.ObjectScene,
+                                    frame_names: list[str],
+                                    logger: RcutilsLogger = None)-> list[Pose]:
+    
+    poses = []
+    
+    for frame_name in frame_names:
+        frame = get_ref_frame_by_name(scene, frame_name)
+        if frame is not None:
+            poses.append(frame.pose)
+            
+    return poses
         
 def get_parent_frame_for_ref_frame( scene: ami_msg.ObjectScene,
                                     frame_name:str,
@@ -232,3 +246,4 @@ def check_for_duplicate_frames(frame_names: list[str])->bool:
         return True
     else:
         return False
+    

@@ -150,7 +150,7 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
                 # calculate the centroid constraint
                 centroid_handler = CentroidConstraintHandler(logger=self.logger)
                 centroid_handler.set_from_msg(self.centroid)
-                result_pose = centroid_handler.calculate_constraint(initial_frame_pose=initial_pose,
+                initial_pose = centroid_handler.calculate_constraint(initial_frame_pose=initial_pose,
                                                                     scene=scene,
                                                                     component_name=component_name,
                                                                     unit=self.unit,
@@ -159,7 +159,7 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
                 # calculate the in-plane constraint
                 in_plane_handler = InPlaneConstraintHandler(logger=self.logger)
                 in_plane_handler.set_from_msg(self.in_plane)
-                result_pose = in_plane_handler.calculate_constraint(initial_frame_pose=initial_pose,
+                initial_pose = in_plane_handler.calculate_constraint(initial_frame_pose=initial_pose,
                                                                     scene=scene,
                                                                     component_name=component_name,
                                                                     unit=self.unit,
@@ -169,12 +169,12 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
                 # calculate the orthogonal constraint
                 orthogonal_handler = OrthogonalConstraintHandler(logger=self.logger)
                 orthogonal_handler.set_from_msg(self.orthogonal)
-                result_pose = orthogonal_handler.calculate_constraint(initial_frame_pose=initial_pose,
+                initial_pose = orthogonal_handler.calculate_constraint(initial_frame_pose=initial_pose,
                                                                     scene=scene,
                                                                     component_name=component_name,
                                                                     unit=self.unit,
                                                                     frame_name=frame_name)
-        return result_pose
+        return initial_pose
     
     
 
