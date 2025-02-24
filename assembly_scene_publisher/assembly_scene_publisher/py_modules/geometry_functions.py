@@ -30,7 +30,7 @@ def get_point_of_plane_intersection(plane1: sp.Plane, plane2: sp.Plane, plane3: 
     return inter
 
 
-def compute_eigenvectors_and_centroid_old(poses: list[Pose], 
+def compute_eigenvectors_and_centroid(poses: list[Pose], 
                                       logger: RcutilsLogger = None) -> tuple:
     """
     Computes the eigenvectors of the given poses and the centroid of the positions.
@@ -55,41 +55,37 @@ def compute_eigenvectors_and_centroid_old(poses: list[Pose],
     
     positions = np.array(positions)
     
-
     centroid = np.mean(positions, axis=0)  # Compute centroid
     
-    shifted_points = positions - centroid  # Shift points to mean
-    _, _, vh = np.linalg.svd(shifted_points)  # SVD decomposition
+    positions_centered = positions - centroid  # Shift points to mean
     
-    print(f"Normal {vh[-1]}")
-    
-    print(f"shifted {shifted_points}")
     centroid_vector = Vector3()
     centroid_vector.x = centroid[0]
     centroid_vector.y = centroid[1]
     centroid_vector.z = centroid[2]
     
     # Compute covariance matrix from positions
-    covariance_matrix = np.cov(positions.T)
+    covariance_matrix = np.cov(positions_centered.T)
     
     # Compute eigenvalues and eigenvectors
     eigenvalues, eigenvectors = np.linalg.eig(covariance_matrix)
     print((eigenvectors))
     print(eigenvalues)
-    # normalize eigenvectors
-    
-    eigenvectors_norm = eigenvectors / np.linalg.norm(eigenvectors, axis=0)
-    print(eigenvectors_norm)
+
+    eigenvectors = -1*eigenvectors
     
     # get rotation matrix from eigenvectors
-    rotation_matrix = sp.Matrix(vh)
-    #rotation_matrix = np.array(eigenvectors_norm)
+    #rotation_matrix = sp.Matrix(vh)
+    rotation_matrix = np.array(eigenvectors)
+    # rotate around x with 180 degree
+    rotation_matrix = np.array([[1, 0, 0], [0, -1, 0], [0, 0, -1]]) @ rotation_matrix
+    
     quat = rotation_matrix_to_quaternion(rotation_matrix)
     #get rotation_matrix as quaternion 
     
     return quat, centroid_vector
 
-def compute_eigenvectors_and_centroid(poses):
+def compute_eigenvectors_and_centroid_old(poses):
     """
     Computes the best-fit plane for given poses and returns its rotation as a quaternion and the centroid.
 
@@ -137,7 +133,8 @@ def compute_eigenvectors_and_centroid(poses):
     rotation_matrix[:, 1] /= np.linalg.norm(rotation_matrix[:, 1])
     rotation_matrix[:, 0] = np.cross(rotation_matrix[:, 1], normal)  # Ensure right-handed system
 
-    quat = Rotation.from_matrix(rotation_matrix).as_quat()
+    #quat = Rotation.from_matrix(rotation_matrix).as_quat()
+    quat = rotation_matrix_to_quaternion(rotation_matrix)
 
     quad_2 = Quaternion()
     quad_2.x = quat[1]
@@ -318,6 +315,59 @@ def normalize_vector3(vector: Vector3) -> Vector3:
     normalized_vector.z = vector.z / magnitude
 
     return normalized_vector
+
+
+import numpy as np
+
+def perform_pca(points, n_components=None):
+    """
+    Perform Principal Component Analysis (PCA) on a set of 2D or 3D points.
+
+    Args:
+        points (list of tuples/lists): A list of (x, y) or (x, y, z) coordinates.
+        n_components (int, optional): Number of principal components to keep (default: all).
+
+    Returns:
+        eigenvalues (numpy array): Eigenvalues sorted in descending order.
+        eigenvectors (numpy array): Corresponding eigenvectors.
+        transformed_points (numpy array): Points transformed into the PCA space.
+    """
+    points = np.array(points)  # Convert to NumPy array
+
+    # Ensure at least two points
+    if points.shape[0] < 2:
+        raise ValueError("At least two points are required for PCA.")
+
+    # Step 1: Compute mean and center the data
+    mean = np.mean(points, axis=0)
+    centered_points = points - mean
+
+    # Step 2: Compute covariance matrix
+    covariance_matrix = np.cov(centered_points.T)
+
+    # Step 3: Compute eigenvalues & eigenvectors
+    eigenvalues, eigenvectors = np.linalg.eig(covariance_matrix)
+
+    # Step 4: Sort eigenvalues & eigenvectors in descending order
+    sorted_indices = np.argsort(eigenvalues)[::-1]
+    eigenvalues = eigenvalues[sorted_indices]
+    eigenvectors = eigenvectors[:, sorted_indices]
+
+    # Step 5: Project data onto principal components
+    if n_components is not None:
+        eigenvectors = eigenvectors[:, :n_components]  # Keep only the top components
+    transformed_points = np.dot(centered_points, eigenvectors)
+
+    return eigenvalues, eigenvectors, transformed_points
+
+# Example usage with 3D points
+points = [(1, 2, 3), (4, 5, 6), (7, 8, 9), (2, 1, 3)]
+eigenvalues, eigenvectors, transformed_points = perform_pca(points)
+
+print("Eigenvalues:", eigenvalues)
+print("Eigenvectors:\n", eigenvectors)
+print("Transformed Points:\n", transformed_points)
+
 
 if __name__ == "__main__":
     # Test the function
