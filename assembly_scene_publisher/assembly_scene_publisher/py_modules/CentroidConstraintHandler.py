@@ -240,7 +240,7 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
         
         else:
             poses_list = get_ref_frame_poses_by_names(scene=scene, frame_names=self.ref_frame_names, logger=self.logger)
-            orientation, centroid = compute_eigenvectors_and_centroid(poses_list)
+            orientation, centroid = compute_eigenvectors_and_centroid(poses_list, logger=self.logger)
             orientation: Quaternion
             centroid: Vector3
             
@@ -251,7 +251,6 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
 
             result_pose = get_transformed_pose(centroid_pose, vector)
             
-            
         if 'x' not in self.dim:
             result_pose.position.x = float(initial_frame_pose.position.x)
 
@@ -261,10 +260,9 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
         if 'z' not in self.dim:
             result_pose.position.z = float(initial_frame_pose.position.z)
 
-
         #self.logger.debug(f"Centroid pose: {str(initial_frame_pose)}")
         if frame_name is not None:
-            self.logger.warn(f'Start calculating constraint for: {frame_name}')
+            self.logger.debug(f'Start calculating constraint for: {frame_name}')
             
         return result_pose
             

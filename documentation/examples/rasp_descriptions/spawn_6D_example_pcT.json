@@ -1,6 +1,6 @@
 {
     "name": "spawn_6D_example_pcT",
-    "saved_at": "2025-02-21 19:41:02.939056",
+    "saved_at": "2025-02-24 23:23:23.157339",
     "action_list": [
         {
             "action_position": 0,
@@ -79,6 +79,18 @@
             "error_identifier": "success",
             "description": "",
             "service_request": {}
+        },
+        {
+            "action_position": 6,
+            "action_type": "ServiceAction",
+            "name": "/assembly_manager/get_frames_for_component",
+            "service_client": "/assembly_manager/get_frames_for_component",
+            "service_type": "assembly_manager_interfaces/srv/FramesForComponent",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "component_name": ""
+            }
         }
     ]
 }

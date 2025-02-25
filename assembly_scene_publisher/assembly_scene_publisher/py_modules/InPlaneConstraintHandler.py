@@ -129,12 +129,12 @@ class InPlaneConstraintHandler(ami_msg.FrConstraintInPlane):
         constraint_handler.plane_offset = dictionary.get('planeOffset',0.0)
         constraint_handler.normal_axis = dictionary.get('normalAxis','z')
         constraint_handler.ref_frame_names = dictionary.get('refFrameNames',[])
-        
-        if constraint_handler.ref_frame_names != []:
-            logger.error(f'constraint_handler.ref_frame_names: {constraint_handler.ref_frame_names}')
-        
+    
         if component_name is not None:
             for index, frame_name in enumerate(constraint_handler.ref_frame_names):
                 constraint_handler.ref_frame_names[index] = component_name + '_' + frame_name
-        
+                
+        if constraint_handler.ref_frame_names != []:
+            logger.error(f'DEBUG constraint_handler.ref_frame_names: {constraint_handler.ref_frame_names}')  
+                  
         return constraint_handler

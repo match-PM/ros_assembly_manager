@@ -69,16 +69,23 @@ def compute_eigenvectors_and_centroid(poses: list[Pose],
     
     # Compute eigenvalues and eigenvectors
     eigenvalues, eigenvectors = np.linalg.eig(covariance_matrix)
-    print((eigenvectors))
-    print(eigenvalues)
-
-    eigenvectors = -1*eigenvectors
     
-    # get rotation matrix from eigenvectors
-    #rotation_matrix = sp.Matrix(vh)
-    rotation_matrix = np.array(eigenvectors)
-    # rotate around x with 180 degree
-    rotation_matrix = np.array([[1, 0, 0], [0, -1, 0], [0, 0, -1]]) @ rotation_matrix
+     # Sort eigenvectors by ascending eigenvalues (smallest eigenvalue first)
+    sorted_indices = np.argsort(eigenvalues)  # Smallest eigenvalue first
+    eigenvectors = eigenvectors[:, sorted_indices]
+    eigenvalues = eigenvalues[sorted_indices]
+
+    # Ensure the smallest eigenvector (now in first column) is the Z-axis
+    rotation_matrix = np.zeros((3, 3))
+    rotation_matrix[:, 2] = eigenvectors[:, 0]  # Smallest eigenvector → Z-axis
+
+    # Use the other two eigenvectors for X and Y axes
+    rotation_matrix[:, 0] = eigenvectors[:, 1]  # Second smallest eigenvector → X-axis
+    rotation_matrix[:, 1] = eigenvectors[:, 2]  # Largest eigenvector → Y-axis
+
+    # Ensure a right-handed coordinate system
+    if np.linalg.det(rotation_matrix) < 0:
+        rotation_matrix[:, 1] *= -1  # Flip the Y-axis to maintain right-handedness
     
     quat = rotation_matrix_to_quaternion(rotation_matrix)
     #get rotation_matrix as quaternion 
@@ -250,7 +257,9 @@ def matrix_multiply_vector(matrix:sp.Matrix, vector:sp.Matrix)->Vector3:
     result = matrix * vector
     return Vector3(x=float(result[0]), y=float(result[1]), z=float(result[2]))
 
-def norm_vec_direction(norm_vector_1: sp.Matrix, norm_vector_2: Union[sp.Matrix,Vector3], logger = None) -> int:
+def norm_vec_direction(norm_vector_1: sp.Matrix, 
+                       norm_vector_2: Union[sp.Matrix,Vector3], 
+                       logger:RcutilsLogger = None) -> int:
     """
     Checks if the direction of the two vectors is the same or not.
     Parameters:
@@ -266,7 +275,7 @@ def norm_vec_direction(norm_vector_1: sp.Matrix, norm_vector_2: Union[sp.Matrix,
     angle_rad = calc_angle_between_vectors(norm_vector_1, norm_vector_2)
 
     if logger is not None:
-        logger.warn(f"Debug-Info: Angle between the two vectors [rad]: {angle_rad}")
+        logger.debug(f"Debug-Info: Angle between the two vectors [rad]: {angle_rad}")
 
     if angle_rad > sp.pi/2 or angle_rad < -sp.pi/2:
         logger.debug(f"Return -1")
@@ -372,22 +381,27 @@ print("Transformed Points:\n", transformed_points)
 if __name__ == "__main__":
     # Test the function
     # Define the planes
-    pose_1 = Pose()
-    pose_1.position.x = -0.00155326
-    pose_1.position.y = -0.0216407
-    pose_1.position.z = 0.00233789
+    pose_3 = Pose()
+    pose_3.position.x = -0.00155326
+    pose_3.position.y = -0.0216407
+    pose_3.position.z = 0.00233789
     
     pose_2 = Pose()
-    pose_2.position.x = -0.0316481
-    pose_2.position.y = -0.0221979
-    pose_2.position.z = 0.00235735
+    pose_2.position.x = -0.00224831
+    pose_2.position.y = -0.00156493
+    pose_2.position.z = 0.00163683
 
 
-    pose_3 = Pose() 
-    pose_3.position.x = 0.0
-    pose_3.position.y = 1.0
-    pose_3.position.z = 0.0
-    
+    pose_1 = Pose() 
+    pose_1.position.x = -0.0321483
+    pose_1.position.y = -0.00231629
+    pose_1.position.z = 0.00166307
+
+    pose_4 = Pose() 
+    pose_4.position.x = -0.0316481
+    pose_4.position.y = -0.0221979
+    pose_4.position.z = 0.00235735
+        
     vector = Vector3()
     vector.x = pose_2.position.x - pose_1.position.x
     vector.y = pose_2.position.y - pose_1.position.y
@@ -396,7 +410,20 @@ if __name__ == "__main__":
     norm_vector = normalize_vector3(vector)
         
     print(f"Vector man: {norm_vector}")
-    quad, centroid = compute_eigenvectors_and_centroid([pose_1,pose_2])
+    #quad, centroid = compute_eigenvectors_and_centroid([pose_1,pose_2])
+    quad, centroid = compute_eigenvectors_and_centroid([pose_1,pose_2,pose_3,pose_4])
     print(quad)
     print(centroid)
     
+    
+    import subprocess
+
+    def get_all_ros2_executables():
+        result = subprocess.run(["ros2", "pkg", "executables"], capture_output=True, text=True)
+        executables = result.stdout.strip().split("\n")
+        for line in executables:
+            if line:
+                package, executable = line.split()
+                print(f"Package: {package}, Executable: {executable}")
+
+    get_all_ros2_executables()

@@ -986,12 +986,12 @@ class AssemblyManagerScene():
         self.logger.debug(f"All normal vectors obj2 are: {comp_2_plane_1_ideal_norm_vector}, {comp_2_plane_2_ideal_norm_vector}, {comp_2_plane_3_ideal_norm_vector}")
         
         # get the multiplicator for the normal vectors calculated from the planes and match their direction to the ideal normal vectors
-        self.logger.warn(f"Norm vec obj 1_1: {instruction.plane_match_1.plane_name_component_1}")
-        self.logger.warn(f"Norm vec obj 1_2: {instruction.plane_match_2.plane_name_component_1}")
-        self.logger.warn(f"Norm vec obj 1_3: {instruction.plane_match_3.plane_name_component_1}")
-        self.logger.warn(f"Norm vec obj 2_1: {instruction.plane_match_1.plane_name_component_2}")
-        self.logger.warn(f"Norm vec obj 2_2: {instruction.plane_match_2.plane_name_component_2}")
-        self.logger.warn(f"Norm vec obj 2_3: {instruction.plane_match_3.plane_name_component_2}")
+        self.logger.debug(f"Norm vec obj 1_1: {instruction.plane_match_1.plane_name_component_1}")
+        self.logger.debug(f"Norm vec obj 1_2: {instruction.plane_match_2.plane_name_component_1}")
+        self.logger.debug(f"Norm vec obj 1_3: {instruction.plane_match_3.plane_name_component_1}")
+        self.logger.debug(f"Norm vec obj 2_1: {instruction.plane_match_1.plane_name_component_2}")
+        self.logger.debug(f"Norm vec obj 2_2: {instruction.plane_match_2.plane_name_component_2}")
+        self.logger.debug(f"Norm vec obj 2_3: {instruction.plane_match_3.plane_name_component_2}")
         mult_1 = norm_vec_direction(bvec_obj_1_1,comp_1_plane_1_ideal_norm_vector, logger=self.logger)
         mult_2 = norm_vec_direction(bvec_obj_1_2,comp_1_plane_2_ideal_norm_vector, logger=self.logger)
         mult_3 = norm_vec_direction(bvec_obj_1_3,comp_1_plane_3_ideal_norm_vector, logger=self.logger)
