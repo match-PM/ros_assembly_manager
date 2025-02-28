@@ -1,6 +1,6 @@
 {
     "name": "spawn_from_description",
-    "saved_at": "2024-02-02 14:09:15.576183",
+    "saved_at": "2025-02-19 12:25:58.071264",
     "action_list": [
         {
             "action_position": 0,
@@ -11,12 +11,25 @@
             "error_identifier": "success",
             "description": "",
             "service_request": {
-                "file_path": "/home/niklas/Documents/SolidWorks_ASsembly_Instructor/examples/SWASI_Paper_Demonstrator/SWASI_Exports/Components/UFC_Paper.json",
+                "file_path": "/home/match-mover/Documents/SolidWorks_ASsembly_Instructor/examples/SWASI_Paper_Demonstrator_V2/SWASI_Exports/components/UFC_Paper.json",
                 "component_name_override": ""
             }
         },
         {
             "action_position": 1,
+            "action_type": "ServiceAction",
+            "name": "/assembly_manager/spawn_component_from_description",
+            "service_client": "/assembly_manager/spawn_component_from_description",
+            "service_type": "assembly_manager_interfaces/srv/SpawnComponentFromDescription",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "file_path": "/home/match-mover/Documents/SolidWorks_ASsembly_Instructor/examples/SWASI_Paper_Demonstrator_V2/SWASI_Exports/components/Glas_Platelet_Paper.json",
+                "component_name_override": ""
+            }
+        },
+        {
+            "action_position": 2,
             "action_type": "ServiceAction",
             "name": "GetScene",
             "service_client": "/assembly_manager/get_scene",
@@ -26,7 +39,7 @@
             "service_request": {}
         },
         {
-            "action_position": 2,
+            "action_position": 3,
             "action_type": "ServiceAction",
             "name": "Create Instruction",
             "service_client": "/assembly_manager/create_assembly_instruction_from_description",
@@ -34,9 +47,54 @@
             "error_identifier": "success",
             "description": "0.004498813520158; 0.101170203238329; 0.52529657396552",
             "service_request": {
-                "file_path": "/home/niklas/Documents/SolidWorks_ASsembly_Instructor/examples/SWASI_Paper_Demonstrator_V2/SWASI_Exports/assemblies/Baugruppe_S17.json",
+                "file_path": "/home/match-mover/Documents/SolidWorks_ASsembly_Instructor/examples/SWASI_Paper_Demonstrator_V2/SWASI_Exports/assemblies/Baugruppe_S17.json",
                 "spawn_components": true
             }
+        },
+        {
+            "action_position": 4,
+            "action_type": "ServiceAction",
+            "name": "/pm_skills/grip_component",
+            "service_client": "/pm_skills/grip_component",
+            "service_type": "pm_robot_skills_interfaces/srv/GripComponent",
+            "error_identifier": null,
+            "description": "",
+            "service_request": {
+                "component_name": "UFC_Paper-2"
+            }
+        },
+        {
+            "action_position": 5,
+            "action_type": "ServiceAction",
+            "name": "/pm_moveit_server/move_tool_relative",
+            "service_client": "/pm_moveit_server/move_tool_relative",
+            "service_type": "pm_moveit_interfaces/srv/MoveRelative",
+            "error_identifier": null,
+            "description": "",
+            "service_request": {
+                "translation": {
+                    "x": 0.01,
+                    "y": 0.0,
+                    "z": 0.0
+                },
+                "rotation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 1.0
+                },
+                "execute_movement": true
+            }
+        },
+        {
+            "action_position": 6,
+            "action_type": "ServiceAction",
+            "name": "/pm_skills/place_component",
+            "service_client": "/pm_skills/place_component",
+            "service_type": "pm_robot_skills_interfaces/srv/PlaceComponent",
+            "error_identifier": null,
+            "description": "",
+            "service_request": {}
         }
     ]
 }

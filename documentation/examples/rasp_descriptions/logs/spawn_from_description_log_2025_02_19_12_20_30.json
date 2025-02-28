@@ -1,0 +1,55 @@
+{
+    "action_sequence_name": "spawn_from_description",
+    "action_log": [
+        {
+            "3_Create Instruction": {
+                "service_client": "/assembly_manager/create_assembly_instruction_from_description",
+                "service_type": "assembly_manager_interfaces/srv/CreateAssemblyInstructionFromDescription",
+                "srv_start_time": "2025-02-19_12:18:14.927836",
+                "srv_end_time": "2025-02-19_12:18:28.813279",
+                "execution_time": "0:00:13.885443",
+                "srv_request": {
+                    "file_path": "/home/match-mover/Documents/SolidWorks_ASsembly_Instructor/examples/SWASI_Paper_Demonstrator_V2/SWASI_Exports/assemblies/Baugruppe_S17.json",
+                    "spawn_components": true
+                },
+                "srv_response": {
+                    "instruction_id": "Description_Glas_Platelet_Paper-1_UFC_Paper-2",
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "4_/pm_skills/grip_component": {
+                "service_client": "/pm_skills/grip_component",
+                "service_type": "pm_robot_skills_interfaces/srv/GripComponent",
+                "srv_start_time": "2025-02-19_12:19:12.975621",
+                "srv_end_time": "2025-02-19_12:19:17.574479",
+                "execution_time": "0:00:04.598858",
+                "srv_request": {
+                    "component_name": "UFC_Paper-2"
+                },
+                "srv_response": {
+                    "success": true,
+                    "message": "Component 'UFC_Paper-2' gripped successfully!"
+                },
+                "success": true
+            }
+        },
+        {
+            "6_/pm_skills/place_component": {
+                "service_client": "/pm_skills/place_component",
+                "service_type": "pm_robot_skills_interfaces/srv/PlaceComponent",
+                "srv_start_time": "2025-02-19_12:20:22.254543",
+                "srv_end_time": "2025-02-19_12:20:30.337250",
+                "execution_time": "0:00:08.082707",
+                "srv_request": {},
+                "srv_response": {
+                    "success": true,
+                    "message": "Component 'UFC_Paper-2' placed successfully!"
+                },
+                "success": true
+            }
+        }
+    ]
+}

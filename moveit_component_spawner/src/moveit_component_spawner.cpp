@@ -280,6 +280,8 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
               const moveit::core::RobotModelPtr& kinematic_model = PM_Robot_Model_Loader->getModel();
               std::vector<std::string> list_of_robot_links=kinematic_model->getLinkModelNames();
               
+              // Check if parent_frame is a robot link. Search for only 10 times
+              int search_count = 0;
               while (!parent_frame_is_robot_link){
                 for (const std::string& link : list_of_robot_links) {
                   if(moveit_parent_frame == link){
@@ -296,6 +298,12 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
                   RCLCPP_WARN(this->get_logger(), "Debug-Info: Parent frame is not a robot link. New parent frame: %s", moveit_parent_frame.c_str());
 
                 }
+                if (search_count > 10)
+                {
+                  return;
+                }
+                
+                search_count++;
               } 
 
               geometry_msgs::msg::TransformStamped transform_stamped_parent;

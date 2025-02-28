@@ -1,0 +1,65 @@
+{
+    "action_sequence_name": "spawn_from_description",
+    "action_log": [
+        {
+            "3_Create Instruction": {
+                "service_client": "/assembly_manager/create_assembly_instruction_from_description",
+                "service_type": "assembly_manager_interfaces/srv/CreateAssemblyInstructionFromDescription",
+                "srv_start_time": "2025-02-19_16:51:49.564528",
+                "srv_end_time": "2025-02-19_16:52:03.060939",
+                "execution_time": "0:00:13.496411",
+                "srv_request": {
+                    "file_path": "/home/match-mover/Documents/SolidWorks_ASsembly_Instructor/examples/SWASI_Paper_Demonstrator_V2/SWASI_Exports/assemblies/Baugruppe_S17.json",
+                    "spawn_components": true
+                },
+                "srv_response": {
+                    "instruction_id": "Description_Glas_Platelet_Paper-1_UFC_Paper-2",
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "7_/pm_moveit_server/move_tool_to_frame": {
+                "service_client": "/pm_moveit_server/move_tool_to_frame",
+                "service_type": "pm_moveit_interfaces/srv/MoveToFrame",
+                "srv_start_time": "2025-02-19_16:53:20.026440",
+                "srv_end_time": "2025-02-19_16:53:21.531588",
+                "execution_time": "0:00:01.505148",
+                "srv_request": {
+                    "endeffector_frame_override": "use_default_frame",
+                    "target_frame": "UFC_Paper-2_Gripping_Point",
+                    "translation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "execute_movement": true
+                },
+                "srv_response": {
+                    "success": true,
+                    "joint_names": [
+                        "X_Axis_Joint",
+                        "Y_Axis_Joint",
+                        "Z_Axis_Joint",
+                        "T_Axis_Joint"
+                    ],
+                    "joint_values": [
+                        -0.06552192568778992,
+                        -0.05262482166290283,
+                        0.02537900023162365,
+                        0.0
+                    ],
+                    "message": ""
+                },
+                "success": true
+            }
+        }
+    ]
+}

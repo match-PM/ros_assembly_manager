@@ -1,0 +1,22 @@
+{
+    "action_sequence_name": "spawn_from_description",
+    "action_log": [
+        {
+            "4_/pm_skills/grip_component": {
+                "service_client": "/pm_skills/grip_component",
+                "service_type": "pm_robot_skills_interfaces/srv/GripComponent",
+                "srv_start_time": "2025-02-19_12:14:51.468757",
+                "srv_end_time": "2025-02-19_12:14:54.919924",
+                "execution_time": "0:00:03.451167",
+                "srv_request": {
+                    "component_name": "UFC_Paper-2"
+                },
+                "srv_response": {
+                    "success": false,
+                    "message": "Failed to lift gripper after attaching component 'UFC_Paper-2'"
+                },
+                "success": true
+            }
+        }
+    ]
+}

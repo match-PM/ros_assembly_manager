@@ -1,0 +1,85 @@
+{
+    "action_sequence_name": "spawn_from_description",
+    "action_log": [
+        {
+            "1_/pm_moveit_server/move_tool_relative": {
+                "service_client": "/pm_moveit_server/move_tool_relative",
+                "service_type": "pm_moveit_interfaces/srv/MoveRelative",
+                "srv_start_time": "2025-02-19_12:16:29.640077",
+                "srv_end_time": "2025-02-19_12:16:29.887355",
+                "execution_time": "0:00:00.247278",
+                "srv_request": {
+                    "translation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": -0.01
+                    },
+                    "rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "execute_movement": true
+                },
+                "srv_response": {
+                    "success": false,
+                    "joint_names": [
+                        "X_Axis_Joint",
+                        "Y_Axis_Joint",
+                        "Z_Axis_Joint",
+                        "T_Axis_Joint"
+                    ],
+                    "joint_values": [
+                        -0.06552192568778992,
+                        -0.05262482166290283,
+                        0.03527899831533432,
+                        7.839095133022056e-07
+                    ],
+                    "message": "Planing failed!"
+                },
+                "success": true
+            }
+        },
+        {
+            "5_/pm_moveit_server/move_tool_relative": {
+                "service_client": "/pm_moveit_server/move_tool_relative",
+                "service_type": "pm_moveit_interfaces/srv/MoveRelative",
+                "srv_start_time": "2025-02-19_12:16:29.640077",
+                "srv_end_time": "2025-02-19_12:16:29.887355",
+                "execution_time": "0:00:00.247278",
+                "srv_request": {
+                    "translation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": -0.01
+                    },
+                    "rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "execute_movement": true
+                },
+                "srv_response": {
+                    "success": false,
+                    "joint_names": [
+                        "X_Axis_Joint",
+                        "Y_Axis_Joint",
+                        "Z_Axis_Joint",
+                        "T_Axis_Joint"
+                    ],
+                    "joint_values": [
+                        -0.06552192568778992,
+                        -0.05262482166290283,
+                        0.03527899831533432,
+                        7.839095133022056e-07
+                    ],
+                    "message": "Planing failed!"
+                },
+                "success": true
+            }
+        }
+    ]
+}
