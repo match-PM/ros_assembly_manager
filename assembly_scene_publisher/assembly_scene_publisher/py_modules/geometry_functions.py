@@ -30,7 +30,7 @@ def get_point_of_plane_intersection(plane1: sp.Plane, plane2: sp.Plane, plane3: 
     return inter
 
 
-def compute_eigenvectors_and_centroid(poses: list[Pose], 
+def compute_eigenvectors_and_centroid_old(poses: list[Pose], 
                                       logger: RcutilsLogger = None) -> tuple:
     """
     Computes the eigenvectors of the given poses and the centroid of the positions.
@@ -92,69 +92,76 @@ def compute_eigenvectors_and_centroid(poses: list[Pose],
     
     return quat, centroid_vector
 
-def compute_eigenvectors_and_centroid_old(poses):
+def compute_eigenvectors_and_centroid(poses: list[Pose], 
+                                      logger: RcutilsLogger = None) -> tuple:
     """
-    Computes the best-fit plane for given poses and returns its rotation as a quaternion and the centroid.
+    Computes the eigenvectors of the given poses and the centroid of the positions.
 
     Args:
-        poses (list of Pose): List of ROS2 Pose objects.
+        poses (list of Pose): List of ROS2 Pose objects containing position and orientation.
 
     Returns:
-        tuple: (quaternion, centroid_vector)
+        tuple: (quaternion, centroid)
     """
     positions = []
-
+    rotation_matrices = []
+    
     if len(poses) < 2:
         raise ValueError("At least 2 poses are required to compute eigenvectors and centroid.")
-
-    # Extract positions
+    
+    # Extract positions and rotation matrices
     for pose in poses:
         positions.append([pose.position.x, pose.position.y, pose.position.z])
-
+        quaternion = [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
+        rotation_matrices.append(Rotation.from_quat(quaternion).as_matrix())
+    
     positions = np.array(positions)
-    centroid = np.mean(positions, axis=0)
-
-    # Special handling for two points
-    if len(poses) == 2:
-        p1, p2 = positions
-        direction = p2 - p1  # Vector along the line
-        arbitrary = np.array([1, 0, 0])  # Arbitrary vector
-        
-        # If direction is along x-axis, pick y-axis
-        if np.allclose(direction, [1, 0, 0]):
-            arbitrary = np.array([0, 1, 0])
-
-        # Compute a normal via cross product
-        normal = np.cross(direction, arbitrary)
-        normal = normal / np.linalg.norm(normal)  # Normalize
-    else:
-        # General case: Use SVD to find the best plane
-        shifted_points = positions - centroid
-        _, _, vh = np.linalg.svd(shifted_points)
-        normal = vh[-1]  # Smallest singular value corresponds to normal
-
-    # Convert normal vector to quaternion representation
-    rotation_matrix = np.eye(3)
-    rotation_matrix[:, 2] = normal  # Set normal as Z-axis direction
-    rotation_matrix[:, 1] = np.cross(normal, [1, 0, 0])  # X cross normal → Y-axis
-    rotation_matrix[:, 1] /= np.linalg.norm(rotation_matrix[:, 1])
-    rotation_matrix[:, 0] = np.cross(rotation_matrix[:, 1], normal)  # Ensure right-handed system
-
-    #quat = Rotation.from_matrix(rotation_matrix).as_quat()
-    quat = rotation_matrix_to_quaternion(rotation_matrix)
-
-    quad_2 = Quaternion()
-    quad_2.x = quat[1]
-    quad_2.y = quat[2]
-    quad_2.z = quat[3]
-    quad_2.w = quat[0]
+    
+    centroid = np.mean(positions, axis=0)  # Compute centroid
+    
+    positions_centered = positions - centroid  # Shift points to mean
     
     centroid_vector = Vector3()
     centroid_vector.x = centroid[0]
     centroid_vector.y = centroid[1]
     centroid_vector.z = centroid[2]
+    
+    # Compute covariance matrix from positions
+    covariance_matrix = np.cov(positions_centered.T)
+    
+    # Compute eigenvalues and eigenvectors
+    eigenvalues, eigenvectors = np.linalg.eig(covariance_matrix)
+    
+     # Sort eigenvectors by ascending eigenvalues (smallest eigenvalue first)
+    sorted_indices = np.argsort(eigenvalues)  # Smallest eigenvalue first
+    eigenvectors = eigenvectors[:, sorted_indices]
+    eigenvalues = eigenvalues[sorted_indices]
 
-    return quad_2, centroid_vector
+    biggest_vector = eigenvectors[:, 2]
+    medium_vector = eigenvectors[:, 1]
+    smallest_vector = eigenvectors[:, 0]
+
+    if biggest_vector[0]<0:
+        biggest_vector = -biggest_vector
+    if smallest_vector[2]<0:
+        smallest_vector = -smallest_vector
+    
+    # Ensure the smallest eigenvector (now in first column) is the Z-axis
+    rotation_matrix = np.zeros((3, 3))
+    rotation_matrix[:, 2] = smallest_vector  # Smallest eigenvector → Z-axis
+
+    # Use the other two eigenvectors for X and Y axes
+    rotation_matrix[:, 0] = biggest_vector  # Second smallest eigenvector → X-axis
+    rotation_matrix[:, 1] = medium_vector  # Largest eigenvector → Y-axis
+
+    # Ensure a right-handed coordinate system
+    if np.linalg.det(rotation_matrix) < 0:
+        rotation_matrix[:, 0] *= -1  # Flip the X-axis to maintain right-handedness
+    
+    quat = rotation_matrix_to_quaternion(rotation_matrix)
+    #get rotation_matrix as quaternion 
+    
+    return quat, centroid_vector
 
 def get_transformed_pose(initial_pose:Pose, offset:Vector3)->Pose:
     """
@@ -369,16 +376,17 @@ def perform_pca(points, n_components=None):
 
     return eigenvalues, eigenvectors, transformed_points
 
-# Example usage with 3D points
-points = [(1, 2, 3), (4, 5, 6), (7, 8, 9), (2, 1, 3)]
-eigenvalues, eigenvectors, transformed_points = perform_pca(points)
-
-print("Eigenvalues:", eigenvalues)
-print("Eigenvectors:\n", eigenvectors)
-print("Transformed Points:\n", transformed_points)
-
 
 if __name__ == "__main__":
+    # # Example usage with 3D points
+    # points = [(1, 2, 3), (4, 5, 6), (7, 8, 9), (2, 1, 3)]
+    # eigenvalues, eigenvectors, transformed_points = perform_pca(points)
+
+    # print("Eigenvalues:", eigenvalues)
+    # print("Eigenvectors:\n", eigenvectors)
+    # print("Transformed Points:\n", transformed_points)
+
+
     # Test the function
     # Define the planes
     pose_3 = Pose()

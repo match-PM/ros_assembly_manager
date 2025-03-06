@@ -10,7 +10,8 @@ import assembly_manager_interfaces.srv as ami_srv
 import assembly_manager_interfaces.msg as ami_msg
 import assembly_scene_publisher.py_modules.frame_constraints as f_constraints
 
-import  assembly_manager_interfaces_unity.srv as unity_srv
+
+import assembly_manager_interfaces_unity.srv as unity_srv
 
 from rclpy.time import Duration
 from threading import Event
@@ -55,9 +56,12 @@ class AssemblyManagerNode(Node):
         self.moveit_object_spawner_client = self.create_client(ami_srv.SpawnObject,'moveit_component_spawner/spawn_object',callback_group=self.callback_group_mu_ex) 
         self.moveit_object_destroyer_client = self.create_client(ami_srv.DestroyObject,'moveit_component_spawner/destroy_object',callback_group=self.callback_group_mu_ex)   
 
-        # create client for unity_node
-        self.unity_object_spawner_client = self.create_client(unity_srv.SpawnObjectUnity,'assembly_manager_unity/spawn_object',callback_group=self.callback_group_mu_ex) 
-        self.unity_object_destroyer_client = self.create_client(unity_srv.DestroyObjectUnity,'assembly_manager_unity/destroy_object',callback_group=self.callback_group_mu_ex)
+        try:
+            # create client for unity_node
+            self.unity_object_spawner_client = self.create_client(unity_srv.SpawnObjectUnity,'assembly_manager_unity/spawn_object',callback_group=self.callback_group_mu_ex) 
+            self.unity_object_destroyer_client = self.create_client(unity_srv.DestroyObjectUnity,'assembly_manager_unity/destroy_object',callback_group=self.callback_group_mu_ex)
+        except:
+            self.logger.warn("Unity services not available!")
 
         # Service for Spawning from Dictionary
         self.create_ref_frame_client = self.create_client(ami_srv.CreateRefFrame,'assembly_manager/create_ref_frame',callback_group=self.callback_group_mu_ex) 

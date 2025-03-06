@@ -51,8 +51,8 @@ class AssemblyScenePublisherNode(Node):
 
         self.get_frames_for_component_srv = self.create_service(ami_srv.FramesForComponent,f'assembly_manager/get_frames_for_component', self.get_frames_for_component,callback_group=self.callback_group)
         
-        self.timer = self.create_timer(5.0, self.object_scene.publish_information,callback_group=self.callback_group)
-       
+        #self.timer = self.create_timer(5.0, self.object_scene.publish_information,callback_group=self.callback_group)
+        
         self.get_logger().info("Assembly scene publisher started!")
     
     def get_scene(self, request :ami_srv.GetScene.Request, response:ami_srv.GetScene.Response):

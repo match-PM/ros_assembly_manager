@@ -27,8 +27,7 @@ def generate_launch_description():
         package="assembly_scene_publisher",
         executable="assembly_scene_publisher",
         #namespace = '',
-        parameters=[{"use_sim_time": sim_time},
-        ],
+        #parameters=[{"use_sim_time": sim_time},],
         emulate_tty=True
     )
 
@@ -47,11 +46,11 @@ def generate_launch_description():
 
     return ld
 
-if __name__ == '__main__':
-    # ls = LaunchService(argv=argv, debug=True)  # Use this instead to get more debug messages.
+# if __name__ == '__main__':
+#     # ls = LaunchService(argv=argv, debug=True)  # Use this instead to get more debug messages.
 
-    ls = LaunchService(argv=sys.argv[1:])
-    ls.include_launch_description(generate_launch_description())
-    print("this is a test")
-    sys.exit(ls.run())
+#     ls = LaunchService(argv=sys.argv[1:])
+#     ls.include_launch_description(generate_launch_description())
+#     print("this is a test")
+#     sys.exit(ls.run())
     

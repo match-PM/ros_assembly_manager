@@ -4,6 +4,7 @@ from geometry_msgs.msg import TransformStamped
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
 from tf2_ros import Buffer, TransformListener, TransformBroadcaster, StaticTransformBroadcaster
+from rclpy.callback_groups import ReentrantCallbackGroup, MutuallyExclusiveCallbackGroup
 import numpy as np
 import json
 import assembly_manager_interfaces.msg as ami_msg
@@ -49,14 +50,14 @@ class AssemblyManagerScene():
     def __init__(self, node: Node):
         self.scene = ami_msg.ObjectScene()
         self.node = node
-
-        self._scene_publisher = node.create_publisher(ami_msg.ObjectScene,'/assembly_manager/scene',10)
+        self.callback_group_pub = ReentrantCallbackGroup()
+        self._scene_publisher = node.create_publisher(ami_msg.ObjectScene,'/assembly_manager/scene',10,callback_group=self.callback_group_pub)
+        self.timer = node.create_timer(5.0, self.publish_information,callback_group=self.callback_group_pub)
         self.logger = node.get_logger()
         self.tf_broadcaster = StaticTransformBroadcaster(node)
         #self.tf_broadcaster = TransformBroadcaster(node)
         self.tf_buffer = Buffer(cache_time=rclpy.duration.Duration(seconds=10.0))
         self.tf_listener = TransformListener(self.tf_buffer, node,spin_thread=True)
-        self.timer = node.create_timer(5.0, self.publish_scene)
 
     def publish_information(self):
         self.publish_scene()
