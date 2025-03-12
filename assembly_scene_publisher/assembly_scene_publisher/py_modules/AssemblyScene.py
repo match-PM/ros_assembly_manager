@@ -1195,29 +1195,4 @@ class AssemblyManagerScene():
 
         
         return final_list
-    
-    @staticmethod
-    def is_frame_from_scene( scene:ami_msg.ObjectScene, frame_name:str)->tuple[Union[str,None], Union[str,None]]:
-        """
-        If associated with an object returns
-        (object_name, frame_name)
-        If associated with a ref_frame returns
-        (None, frame_name)
-        """
-
-        for obj in scene.objects_in_scene:
-            obj:ami_msg.Object
-            
-            for ref_frame in obj.ref_frames:
-                ref_frame:ami_msg.RefFrame
-                if f"{obj.obj_name}_{ref_frame.frame_name}" == frame_name:
-                    return (obj.obj_name, ref_frame.frame_name)
-
-        for ref_frame in scene.ref_frames_in_scene:
-            ref_frame:ami_msg.RefFrame
-            if ref_frame.frame_name == frame_name:
-                return None, ref_frame.frame_name
-            
-        return None, None
-    
 

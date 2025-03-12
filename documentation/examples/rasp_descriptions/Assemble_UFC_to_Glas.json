@@ -1,0 +1,247 @@
+{
+    "name": "Assemble_UFC_to_Glas",
+    "saved_at": "2025-03-12 17:44:07.965081",
+    "action_list": [
+        {
+            "action_position": 0,
+            "action_type": "ServiceAction",
+            "name": "/pm_vision_manager/ExecuteVision",
+            "service_client": "/pm_vision_manager/ExecuteVision",
+            "service_type": "pm_vision_interfaces/srv/ExecuteVision",
+            "error_identifier": null,
+            "description": "",
+            "service_request": {
+                "process_filename": "Assembly_Manager/UFC_6D_tol-1/UFC_6D_tol-1_Vision_Point_1_T_sim.json",
+                "camera_config_filename": "pm_robot_top_cam_1_Unity.yaml",
+                "process_uid": "tw",
+                "image_display_time": 5,
+                "run_cross_validation": false
+            },
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 1,
+            "action_type": "ServiceAction",
+            "name": "Spawn Assembly",
+            "service_client": "/assembly_manager/create_assembly_instruction_from_description",
+            "service_type": "assembly_manager_interfaces/srv/CreateAssemblyInstructionFromDescription",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "file_path": "/home/mll/SolidWorks_ASsembly_Instructor/examples/SWASI_6D_Example/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_tol.json",
+                "spawn_components": true
+            },
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 2,
+            "action_type": "ServiceAction",
+            "name": "Camera Top - Correct UFC V_1_T",
+            "service_client": "/pm_skills/correct_frame",
+            "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "frame_name": "UFC_6D_tol-1_Vision_Point_1_T"
+            },
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 3,
+            "action_type": "ServiceAction",
+            "name": "Camera Top - Correct UFC V_2_T",
+            "service_client": "/pm_skills/correct_frame",
+            "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "frame_name": "UFC_6D_tol-1_Vision_Point_2_T"
+            },
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 4,
+            "action_type": "ServiceAction",
+            "name": "Camera Top - Correct UFC V_3_T",
+            "service_client": "/pm_skills/correct_frame",
+            "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "frame_name": "UFC_6D_tol-1_Vision_Point_3_T"
+            },
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 5,
+            "action_type": "ServiceAction",
+            "name": "Camera Top - Correct UFC V_4_T",
+            "service_client": "/pm_skills/correct_frame",
+            "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "frame_name": "UFC_6D_tol-1_Vision_Point_4_T"
+            },
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 6,
+            "action_type": "ServiceAction",
+            "name": "Camera Bottom - Correct UFC V_1_B",
+            "service_client": "/pm_skills/correct_frame",
+            "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "frame_name": "UFC_6D_tol-1_Vision_Point_1_B"
+            },
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 7,
+            "action_type": "ServiceAction",
+            "name": "Camera Bottom - Correct UFC V_2_B",
+            "service_client": "/pm_skills/correct_frame",
+            "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "frame_name": "UFC_6D_tol-1_Vision_Point_2_B"
+            },
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 8,
+            "action_type": "ServiceAction",
+            "name": "Camera Bottom - Correct UFC V_3_B",
+            "service_client": "/pm_skills/correct_frame",
+            "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "frame_name": "UFC_6D_tol-1_Vision_Point_3_B"
+            },
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 9,
+            "action_type": "ServiceAction",
+            "name": "/Camera Bottom - Correct UFC V_4_B",
+            "service_client": "/pm_skills/correct_frame",
+            "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "frame_name": "UFC_6D_tol-1_Vision_Point_4_B"
+            },
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 10,
+            "action_type": "ServiceAction",
+            "name": "Camera - Correct Glas V_1_T",
+            "service_client": "/pm_skills/correct_frame",
+            "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "frame_name": "Glas_6D_tol-1_Vision_Point_1_T"
+            },
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 11,
+            "action_type": "ServiceAction",
+            "name": "Camera - Correct Glas V_2_T",
+            "service_client": "/pm_skills/correct_frame",
+            "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "frame_name": "Glas_6D_tol-1_Vision_Point_2_T"
+            },
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 12,
+            "action_type": "ServiceAction",
+            "name": "Camera - Correct Glas V_3_T",
+            "service_client": "/pm_skills/correct_frame",
+            "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "frame_name": "Glas_6D_tol-1_Vision_Point_3_T"
+            },
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 13,
+            "action_type": "ServiceAction",
+            "name": "Camera - Correct Glas V_4_T",
+            "service_client": "/pm_skills/correct_frame",
+            "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "frame_name": "Glas_6D_tol-1_Vision_Point_4_T"
+            },
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 14,
+            "action_type": "ServiceAction",
+            "name": "Grip UFC",
+            "service_client": "/pm_skills/grip_component",
+            "service_type": "pm_skills_interfaces/srv/GripComponent",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "component_name": "UFC_6D_tol-1"
+            },
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 15,
+            "action_type": "ServiceAction",
+            "name": "Recalculate Assembly Instruction",
+            "service_client": "/assembly_manager/calculate_assembly_instructions",
+            "service_type": "assembly_manager_interfaces/srv/CalculateAssemblyInstructions",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "instruction_id": "Description_Glas_6D_tol-1_UFC_6D_tol-1"
+            },
+            "has_breakpoint": false,
+            "is_active": false
+        },
+        {
+            "action_position": 16,
+            "action_type": "ServiceAction",
+            "name": "/pm_sensor_controller/Laser/GetMeasurement",
+            "service_client": "/pm_sensor_controller/Laser/GetMeasurement",
+            "service_type": "pm_msgs/srv/LaserGetMeasurement",
+            "error_identifier": null,
+            "description": "",
+            "service_request": {},
+            "has_breakpoint": false,
+            "is_active": true
+        }
+    ]
+}
