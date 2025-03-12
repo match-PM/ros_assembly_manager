@@ -10,6 +10,8 @@ from assembly_scene_publisher.py_modules.geometry_type_functions import rotation
 from rclpy.impl.rcutils_logger import RcutilsLogger 
 import math
 
+from scipy.spatial.transform import Rotation as R
+
 def get_point_of_plane_intersection(plane1: sp.Plane, plane2: sp.Plane, plane3: sp.Plane) -> sp.Point3D:
     line = plane1.intersection(plane2)
     # Get the first point of intersection, should also be the only one
@@ -333,59 +335,274 @@ def normalize_vector3(vector: Vector3) -> Vector3:
     return normalized_vector
 
 
-import numpy as np
 
-def perform_pca(points, n_components=None):
+def points_valid_for_plane(frames: list[Pose]) -> bool:
+
+    if len(frames) < 3:
+        raise ValueError("At least 3 points are required to define a plane.")
+
+    points = [(pose.position.x, pose.position.y, pose.position.z) for pose in frames]
+
+    # Create vectors from the first point to all other points
+    p1 = np.array(points[0])
+    vectors = [np.array(p) - p1 for p in points[1:]]
+
+    # Compute the cross product of each pair of vectors
+    for i in range(len(vectors) - 1):
+        for j in range(i + 1, len(vectors)):
+            cross_product = np.cross(vectors[i], vectors[j])
+            if np.linalg.norm(cross_product) > 0.0001:
+                return True
+            else:
+                raise ValueError("Points are collinear. Cannot define a plane.")
+    return False
+
+def project_pose_on_plane(frame: Pose, 
+                        plane: sp.Plane, 
+                        logger: RcutilsLogger = None) -> Pose:
     """
-    Perform Principal Component Analysis (PCA) on a set of 2D or 3D points.
+    Projects a 3D point onto a given plane.
 
-    Args:
-        points (list of tuples/lists): A list of (x, y) or (x, y, z) coordinates.
-        n_components (int, optional): Number of principal components to keep (default: all).
-
-    Returns:
-        eigenvalues (numpy array): Eigenvalues sorted in descending order.
-        eigenvectors (numpy array): Corresponding eigenvectors.
-        transformed_points (numpy array): Points transformed into the PCA space.
+    :param frame: A Pose object from geometry_msgs.msg.Pose with position (x, y, z).
+    :param plane: A sympy Plane object.
+    :return: A new Pose object with projected coordinates.
     """
-    points = np.array(points)  # Convert to NumPy array
+    # Extract normal vector from the plane
+    normal_vector = np.array([float(coord.evalf()) for coord in plane.normal_vector])
 
-    # Ensure at least two points
-    if points.shape[0] < 2:
-        raise ValueError("At least two points are required for PCA.")
+    # Extract original position from ROS2 Pose message
+    original_position = np.array([frame.position.x, frame.position.y, frame.position.z])
 
-    # Step 1: Compute mean and center the data
-    mean = np.mean(points, axis=0)
-    centered_points = points - mean
+    # Get a known point on the plane
+    point_on_plane = np.array([float(coord.evalf()) for coord in plane.p1])
 
-    # Step 2: Compute covariance matrix
-    covariance_matrix = np.cov(centered_points.T)
+    # Compute the projection scalar t
+    vector_to_plane = original_position - point_on_plane
+    t = np.dot(vector_to_plane, normal_vector) / np.dot(normal_vector, normal_vector)
 
-    # Step 3: Compute eigenvalues & eigenvectors
-    eigenvalues, eigenvectors = np.linalg.eig(covariance_matrix)
+    # Compute the new projected position
+    new_position = original_position - t * normal_vector
 
-    # Step 4: Sort eigenvalues & eigenvectors in descending order
-    sorted_indices = np.argsort(eigenvalues)[::-1]
-    eigenvalues = eigenvalues[sorted_indices]
-    eigenvectors = eigenvectors[:, sorted_indices]
+    # Create a new Pose object for the result
+    projected_pose = Pose()
+    projected_pose.position.x = new_position[0]
+    projected_pose.position.y = new_position[1]
+    projected_pose.position.z = new_position[2]
 
-    # Step 5: Project data onto principal components
-    if n_components is not None:
-        eigenvectors = eigenvectors[:, :n_components]  # Keep only the top components
-    transformed_points = np.dot(centered_points, eigenvectors)
+    # Keep the original orientation unchanged
+    projected_pose.orientation = frame.orientation
+    
+    if logger is not None:
+        if abs(t)>0.000001:
+            logger.error(f"DEBUG: POINT MOVED: Distance point moved: {(t):.6f}")
 
-    return eigenvalues, eigenvectors, transformed_points
+    return projected_pose
 
+def create_3D_plane(frames: list[Pose])-> tuple:
+    """
+    Computes the best-fit plane for a set of 3D points using least squares.
+    """
+
+    # Check if points are collinear
+    points_positions = [(pose.position.x, pose.position.y, pose.position.z) for pose in frames]
+
+    if not points_valid_for_plane(frames):
+        print("Points are collinear. Cannot define a plane.")
+        return None, None, None
+    
+    # Step 1: Compute center of mass
+    center_coordinates = [sum(coords) / len(points_positions) for coords in zip(*points_positions)]
+    center_of_mass = sp.Point3D(*center_coordinates)
+
+    # Step 2: Convert points into a numpy array and center them
+    A = np.array(points_positions) - np.array(center_coordinates)
+
+    # Step 3: Use least squares to fit a plane
+    # Set up the system Ax = b, where A contains x, y, z coordinates and b is a constant
+    X = A[:, 0]
+    Y = A[:, 1]
+    Z = A[:, 2]
+    A_matrix = np.vstack([X, Y, np.ones(len(X))]).T
+
+    # Solve for the best-fit plane coefficients using least squares
+    C, residuals, rank, s = np.linalg.lstsq(A_matrix, Z, rcond=None)
+    A, B, D = C[0], C[1], 1
+    normal_vector = np.array([A, B, 1]) #remember 1 was negative, changes direction of normal vector relativ to z axis
+    normal_vector = normal_vector / np.linalg.norm(normal_vector)  # Normalize the normal vector
+
+    print(f"Normal vector: {normal_vector}")
+
+    # The plane equation is Ax + By + Cz + D = 0
+    ref_plane = sp.Plane(sp.Point3D(*center_coordinates), normal_vector.tolist())
+
+    return ref_plane, center_of_mass, normal_vector.tolist()
+
+
+def are_points_collinear(points: list[Pose]) -> bool:
+    """
+    Checks if a set of 3D points are collinear by computing the rank of their covariance matrix.
+    """
+    if len(points) < 3:
+        return True  # Less than 3 points are always collinear
+
+    # Extract positions
+    points_array = np.array([(pose.position.x, pose.position.y, pose.position.z) for pose in points])
+
+    # Compute centered positions
+    centered = points_array - np.mean(points_array, axis=0)
+
+    # Compute SVD
+    _, singular_values, _ = np.linalg.svd(centered)
+
+    # If two singular values are near zero, points are collinear
+    return np.isclose(singular_values[1], 0) and np.isclose(singular_values[2], 0)
+
+
+def create_3D_plane_2(frames: list[Pose], 
+                        plane_offset: float = 0.0,
+                        logger: RcutilsLogger = None) -> sp.Plane:
+    """
+    Computes the best-fit plane for a set of 3D points using least squares and applies an optional offset.
+    
+    :param frames: List of Pose objects (ROS2 Pose messages).
+    :param plane_offset: Distance to shift the plane along its normal vector.
+    :param logger: ROS2 logger for debugging.
+    :return: (plane)
+    """
+    if len(frames) < 3:
+        print("Not enough points to define a plane.")
+        return None, None, None
+
+    # Check collinearity
+    if are_points_collinear(frames):
+        print("Points are collinear. Cannot define a plane.")
+        return None, None, None
+
+    # Step 1: Extract points and compute centroid
+    points_positions = np.array([(pose.position.x, pose.position.y, pose.position.z) for pose in frames])
+    center_coordinates = np.mean(points_positions, axis=0)
+    center_of_mass = sp.Point3D(*center_coordinates)
+
+    # Step 2: Perform Singular Value Decomposition (SVD) to find the normal vector
+    centered_points = points_positions - center_coordinates
+    _, _, vh = np.linalg.svd(centered_points)
+
+    # The normal vector to the best-fit plane is the last row of V^T
+    normal_vector = vh[-1]
+
+    # Normalize the normal vector
+    normal_vector /= np.linalg.norm(normal_vector)
+
+    print(f"Normal Vector: {normal_vector}")
+    if normal_vector[2]<0:
+        norm_vector_dir = -normal_vector
+    else:
+        norm_vector_dir = normal_vector
+
+    # Step 3: Apply the plane offset
+    offset_vector = norm_vector_dir * plane_offset
+    offset_center_coordinates = center_coordinates + offset_vector
+    offset_center_of_mass = sp.Point3D(*offset_center_coordinates)
+
+    # Step 4: Define the plane using SymPy
+    ref_plane = sp.Plane(offset_center_of_mass, normal_vector.tolist())
+
+    return ref_plane
+
+def rotate_point(frame, plane, target_axis, logger):
+    """
+    Rotates a given point so that its target axis aligns with the normal of a plane.
+
+    :param frame: Pose object containing position and orientation.
+    :param plane: Plane object with a normal vector.
+    :param target_axis: Axis to align ("X", "Y", or "Z").
+    :param logger: ROS2 logger for debugging.
+    :return: Updated Pose object with new orientation.
+    """
+    
+    # Convert plane normal vector to float (ensuring no symbolic values)
+    normal_vector = np.array([float(sp.N(coord)) for coord in plane.normal_vector], dtype=float)
+
+    if normal_vector[2]<0:
+        normal_vector = -normal_vector
+
+    angles = angles_to_normal_vector(normal_vector, frame.orientation)
+
+    target_axis = target_axis.upper()
+    if target_axis not in ["X", "Y", "Z"]:
+        raise ValueError("Invalid axis. Choose 'X', 'Y', or 'Z'.")
+
+    # Select the rotation angle based on the target axis
+    angle_rad = angles[{"X": 0, "Y": 1, "Z": 2}[target_axis]]
+
+    if np.isclose(angle_rad, 0, atol=1e-6):
+        return frame  # No need to rotate
+
+    axis_index = {"X": 0, "Y": 1, "Z": 2}[target_axis]
+
+    # Extract and ensure quaternion is numerical
+    quaternion = np.array([float(frame.orientation.x), float(frame.orientation.y), 
+                           float(frame.orientation.z), float(frame.orientation.w)], dtype=float)
+
+    rotation_matrix = R.from_quat(quaternion).as_matrix()
+    local_axis = rotation_matrix[:, axis_index]
+
+    # Compute rotation axis
+    rotation_axis = np.cross(local_axis, normal_vector)
+
+    # Handle degenerate cases where local_axis is parallel to normal_vector
+    if np.allclose(rotation_axis, 0, atol=1e-6):
+        logger.warning("Local axis is already aligned with the normal vector. No rotation needed.")
+        return frame  # No rotation needed
+
+    # Normalize rotation axis
+    rotation_axis /= np.linalg.norm(rotation_axis)
+
+    # Create rotation quaternion
+    rotation_quaternion = R.from_rotvec(angle_rad * rotation_axis).as_quat()
+
+    # Normalize quaternion
+    rotation_quaternion /= np.linalg.norm(rotation_quaternion)
+
+    # Apply rotation
+    new_quaternion = R.from_quat(rotation_quaternion) * R.from_quat(quaternion)
+    new_quat_values = new_quaternion.as_quat()
+
+    # Update frame orientation
+    frame.orientation.x, frame.orientation.y, frame.orientation.z, frame.orientation.w = new_quat_values
+
+    return frame
+
+def angles_to_normal_vector(normal_vector, quaternion):
+    """
+    Computes the angles between the coordinate axes of a given quaternion and a plane's normal vector.
+    """
+    # Ensure quaternion is numerical
+    quaternion_t = np.array([float(quaternion.x), float(quaternion.y), 
+                             float(quaternion.z), float(quaternion.w)], dtype=float)
+
+    # Ensure normal_vector is a proper float array
+    normal_vector = np.array([float(sp.N(coord)) for coord in normal_vector], dtype=float)
+
+    # Rotation from quaternion
+    rotation_matrix = R.from_quat(quaternion_t).as_matrix()
+
+    angles = []
+    for i in range(3):
+        local_axis = rotation_matrix[:, i]
+
+        # Compute dot product (ensuring numerical)
+        dot_product = np.dot(local_axis, normal_vector)
+
+        # Clip to valid range and compute angle
+        cos_theta = np.clip(dot_product, -1.0, 1.0)
+        angle = np.arccos(cos_theta)
+
+        angles.append(angle)
+
+    return angles
 
 if __name__ == "__main__":
-    # # Example usage with 3D points
-    # points = [(1, 2, 3), (4, 5, 6), (7, 8, 9), (2, 1, 3)]
-    # eigenvalues, eigenvectors, transformed_points = perform_pca(points)
-
-    # print("Eigenvalues:", eigenvalues)
-    # print("Eigenvectors:\n", eigenvectors)
-    # print("Transformed Points:\n", transformed_points)
-
 
     # Test the function
     # Define the planes
@@ -409,29 +626,22 @@ if __name__ == "__main__":
     pose_4.position.x = -0.0316481
     pose_4.position.y = -0.0221979
     pose_4.position.z = 0.00235735
-        
-    vector = Vector3()
-    vector.x = pose_2.position.x - pose_1.position.x
-    vector.y = pose_2.position.y - pose_1.position.y
-    vector.z = pose_2.position.z - pose_1.position.z
-    
-    norm_vector = normalize_vector3(vector)
-        
-    print(f"Vector man: {norm_vector}")
-    #quad, centroid = compute_eigenvectors_and_centroid([pose_1,pose_2])
-    quad, centroid = compute_eigenvectors_and_centroid([pose_1,pose_2,pose_3,pose_4])
-    print(quad)
-    print(centroid)
-    
-    
-    import subprocess
+            
+    pose_list = [pose_1, 
+                 pose_2, 
+                 pose_3,
+                #pose_4
+                ]
 
-    def get_all_ros2_executables():
-        result = subprocess.run(["ros2", "pkg", "executables"], capture_output=True, text=True)
-        executables = result.stdout.strip().split("\n")
-        for line in executables:
-            if line:
-                package, executable = line.split()
-                print(f"Package: {package}, Executable: {executable}")
+    plane, centre, vectors = create_3D_plane_2(pose_list)
 
-    get_all_ros2_executables()
+    pose_1.position.z =  pose_1.position.z + 0.1
+
+    result_pose = project_pose_on_plane(pose_1, plane)
+
+    # print(f"Vector man: {norm_vector}")
+    # #quad, centroid = compute_eigenvectors_and_centroid([pose_1,pose_2])
+    # quad, centroid = compute_eigenvectors_and_centroid([pose_1,pose_2,pose_3,pose_4])
+    # print(quad)
+    # print(centroid)
+    

@@ -13,7 +13,11 @@ from geometry_msgs.msg import Vector3, Quaternion
 import sympy as sp
 from typing import Union
 from scipy.optimize import minimize, least_squares
-from assembly_scene_publisher.py_modules.frame_constraints import FrameConstraintsHandler
+from assembly_scene_publisher.py_modules.frame_constraints import (FrameConstraintsHandler, 
+                                                                    update_ref_frame_by_constraint, 
+                                                                    build_frame_reference_tree,
+                                                                    calculate_frame_contrains_for_frame_list,
+                                                                    calculate_constraints_for_scene)
 from copy import deepcopy,copy
 from assembly_scene_publisher.py_modules.scene_functions import (get_parent_frame_for_ref_frame,
                                                                  get_ref_frame_by_name,
@@ -22,7 +26,7 @@ from assembly_scene_publisher.py_modules.scene_functions import (get_parent_fram
                                                                  get_frames_for_plane,
                                                                  get_frame_names_from_list,
                                                                  get_frames_for_axis,
-                                                                 get_frames_for_component)
+                                                                 get_frames_for_planes_of_component)
 
 
 from assembly_scene_publisher.py_modules.geometry_functions import (get_point_of_plane_intersection, 
@@ -164,7 +168,7 @@ class AssemblyManagerScene():
                     self.logger.warn(f'Service for creating {new_ref_frame.frame_name} was called, but frame does already exist! Information for {new_ref_frame.frame_name} updated!')
                 
             frame_list_to_append_to.append(new_ref_frame)
-        self.update_all_ref_frame_constraints()
+
         self.publish_information()
         return True
 
@@ -223,6 +227,8 @@ class AssemblyManagerScene():
                 if not add_success:
                     self.logger.error(f"Ref frame {new_ref_frame.frame_name} could not be created!")
                     return False
+                
+            self.update_scene_with_constraints()
             return True 
         
         except Exception as e:
@@ -428,8 +434,8 @@ class AssemblyManagerScene():
                 self.logger.error(f"Not enough input arguments. Plane could not be created!")
                 return False
             
-            parent_frame_1 = self.get_parent_frame_for_ref_frame(axis.point_names[0])
-            parent_frame_2 = self.get_parent_frame_for_ref_frame(axis.point_names[1])
+            parent_frame_1 = get_parent_frame_for_ref_frame(self.scene, axis.point_names[0], logger=self.logger)
+            parent_frame_2 = get_parent_frame_for_ref_frame(self.scene, axis.point_names[1], logger=self.logger)
 
             if (not (parent_frame_1 == parent_frame_2) or 
                 parent_frame_1 is None or 
@@ -463,7 +469,7 @@ class AssemblyManagerScene():
             
             # if above for loop executes without returning append the plane because it does not yet excist.
             list_to_append_axis.append(axis)
-            self.logger.info(f"Axis '{axis.axis_name}' created! Axis is defined by frames 1.{axis.point_names[0]}, 2.{axis.point_names[1]}.")
+            self.logger.debug(f"Axis '{axis.axis_name}' created! Axis is defined by frames 1.{axis.point_names[0]}, 2.{axis.point_names[1]}.")
             return True
 
         except Exception as e:
@@ -482,19 +488,20 @@ class AssemblyManagerScene():
                 plane.point_names[1]!='' and 
                 plane.point_names[2]!=''):
                 mode = 'PlanePPP'
-                parent_frame_1 = self.get_parent_frame_for_ref_frame(plane.point_names[0])
-                parent_frame_2 = self.get_parent_frame_for_ref_frame(plane.point_names[1])
-                parent_frame_3 = self.get_parent_frame_for_ref_frame(plane.point_names[2])
+                parent_frame_1 = get_parent_frame_for_ref_frame(self.scene, plane.point_names[0], logger=self.logger)
+                parent_frame_2 = get_parent_frame_for_ref_frame(self.scene, plane.point_names[1], logger=self.logger)
+                parent_frame_3 = get_parent_frame_for_ref_frame(self.scene, plane.point_names[2], logger=self.logger)
 
             elif (plane.axis_names[0]!='' and
                 plane.point_names[0]!='' and 
                 plane.point_names[1]=='' and 
                 plane.point_names[2]==''):
                 mode = 'PlaneAP'
-                axis_msg = self.get_axis_from_scene(plane.axis_names[0])
-                parent_frame_1 = self.get_parent_frame_for_ref_frame(axis_msg.point_names[0])
-                parent_frame_2 = self.get_parent_frame_for_ref_frame(axis_msg.point_names[1])
-                parent_frame_3 = self.get_parent_frame_for_ref_frame(plane.point_names[0])
+                axis_msg = get_axis_from_scene(scene=self.scene, 
+                                               axis_name=plane.axis_names[0])
+                parent_frame_1 = get_parent_frame_for_ref_frame(self.scene, axis_msg.point_names[0], logger=self.logger)
+                parent_frame_2 = get_parent_frame_for_ref_frame(self.scene, axis_msg.point_names[1], logger=self.logger)
+                parent_frame_3 = get_parent_frame_for_ref_frame(self.scene, plane.point_names[0], logger=self.logger)
             else:
                 self.logger.error(f"Invalid input for creation of reference plane. Plane should be defined by 3 x frames or by 1 x axis + 1 x frame!")
                 return False
@@ -537,7 +544,7 @@ class AssemblyManagerScene():
             
             # if above for loop executes without returning append the plane because it does not yet excist.
             list_to_append_plane.append(plane)
-            self.logger.info(logger_message)
+            self.logger.debug(logger_message)
             return True
 
         except Exception as e:
@@ -545,96 +552,20 @@ class AssemblyManagerScene():
             self.logger.error(f"Plane could not be created. Invalid message!")
             return False
         
-    def update_all_ref_frame_constraints(self):
-        """
-        This function updates all ref frame constraints.
-        """
-        self.logger.debug(f"Update all ref frame constraints")
-        for obj in self.scene.objects_in_scene:
-            obj: ami_msg.Object
-            for ref_frame in obj.ref_frames:
-                ref_frame:ami_msg.RefFrame
-                self.update_ref_frame_constraint(ref_frame, obj.obj_name)
+    # def update_all_ref_frame_constraints(self):
+    #     """
+    #     This function updates all ref frame constraints.
+    #     """
+    #     self.logger.debug(f"Update all ref frame constraints")
+    #     for obj in self.scene.objects_in_scene:
+    #         obj: ami_msg.Object
+    #         for ref_frame in obj.ref_frames:
+    #             ref_frame:ami_msg.RefFrame
+    #             update_ref_frame_by_constraint(scene=self.scene, ref_frame=ref_frame, component_name=obj.obj_name, logger=self.logger)
                 
-        for ref_frame in self.scene.ref_frames_in_scene:
-            ref_frame: ami_msg.RefFrame
-            self.update_ref_frame_constraint(ref_frame, None)
-
-    def update_ref_frame_constraint(self, ref_frame:ami_msg.RefFrame, component_name:str)-> bool:
-        try:
-            # make a deep copy just to be sure that the original ref frame is not modified
-            copy_ref_frame = deepcopy(ref_frame)
-            scene_copy = deepcopy(self.scene)
-            
-            #self.logger.warn(f"Update ref frame constraints for frame '{ref_frame.frame_name}'")
-            
-            frame_constraints_handler:FrameConstraintsHandler = FrameConstraintsHandler.return_handler_from_msg(msg=copy_ref_frame.constraints,
-                                                                                                                scene=scene_copy,
-                                                                                                                logger=self.logger)
-            
-            pose = frame_constraints_handler.calculate_frame_constraints(initial_pose = copy_ref_frame.pose, 
-                                                                         component_name = component_name,
-                                                                         frame_name=copy_ref_frame.frame_name,
-                                                                         scene=self.scene,
-                                                                         logger=self.logger)
-            
-            ref_frame.pose = pose
-
-            return True
-        
-        except Exception as e:
-            self.logger.error(str(e))
-            self.logger.error(f"Unknown Error. Constraint could not be updated!")
-            return False
-
-    def get_ref_frame_by_name(self, frame_name:str) -> ami_msg.RefFrame:
-        """
-        Returns the ref frame from the ref frames list by the given frame name.
-        """
-        for obj in self.scene.objects_in_scene:
-            obj: ami_msg.Object
-            for ref_frame in obj.ref_frames:
-                ref_frame:ami_msg.RefFrame
-                if ref_frame.frame_name == frame_name:
-                    return ref_frame
-        for ref_frame in self.scene.ref_frames_in_scene:
-            ref_frame:ami_msg.RefFrame
-            if ref_frame.frame_name == frame_name:
-                return ref_frame
-            
-    def get_parent_frame_for_ref_frame(self,frame_name:str)->str:
-        """
-        This function returns the parent frame for the given ref frame. 
-        If the ref frame does not exist the function returns None.
-        """
-        for obj in self.scene.objects_in_scene:
-            obj: ami_msg.Object
-            for ref_frame in obj.ref_frames:
-                ref_frame: ami_msg.RefFrame
-                if ref_frame.frame_name == frame_name:
-                    return ref_frame.parent_frame
-                
-        for ref_frame in self.scene.ref_frames_in_scene:
-            ref_frame: ami_msg.RefFrame
-            if ref_frame.frame_name == frame_name:
-                return ref_frame.parent_frame    
-
-        return None 
-
-    def check_ref_frames_for_same_parent_frame(self,frame_names:list[str])->bool:
-        """
-        This function checks if all given ref frames have the same parent frame.
-        If this is the case the function returns True. If not the function returns False.
-        Parameters:
-        - frame_names: list of strings with the names of the ref frames to check
-        """
-        parent_frame = self.get_parent_frame_for_ref_frame(frame_names[0])
-        self.logger.debug(f"Parent frame: {str(parent_frame)}")
-        for frame in frame_names:
-            if parent_frame != self.get_parent_frame_for_ref_frame(frame) or parent_frame is None:
-                return False
-        return True
-
+    #     for ref_frame in self.scene.ref_frames_in_scene:
+    #         ref_frame: ami_msg.RefFrame
+    #         update_ref_frame_by_constraint(scene=self.scene, ref_frame=ref_frame, logger=self.logger)
     
     def modify_pose(self,frame_obj_name:str, rel_pose: Pose)-> bool:
         # Dep
@@ -677,16 +608,16 @@ class AssemblyManagerScene():
             return False
         
         # Find the parent Frame
-        parent_frame = self.get_parent_frame_for_ref_frame(frame_name)
-        pose_to_modify = self.get_ref_frame_by_name(frame_name).pose
+        parent_frame = get_parent_frame_for_ref_frame(scene=self.scene, frame_name=frame_name, logger=self.logger)
+        pose_to_modify = get_ref_frame_by_name(self.scene, frame_name, logger=self.logger).pose
         
         if parent_frame is not None:
             pose_to_modify.position.x += translation.x
             pose_to_modify.position.y += translation.y
             pose_to_modify.position.z += translation.z
             pose_to_modify.orientation = quaternion_multiply(pose_to_modify.orientation,rotation)
-            self.update_all_ref_frame_constraints()
-            self.publish_information()
+            self.update_scene_with_constraints()
+
             self.logger.info(f'Pose for object {frame_name} updated!')
             return True
         else:
@@ -701,7 +632,7 @@ class AssemblyManagerScene():
             return False
         
         # Find the parent Frame
-        parent_frame = self.get_parent_frame_for_ref_frame(frame_name)
+        parent_frame = get_parent_frame_for_ref_frame(self.scene, frame_name , logger=self.logger)
         
         #self.logger(f"{pose_to_modify},{parent_frame}")
         if  parent_frame is not None:
@@ -727,16 +658,14 @@ class AssemblyManagerScene():
 
             self.logger.info(f'Frame {frame_name} updated!') 
             
-            frame = self.get_ref_frame_by_name(frame_name)
+            frame = get_ref_frame_by_name(self.scene, frame_name, logger=self.logger)
             # only modify the position !!!!
             frame.pose.position = pose_to_modify.position
 
             # right now there is an error with the orientation. Beside that, the question is, how we would like to handle the orientation (should it actually be modified).
             # frame.pose = pose_to_modify
 
-            self.update_all_ref_frame_constraints()
-
-            self.publish_information()
+            self.update_scene_with_constraints()
             return True
         else:
             return False
@@ -748,14 +677,14 @@ class AssemblyManagerScene():
                 self.logger.error(f"ID of the instruction shoud not be empty. Aboarted!")
                 return False
             
-        obj1_plane1_msg = self.get_plane_from_scene(instruction.plane_match_1.plane_name_component_1)
-        obj1_plane2_msg = self.get_plane_from_scene(instruction.plane_match_2.plane_name_component_1)
-        obj1_plane3_msg = self.get_plane_from_scene(instruction.plane_match_3.plane_name_component_1)
+        obj1_plane1_msg = get_plane_from_scene(scene=self.scene, plane_name=instruction.plane_match_1.plane_name_component_1)
+        obj1_plane2_msg = get_plane_from_scene(scene=self.scene, plane_name=instruction.plane_match_2.plane_name_component_1)
+        obj1_plane3_msg = get_plane_from_scene(scene=self.scene, plane_name=instruction.plane_match_3.plane_name_component_1)
 
         # Get plane msgs for object 2
-        obj2_plane1_msg = self.get_plane_from_scene(instruction.plane_match_1.plane_name_component_2)
-        obj2_plane2_msg = self.get_plane_from_scene(instruction.plane_match_2.plane_name_component_2)
-        obj2_plane3_msg = self.get_plane_from_scene(instruction.plane_match_3.plane_name_component_2) 
+        obj2_plane1_msg = get_plane_from_scene(scene=self.scene, plane_name=instruction.plane_match_1.plane_name_component_2)
+        obj2_plane2_msg = get_plane_from_scene(scene=self.scene, plane_name=instruction.plane_match_2.plane_name_component_2)
+        obj2_plane3_msg = get_plane_from_scene(scene=self.scene, plane_name=instruction.plane_match_3.plane_name_component_2) 
 
         # return false if planes do not exist in scene
         create_plane_error = False
@@ -783,8 +712,12 @@ class AssemblyManagerScene():
             self.logger.error(f"Invalid input for assembly instruction. Planes do not exist in scene!")
             return False
         
-        obj_1_name = self.get_parent_frame_for_ref_frame(self.get_plane_from_scene(instruction.plane_match_1.plane_name_component_1).point_names[0])
-        obj_2_name = self.get_parent_frame_for_ref_frame(self.get_plane_from_scene(instruction.plane_match_1.plane_name_component_2).point_names[0])
+        obj_1_name = get_parent_frame_for_ref_frame(self.scene, 
+                                                    get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_1).point_names[0],
+                                                    logger=self.logger)
+        obj_2_name = get_parent_frame_for_ref_frame(self.scene,
+                                                    get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_2).point_names[0],
+                                                    logger=self.logger)
 
         # return false if planes are linked to the same component
         if obj_1_name == obj_2_name:
@@ -816,7 +749,7 @@ class AssemblyManagerScene():
         return True
     
     def _get_plane_obj_from_scene(self, plane_name:str, parent_frame:str = None)-> sp.Plane:
-        plane_msg = self.get_plane_from_scene(plane_name)
+        plane_msg = get_plane_from_scene(self.scene, plane_name)
         plane_msg: ami_msg.Plane
         if (plane_msg.axis_names[0]=='' and
             plane_msg.point_names[0]!='' and 
@@ -856,8 +789,12 @@ class AssemblyManagerScene():
         This function calculates the intersection point of the given planes and returns the intersection point as a Vector3.
 
         """
-        component_1 = self.get_parent_frame_for_ref_frame(self.get_plane_from_scene(instruction.plane_match_1.plane_name_component_1).point_names[0])
-        component_2 = self.get_parent_frame_for_ref_frame(self.get_plane_from_scene(instruction.plane_match_1.plane_name_component_2).point_names[0])
+        component_1 = get_parent_frame_for_ref_frame(self.scene,
+                                                     get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_1).point_names[0],
+                                                     logger=self.logger)
+        component_2 = get_parent_frame_for_ref_frame(self.scene,
+                                                     get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_2).point_names[0],
+                                                     logger=self.logger)
 
         obj_1_plane_1 = self._get_plane_obj_from_scene(instruction.plane_match_1.plane_name_component_1, parent_frame=component_1)
         obj_1_plane_2 = self._get_plane_obj_from_scene(instruction.plane_match_2.plane_name_component_1, parent_frame=component_1)
@@ -905,8 +842,12 @@ class AssemblyManagerScene():
         obj_1_plane_1 = self._get_plane_obj_from_scene(instruction.plane_match_1.plane_name_component_1)
         obj_1_plane_2 = self._get_plane_obj_from_scene(instruction.plane_match_2.plane_name_component_1)
         obj_1_plane_3 = self._get_plane_obj_from_scene(instruction.plane_match_3.plane_name_component_1)
-        obj_1_name = self.get_parent_frame_for_ref_frame(self.get_plane_from_scene(instruction.plane_match_1.plane_name_component_1).point_names[0])
-        obj_2_name = self.get_parent_frame_for_ref_frame(self.get_plane_from_scene(instruction.plane_match_1.plane_name_component_2).point_names[0])
+        obj_1_name = get_parent_frame_for_ref_frame(self.scene,
+                                                    get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_1).point_names[0],
+                                                    logger=self.logger)
+        obj_2_name = get_parent_frame_for_ref_frame(self.scene,
+                                                    get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_2).point_names[0],
+                                                    logger=self.logger)
         
         #obj_1_mate_plane_intersection: Vector3 = point3D_to_vector3(get_point_of_plane_intersection(obj_1_plane_1, obj_1_plane_2, obj_1_plane_3))
 
@@ -939,13 +880,13 @@ class AssemblyManagerScene():
         self.logger.warn(f"\nMoving component: '{moving_component}'\nStatic component: '{static_component}'")
         
         # Get the ideal norm vectors from the plane messages
-        comp_1_plane_1_ideal_norm_vector = self.get_plane_from_scene(instruction.plane_match_1.plane_name_component_1).ideal_norm_vector
-        comp_1_plane_2_ideal_norm_vector = self.get_plane_from_scene(instruction.plane_match_2.plane_name_component_1).ideal_norm_vector
-        comp_1_plane_3_ideal_norm_vector = self.get_plane_from_scene(instruction.plane_match_3.plane_name_component_1).ideal_norm_vector
+        comp_1_plane_1_ideal_norm_vector = get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_1).ideal_norm_vector
+        comp_1_plane_2_ideal_norm_vector = get_plane_from_scene(self.scene, instruction.plane_match_2.plane_name_component_1).ideal_norm_vector
+        comp_1_plane_3_ideal_norm_vector = get_plane_from_scene(self.scene, instruction.plane_match_3.plane_name_component_1).ideal_norm_vector
 
-        comp_2_plane_1_ideal_norm_vector = self.get_plane_from_scene(instruction.plane_match_1.plane_name_component_2).ideal_norm_vector
-        comp_2_plane_2_ideal_norm_vector = self.get_plane_from_scene(instruction.plane_match_2.plane_name_component_2).ideal_norm_vector
-        comp_2_plane_3_ideal_norm_vector = self.get_plane_from_scene(instruction.plane_match_3.plane_name_component_2).ideal_norm_vector
+        comp_2_plane_1_ideal_norm_vector = get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_2).ideal_norm_vector
+        comp_2_plane_2_ideal_norm_vector = get_plane_from_scene(self.scene, instruction.plane_match_2.plane_name_component_2).ideal_norm_vector
+        comp_2_plane_3_ideal_norm_vector = get_plane_from_scene(self.scene, instruction.plane_match_3.plane_name_component_2).ideal_norm_vector
 
         # Transform the ideal norm vectors to the world frame
         # for component 1
@@ -1150,7 +1091,7 @@ class AssemblyManagerScene():
             difference = (rotation_matrix - target_matrix).norm()
             return difference
         
-        self.logger.warn(f"Starting calculating the transformation...")
+        self.logger.warn(f"Started to calculate the assembly transformation. This could take a while...")
         max_iter = 1000
 
         #result = minimize(cost_function, initial_guess, args=(rot_obj2_to_obj1),  method='L-BFGS-B', tol = 1e-10, options={'maxiter': 1000})
@@ -1173,42 +1114,7 @@ class AssemblyManagerScene():
                                             pitch  = result.x[1],
                                             yaw    = result.x[0])
         return quaternion
-    
-    def get_plane_from_scene(self, plane_name:str)-> ami_msg.Plane:
-        plane_msg = None
-        for plane in self.scene.planes_in_scene:
-            plane: ami_msg.Plane
-            if plane_name == plane.ref_plane_name:
-                plane_msg = plane
-                break
-
-        for obj in self.scene.objects_in_scene:
-            obj:ami_msg.Object
-            for plane in obj.ref_planes:
-                plane: ami_msg.Plane
-                if plane_name == plane.ref_plane_name:
-                    plane_msg = plane
-                    break
-
-        return plane_msg
-    
-    def get_axis_from_scene(self, axis_name:str)-> ami_msg.Axis:
-        axis_msg = None
-        for axis in self.scene.axis_in_scene:
-            axis: ami_msg.Axis
-            if axis_name == axis.axis_name:
-                axis_msg = axis
-                break
-
-        for obj in self.scene.objects_in_scene:
-            obj:ami_msg.Object
-            for axis in obj.ref_axis:
-                axis: ami_msg.Axis
-                if axis_name == axis.axis_name:
-                    axis_msg = axis
-                    break
-        return axis_msg
-    
+            
     def log_secene(self):
         self.logger.info("Objects in scene:")
         for obj in self.scene.objects_in_scene:
@@ -1225,7 +1131,8 @@ class AssemblyManagerScene():
 
 
     def get_plane_from_axis_and_frame(self, axis_name: str, frame_name: str, parent_frame:str = None)-> sp.Plane:
-        axis_msg = self.get_axis_from_scene(axis_name)
+        axis_msg = get_axis_from_scene(scene=self.scene, 
+                                       axis_name=axis_name)
 
         line3d:sp.Line3D = get_line3d_from_frame_names(axis_msg.point_names, tf_buffer=self.tf_buffer, parent_frame=parent_frame, logger=self.logger)
 
@@ -1240,33 +1147,52 @@ class AssemblyManagerScene():
 
         return plane
     
+    def update_scene_with_constraints(self):
+        calculate_constraints_for_scene(self.scene, logger=self.logger)
+        self.publish_information()
+
     def get_core_frames_for_component(self, component_name:str)->list[str]:
         if not self.check_object_exists(component_name):
             self.logger.error("Object does not exist")
             return []
         
-        frames = get_frames_for_component(self.scene, 
-                                          component_name,
-                                          self.logger)
+        # frames = get_frames_for_planes_of_component(self.scene, 
+        #                                   component_name,
+        #                                   self.logger)
+        
+        # dicti =  build_frame_reference_tree(self.scene, frames, self.logger)
+        
+        # #self.logger.warn(f"Dicti: {dicti}")
+
+        # final_list = get_frame_names_from_list(frames)
+
+        # suc = calculate_frame_contrains_for_frame_list(scene=self.scene, 
+        #                                                frame_list=frames, 
+        #                                                logger=self.logger)
+
+        suc = calculate_constraints_for_scene(self.scene, logger=self.logger)
+        self.publish_information()
         final_list = []
         
-        for frame in frames:
-            frame: ami_msg.RefFrame
-            constraints_handler = FrameConstraintsHandler()
-            constraints_handler.set_from_msg(frame.constraints)
+        # for frame in frames:
+        #     frame: ami_msg.RefFrame
+        #     constraints_handler = FrameConstraintsHandler()
+        #     constraints_handler.set_from_msg(frame.constraints)
             
-            fri = constraints_handler.get_frame_references()
-            if len(fri) > 0:
-                final_list.extend(fri)
-            else:
-                final_list.append(frame.frame_name)
+        #     fri = constraints_handler.get_frame_references()
+        #     if len(fri) > 0:
+        #         final_list.extend(fri)
+        #     else:
+        #         final_list.append(frame.frame_name)
         
-        self.logger.error(f"Addition list: {final_list}")
+        # self.logger.error(f"Addition list: {final_list}")
         
-        # frames_str = get_frame_names_from_list(frames)        
-        # delete doupliates
+        # # frames_str = get_frame_names_from_list(frames)        
+        # # delete doupliates
         
-        final_list = list(dict.fromkeys(final_list))
+        # final_list = list(dict.fromkeys(final_list))
+
+
         
         return final_list
     

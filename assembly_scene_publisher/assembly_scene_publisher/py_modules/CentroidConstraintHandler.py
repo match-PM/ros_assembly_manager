@@ -54,7 +54,7 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
     def set_is_active(self, scene: ami_msg.ObjectScene = None, component_name = None):
                         
         # check if enough reference frames are provided
-        if len(self.ref_frame_names)>1:
+        if len(self.ref_frame_names)>=1:
             self.is_active = True
             
             if self.logger is not None:
@@ -213,8 +213,10 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
         vector.x = self.offset_values.x*self.multiplier
         vector.y = self.offset_values.y*self.multiplier
         vector.z = self.offset_values.z*self.multiplier
-            
+
         if len(self.ref_frame_names) == 1:
+
+            #self.logger.warn(f'Centroid constraint with one reference frame: {frame_name} constraint by {self.ref_frame_names[0]}')
                         
             ref_frame = get_ref_frame_by_name(frame_name=self.ref_frame_names[0],
                                                          scene=scene)
@@ -251,14 +253,14 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
 
             result_pose = get_transformed_pose(centroid_pose, vector)
             
-        if 'x' not in self.dim:
-            result_pose.position.x = float(initial_frame_pose.position.x)
+        # if 'x' not in self.dim:
+        #     result_pose.position.x = float(initial_frame_pose.position.x)
 
-        if 'y' not in self.dim:
-            result_pose.position.y = float(initial_frame_pose.position.y)
+        # if 'y' not in self.dim:
+        #     result_pose.position.y = float(initial_frame_pose.position.y)
 
-        if 'z' not in self.dim:
-            result_pose.position.z = float(initial_frame_pose.position.z)
+        # if 'z' not in self.dim:
+        #     result_pose.position.z = float(initial_frame_pose.position.z)
 
         #self.logger.debug(f"Centroid pose: {str(initial_frame_pose)}")
         if frame_name is not None:

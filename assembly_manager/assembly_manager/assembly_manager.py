@@ -290,13 +290,15 @@ class AssemblyManagerNode(Node):
                 self.logger.error(f"Error while spawning component {spawn_request.obj_name}!")
                 return False
 
-            self.logger.info(f"Start processing ref frames!")
+            self.logger.info(f"Start processing ref frames for '{spawn_request.obj_name}'...")
             # This is needed for tf to update
             time.sleep(1.5)
-
+            
+            num_of_ref_frames = len(ref_frames)
             # go through the dictionary
-            for ref_frame in ref_frames:
+            for ind, ref_frame in enumerate(ref_frames):
                 create_ref_frame_request = ami_srv.CreateRefFrame.Request()
+                create_ref_frame_request.recalculate_constraints = False
                 create_ref_frame_request.ref_frame.frame_name = f'{comp_name}_{ref_frame.get("name")}'
                 create_ref_frame_request.ref_frame.parent_frame = comp_name
                 create_ref_frame_request.ref_frame.pose.position.x = ref_frame.get("transformation").get("translation").get("X")*multiplier
@@ -320,13 +322,17 @@ class AssemblyManagerNode(Node):
                                 
                 create_ref_frame_request.ref_frame.constraints = msg
                 
+                # after the last frame, recalculate the constraints
+                if ind == num_of_ref_frames - 1:
+                    create_ref_frame_request.recalculate_constraints = True
+
                 spawn_ref_frame_success = self.create_ref_frame(create_ref_frame_request)
 
                 if not spawn_ref_frame_success:
                     self.logger.error(f"Error while spawning ref frame {create_ref_frame_request.ref_frame.frame_name}!")
                     return False
                 
-            self.logger.info(f"Start processing ref axis!")    
+            self.logger.info(f"Start processing ref axis for '{spawn_request.obj_name}'...")    
             for axis in ref_axis:
                 create_axis_request = ami_srv.CreateAxis.Request()
                 create_axis_request.axis.axis_name = f'{comp_name}_{axis.get("name")}'
@@ -339,7 +345,7 @@ class AssemblyManagerNode(Node):
                     self.logger.error(f"Error while spawning axis {create_axis_request.axis.axis_name}!")
                     return False
                 
-            self.logger.info(f"Start processing ref planes!")    
+            self.logger.info(f"Start processing ref planes for '{spawn_request.obj_name}'...")    
             for plane in ref_planes:
                 create_plane_request = ami_srv.CreateRefPlane.Request()
                 create_plane_request.ref_plane.ref_plane_name = f'{comp_name}_{plane.get("name")}'
@@ -358,7 +364,7 @@ class AssemblyManagerNode(Node):
                 if not spawn_plane_success:
                     self.logger.error(f"Error while spawning plane {create_plane_request.ref_plane.ref_plane_name}!")
                     return False
-
+            
             return True
         except Exception as e:
             self.logger.error(f"Error while spawning component '{comp_name}' from description: {e}")
@@ -407,7 +413,7 @@ class AssemblyManagerNode(Node):
                     directory, filename = os.path.split(request.file_path)
                     component_path = os.path.join(directory.replace("assemblies", "components"), f"{component_name[:-2]}.json")
                     request = ami_srv.SpawnComponentFromDescription.Request()
-                    self.logger.warn(f"Spawning component from descriptionddddddddddd: {component_path}")
+                    #self.logger.debug(f"Spawning component from description: {component_path}")
                     request.file_path = component_path
                     spawn_success = self.spawn_component_from_description(request, component_name_override = component_name)
                     if not spawn_success:

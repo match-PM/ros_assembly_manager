@@ -12,8 +12,13 @@ from assembly_scene_publisher.py_modules.scene_functions import (check_frames_ex
                                                                                     check_for_duplicate_frames, 
                                                                                     get_ref_frame_by_name,
                                                                                     check_ref_frames_for_same_parent_frame,
-                                                                                    get_parent_frame_for_ref_frame)    
+                                                                                    get_parent_frame_for_ref_frame,
+                                                                                    get_ref_frame_poses_by_names
+                                                                                    )   
 
+from assembly_scene_publisher.py_modules.geometry_functions import (create_3D_plane_2,
+                                                                    project_pose_on_plane,
+                                                                    rotate_point)
 
 class InPlaneConstraintHandler(ami_msg.FrConstraintInPlane):
     def __init__(self, logger: RcutilsLogger = None):
@@ -83,6 +88,18 @@ class InPlaneConstraintHandler(ami_msg.FrConstraintInPlane):
         
         return frame_names
     
+    def set_multiplier(self, unit: str = 'mm'):
+        self.multiplier = 1
+        
+        if unit == 'mm':
+            self.multiplier = 1/1000
+            
+        if unit == 'um':
+            self.multiplier = 1/1000000
+        
+        if unit == 'm':
+            self.multiplier = 1
+
     def calculate_constraint(self, 
                              initial_frame_pose:Pose,
                              scene: ami_msg.ObjectScene,
@@ -100,12 +117,26 @@ class InPlaneConstraintHandler(ami_msg.FrConstraintInPlane):
         if self.is_active == False:
             #self.logger.error('Centroid constraint is not active')
             return initial_frame_pose
+        #self.logger.warn(f'InPlane constraint is active: {frame_name}')
+
+        self.set_multiplier(unit=unit)
+
+        frames = get_ref_frame_poses_by_names(scene=scene,frame_names=self.ref_frame_names)
+
+        plane = create_3D_plane_2(frames,
+                                  plane_offset=self.plane_offset*self.multiplier,
+                                  logger=self.logger)
+
+        new_pose = project_pose_on_plane(initial_frame_pose, 
+                                         plane, 
+                                         self.logger)
         
-        else:
-            self.logger.debug('Centroid constraint is active')
-    
+        new_pose = rotate_point(new_pose, 
+                                plane, 
+                                target_axis=self.normal_axis,
+                                logger=self.logger)
             
-        return initial_frame_pose
+        return new_pose
         
     @staticmethod
     def return_handler_from_msg( msg: ami_msg.FrConstraintInPlane, logger: RcutilsLogger = None):
@@ -135,6 +166,6 @@ class InPlaneConstraintHandler(ami_msg.FrConstraintInPlane):
                 constraint_handler.ref_frame_names[index] = component_name + '_' + frame_name
                 
         if constraint_handler.ref_frame_names != []:
-            logger.error(f'DEBUG constraint_handler.ref_frame_names: {constraint_handler.ref_frame_names}')  
+            logger.debug(f'DEBUG InPlane constraint with: {constraint_handler.ref_frame_names}')  
                   
         return constraint_handler

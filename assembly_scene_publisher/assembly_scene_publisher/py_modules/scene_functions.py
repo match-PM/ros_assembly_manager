@@ -4,7 +4,7 @@ from rclpy.impl.rcutils_logger import RcutilsLogger
 from geometry_msgs.msg import Pose
 from copy import deepcopy, copy
 
-def get_frames_for_component(scene: ami_msg.ObjectScene, 
+def get_frames_for_planes_of_component(scene: ami_msg.ObjectScene, 
                              component_name: str,
                              logger: RcutilsLogger = None)-> list[ami_msg.RefFrame]:
 
@@ -247,3 +247,7 @@ def check_for_duplicate_frames(frame_names: list[str])->bool:
     else:
         return False
     
+
+
+
+

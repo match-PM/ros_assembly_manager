@@ -73,6 +73,10 @@ class AssemblyScenePublisherNode(Node):
         If the frame already exists, the inforamtion will be updated!"""
         
         add_success = self.object_scene.add_ref_frame_to_scene(request.ref_frame)
+
+        if request.recalculate_constraints:
+            self.object_scene.update_scene_with_constraints()
+
         response.success = add_success
 
         return response
@@ -110,7 +114,7 @@ class AssemblyScenePublisherNode(Node):
 
         add_success = self.object_scene.add_obj_to_scene(new_obj)
         response.success = add_success
-
+        
         return response
     
     def destroy_object_callback(self, request:ami_srv.DestroyObject.Request, response:ami_srv.DestroyObject.Response):
