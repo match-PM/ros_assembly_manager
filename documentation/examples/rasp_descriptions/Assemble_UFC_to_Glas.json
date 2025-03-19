@@ -1,6 +1,6 @@
 {
     "name": "Assemble_UFC_to_Glas",
-    "saved_at": "2025-03-13 18:35:12.895374",
+    "saved_at": "2025-03-19 17:33:34.842825",
     "action_list": [
         {
             "action_position": 0,
@@ -17,6 +17,45 @@
         {
             "action_position": 1,
             "action_type": "ServiceAction",
+            "name": "Reset Adhesive Test Station",
+            "service_client": "/pm_robot_primitive_skills/reset_test_station",
+            "service_type": "pm_msgs/srv/EmptyWithSuccess",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {},
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 2,
+            "action_type": "ServiceAction",
+            "name": "Move to start position",
+            "service_client": "/pm_moveit_server/move_cam1_to_frame",
+            "service_type": "pm_moveit_interfaces/srv/MoveToFrame",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "endeffector_frame_override": "use_default_frame",
+                "target_frame": "Gonio_Right_Part_1_Origin",
+                "translation": {
+                    "x": -0.1,
+                    "y": 0.0,
+                    "z": 0.03
+                },
+                "rotation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 1.0
+                },
+                "execute_movement": true
+            },
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 3,
+            "action_type": "ServiceAction",
             "name": "Spawn Assembly - mll",
             "service_client": "/assembly_manager/create_assembly_instruction_from_description",
             "service_type": "assembly_manager_interfaces/srv/CreateAssemblyInstructionFromDescription",
@@ -30,7 +69,7 @@
             "is_active": false
         },
         {
-            "action_position": 2,
+            "action_position": 4,
             "action_type": "ServiceAction",
             "name": "Spawn Assembly - nick",
             "service_client": "/assembly_manager/create_assembly_instruction_from_description",
@@ -42,10 +81,25 @@
                 "spawn_components": true
             },
             "has_breakpoint": false,
+            "is_active": false
+        },
+        {
+            "action_position": 5,
+            "action_type": "ServiceAction",
+            "name": "Spawn Assembly - PM",
+            "service_client": "/assembly_manager/create_assembly_instruction_from_description",
+            "service_type": "assembly_manager_interfaces/srv/CreateAssemblyInstructionFromDescription",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "file_path": "/home/pmlab/SolidWorks_ASsembly_Instructor/examples/SWASI_6D_Example/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_tol.json",
+                "spawn_components": true
+            },
+            "has_breakpoint": false,
             "is_active": true
         },
         {
-            "action_position": 3,
+            "action_position": 6,
             "action_type": "ServiceAction",
             "name": "Laser - Correct UFC L_1_T",
             "service_client": "/pm_skills/correct_frame_with_laser",
@@ -59,7 +113,7 @@
             "is_active": true
         },
         {
-            "action_position": 4,
+            "action_position": 7,
             "action_type": "ServiceAction",
             "name": "Laser - Correct UFC L_2_T",
             "service_client": "/pm_skills/correct_frame_with_laser",
@@ -73,7 +127,7 @@
             "is_active": true
         },
         {
-            "action_position": 5,
+            "action_position": 8,
             "action_type": "ServiceAction",
             "name": "Laser - Correct UFC L_3_T",
             "service_client": "/pm_skills/correct_frame_with_laser",
@@ -87,7 +141,7 @@
             "is_active": true
         },
         {
-            "action_position": 6,
+            "action_position": 9,
             "action_type": "ServiceAction",
             "name": "Laser - Correct UFC L_4_T",
             "service_client": "/pm_skills/correct_frame_with_laser",
@@ -101,7 +155,7 @@
             "is_active": true
         },
         {
-            "action_position": 7,
+            "action_position": 10,
             "action_type": "ServiceAction",
             "name": "Align Right Gonio to Plane",
             "service_client": "/pm_moveit_server/align_gonio_right",
@@ -122,7 +176,7 @@
             "is_active": true
         },
         {
-            "action_position": 8,
+            "action_position": 11,
             "action_type": "ServiceAction",
             "name": "Camera Top - Correct UFC V_1_T",
             "service_client": "/pm_skills/vision_correct_frame",
@@ -136,7 +190,7 @@
             "is_active": true
         },
         {
-            "action_position": 9,
+            "action_position": 12,
             "action_type": "ServiceAction",
             "name": "Camera Top - Correct UFC V_2_T",
             "service_client": "/pm_skills/vision_correct_frame",
@@ -150,7 +204,7 @@
             "is_active": true
         },
         {
-            "action_position": 10,
+            "action_position": 13,
             "action_type": "ServiceAction",
             "name": "Camera Top - Correct UFC V_3_T",
             "service_client": "/pm_skills/vision_correct_frame",
@@ -164,7 +218,7 @@
             "is_active": true
         },
         {
-            "action_position": 11,
+            "action_position": 14,
             "action_type": "ServiceAction",
             "name": "Camera Top - Correct UFC V_4_T",
             "service_client": "/pm_skills/vision_correct_frame",
@@ -178,7 +232,7 @@
             "is_active": true
         },
         {
-            "action_position": 12,
+            "action_position": 15,
             "action_type": "ServiceAction",
             "name": "Laser - Correct Glas L_1_T",
             "service_client": "/pm_skills/correct_frame_with_laser",
@@ -192,7 +246,7 @@
             "is_active": true
         },
         {
-            "action_position": 13,
+            "action_position": 16,
             "action_type": "ServiceAction",
             "name": "Laser - Correct Glas L_2_T",
             "service_client": "/pm_skills/correct_frame_with_laser",
@@ -206,7 +260,7 @@
             "is_active": true
         },
         {
-            "action_position": 14,
+            "action_position": 17,
             "action_type": "ServiceAction",
             "name": "Laser - Correct Glas L_3_T",
             "service_client": "/pm_skills/correct_frame_with_laser",
@@ -220,7 +274,7 @@
             "is_active": true
         },
         {
-            "action_position": 15,
+            "action_position": 18,
             "action_type": "ServiceAction",
             "name": "Laser - Correct Glas L_4_T",
             "service_client": "/pm_skills/correct_frame_with_laser",
@@ -234,7 +288,7 @@
             "is_active": true
         },
         {
-            "action_position": 16,
+            "action_position": 19,
             "action_type": "ServiceAction",
             "name": "Algin Gonio Left to Plane",
             "service_client": "/pm_moveit_server/align_gonio_left",
@@ -255,7 +309,7 @@
             "is_active": true
         },
         {
-            "action_position": 17,
+            "action_position": 20,
             "action_type": "ServiceAction",
             "name": "Camera - Correct Glas V_1_T",
             "service_client": "/pm_skills/vision_correct_frame",
@@ -269,7 +323,7 @@
             "is_active": true
         },
         {
-            "action_position": 18,
+            "action_position": 21,
             "action_type": "ServiceAction",
             "name": "Camera - Correct Glas V_2_T",
             "service_client": "/pm_skills/vision_correct_frame",
@@ -283,7 +337,7 @@
             "is_active": true
         },
         {
-            "action_position": 19,
+            "action_position": 22,
             "action_type": "ServiceAction",
             "name": "Camera - Correct Glas V_3_T",
             "service_client": "/pm_skills/vision_correct_frame",
@@ -297,7 +351,7 @@
             "is_active": true
         },
         {
-            "action_position": 20,
+            "action_position": 23,
             "action_type": "ServiceAction",
             "name": "Camera - Correct Glas V_4_T",
             "service_client": "/pm_skills/vision_correct_frame",
@@ -311,7 +365,7 @@
             "is_active": true
         },
         {
-            "action_position": 21,
+            "action_position": 24,
             "action_type": "ServiceAction",
             "name": "Grip UFC",
             "service_client": "/pm_skills/grip_component",
@@ -325,7 +379,7 @@
             "is_active": true
         },
         {
-            "action_position": 22,
+            "action_position": 25,
             "action_type": "ServiceAction",
             "name": "Camera Bottom - Correct UFC V_1_B",
             "service_client": "/pm_skills/vision_correct_frame",
@@ -339,7 +393,7 @@
             "is_active": false
         },
         {
-            "action_position": 23,
+            "action_position": 26,
             "action_type": "ServiceAction",
             "name": "Camera Bottom - Correct UFC V_2_B",
             "service_client": "/pm_skills/vision_correct_frame",
@@ -353,7 +407,7 @@
             "is_active": false
         },
         {
-            "action_position": 24,
+            "action_position": 27,
             "action_type": "ServiceAction",
             "name": "Camera Bottom - Correct UFC V_3_B",
             "service_client": "/pm_skills/vision_correct_frame",
@@ -367,7 +421,7 @@
             "is_active": false
         },
         {
-            "action_position": 25,
+            "action_position": 28,
             "action_type": "ServiceAction",
             "name": "Camera Bottom - Correct UFC V_4_B",
             "service_client": "/pm_skills/vision_correct_frame",
@@ -381,7 +435,7 @@
             "is_active": false
         },
         {
-            "action_position": 26,
+            "action_position": 29,
             "action_type": "ServiceAction",
             "name": "Dipsense Test Points",
             "service_client": "/pm_robot_primitive_skills/dispense_test_point",
@@ -393,7 +447,26 @@
             "is_active": true
         },
         {
-            "action_position": 27,
+            "action_position": 30,
+            "action_type": "ServiceAction",
+            "name": "Apply Glue",
+            "service_client": "/pm_robot_primitive_skills/dispense_at_frames",
+            "service_type": "pm_msgs/srv/DisppenseAtPoints",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "frame_names": [
+                    "Glas_6D_tol-1_Glue_Point_1",
+                    "Glas_6D_tol-1_Glue_Point_2",
+                    "Glas_6D_tol-1_Glue_Point_3",
+                    "Glas_6D_tol-1_Glue_Point_4"
+                ]
+            },
+            "has_breakpoint": false,
+            "is_active": false
+        },
+        {
+            "action_position": 31,
             "action_type": "ServiceAction",
             "name": "Apply Glue",
             "service_client": "/pm_robot_primitive_skills/dispense_at_frames",
@@ -412,7 +485,162 @@
             "is_active": true
         },
         {
-            "action_position": 28,
+            "action_position": 32,
+            "action_type": "ServiceAction",
+            "name": "Align Gonio Left to UFC",
+            "service_client": "/pm_moveit_server/align_gonio_left",
+            "service_type": "pm_moveit_interfaces/srv/AlignGonio",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "endeffector_frame_override": "target_frame_Description_Glas_6D_tol-1_UFC_6D_tol-1",
+                "target_frame": "assembly_frame_Description_Glas_6D_tol-1_UFC_6D_tol-1",
+                "rotation_offset_deg": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                },
+                "execute_movement": true
+            },
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 33,
+            "action_type": "ServiceAction",
+            "name": "Move UFC to Place Position - Offset",
+            "service_client": "/pm_moveit_server/move_tool_to_frame",
+            "service_type": "pm_moveit_interfaces/srv/MoveToFrame",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "endeffector_frame_override": "assembly_frame_Description_Glas_6D_tol-1_UFC_6D_tol-1",
+                "target_frame": "target_frame_Description_Glas_6D_tol-1_UFC_6D_tol-1",
+                "translation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.01
+                },
+                "rotation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 1.0
+                },
+                "execute_movement": true
+            },
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 34,
+            "action_type": "ServiceAction",
+            "name": "Move UFC to Place Position",
+            "service_client": "/pm_moveit_server/move_tool_to_frame",
+            "service_type": "pm_moveit_interfaces/srv/MoveToFrame",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "endeffector_frame_override": "assembly_frame_Description_Glas_6D_tol-1_UFC_6D_tol-1",
+                "target_frame": "target_frame_Description_Glas_6D_tol-1_UFC_6D_tol-1",
+                "translation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                },
+                "rotation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 1.0
+                },
+                "execute_movement": true
+            },
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 35,
+            "action_type": "ServiceAction",
+            "name": "Move UV in curing Position",
+            "service_client": "/pm_robot_primitive_skills/move_uv_in_curing_position",
+            "service_type": "example_interfaces/srv/SetBool",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "data": true
+            },
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 36,
+            "action_type": "ServiceAction",
+            "name": "Activate UV Curing",
+            "service_client": "/pm_skills/uv_cure_dummy",
+            "service_type": "pm_msgs/srv/EmptyWithSuccess",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {},
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 37,
+            "action_type": "ServiceAction",
+            "name": "Release Part",
+            "service_client": "/assembly_manager/change_obj_parent_frame",
+            "service_type": "assembly_manager_interfaces/srv/ChangeParentFrame",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "obj_name": "UFC_6D_tol-1",
+                "new_parent_frame": "Glas_6D_tol-1"
+            },
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 38,
+            "action_type": "ServiceAction",
+            "name": "Move UV in curing Position 2",
+            "service_client": "/pm_robot_primitive_skills/move_uv_in_curing_position",
+            "service_type": "example_interfaces/srv/SetBool",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "data": false
+            },
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 39,
+            "action_type": "ServiceAction",
+            "name": "Lift Toolhead",
+            "service_client": "/pm_moveit_server/move_tool_relative",
+            "service_type": "pm_moveit_interfaces/srv/MoveRelative",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "translation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.05
+                },
+                "rotation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 1.0
+                },
+                "execute_movement": true
+            },
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 40,
             "action_type": "ServiceAction",
             "name": "Place UFC",
             "service_client": "/pm_skills/place_component",
@@ -421,10 +649,10 @@
             "description": "",
             "service_request": {},
             "has_breakpoint": false,
-            "is_active": true
+            "is_active": false
         },
         {
-            "action_position": 29,
+            "action_position": 41,
             "action_type": "ServiceAction",
             "name": "Close cap",
             "service_client": "/pm_pneumatic_controller/N1K_Dispenser_Protection_Joint/MoveForward",
@@ -436,7 +664,7 @@
             "is_active": false
         },
         {
-            "action_position": 30,
+            "action_position": 42,
             "action_type": "ServiceAction",
             "name": "Open cap",
             "service_client": "/pm_pneumatic_controller/N1K_Dispenser_Protection_Joint/MoveBackward",
@@ -448,7 +676,7 @@
             "is_active": false
         },
         {
-            "action_position": 31,
+            "action_position": 43,
             "action_type": "ServiceAction",
             "name": "Eject Dispenser",
             "service_client": "/pm_pneumatic_controller/N1K_Dispenser_Joint/MoveForward",
@@ -460,7 +688,7 @@
             "is_active": false
         },
         {
-            "action_position": 32,
+            "action_position": 44,
             "action_type": "ServiceAction",
             "name": "Retract Dispenser",
             "service_client": "/pm_pneumatic_controller/N1K_Dispenser_Joint/MoveBackward",
@@ -472,7 +700,7 @@
             "is_active": false
         },
         {
-            "action_position": 33,
+            "action_position": 45,
             "action_type": "ServiceAction",
             "name": "Recalculate Assembly Instruction",
             "service_client": "/assembly_manager/calculate_assembly_instructions",
@@ -484,21 +712,6 @@
             },
             "has_breakpoint": false,
             "is_active": false
-        },
-        {
-            "action_position": 34,
-            "action_type": "ServiceAction",
-            "name": "/pm_skills/vision_measure_frame",
-            "service_client": "/pm_skills/vision_measure_frame",
-            "service_type": "pm_skills_interfaces/srv/MeasureFrame",
-            "error_identifier": "success",
-            "description": "",
-            "service_request": {
-                "frame_name": "Calibration_Qube",
-                "vision_process_file_name": "test.json"
-            },
-            "has_breakpoint": false,
-            "is_active": true
         }
     ]
 }

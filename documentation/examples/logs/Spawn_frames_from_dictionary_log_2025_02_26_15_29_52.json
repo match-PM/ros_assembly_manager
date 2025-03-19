@@ -1,0 +1,89 @@
+{
+    "action_sequence_name": "Spawn_frames_from_dictionary",
+    "action_log": [
+        {
+            "1_/pm_moveit_server/move_tool_to_frame": {
+                "service_client": "/pm_moveit_server/move_tool_to_frame",
+                "service_type": "pm_moveit_interfaces/srv/MoveToFrame",
+                "srv_start_time": "2025-02-26_15:29:47.777683",
+                "srv_end_time": "2025-02-26_15:29:48.921071",
+                "execution_time": "0:00:01.143388",
+                "srv_request": {
+                    "endeffector_frame_override": "use_default_frame",
+                    "target_frame": "UFC_Paper-2_Gripping_Point",
+                    "translation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "execute_movement": true
+                },
+                "srv_response": {
+                    "success": true,
+                    "joint_names": [
+                        "X_Axis_Joint",
+                        "Y_Axis_Joint",
+                        "Z_Axis_Joint",
+                        "T_Axis_Joint"
+                    ],
+                    "joint_values": [
+                        -0.06552192568778992,
+                        -0.05262482166290283,
+                        0.02837900072336197,
+                        0.0
+                    ],
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "2_/pm_moveit_server/move_tool_to_frame": {
+                "service_client": "/pm_moveit_server/move_tool_to_frame",
+                "service_type": "pm_moveit_interfaces/srv/MoveToFrame",
+                "srv_start_time": "2025-02-26_15:29:51.163937",
+                "srv_end_time": "2025-02-26_15:29:52.354361",
+                "execution_time": "0:00:01.190424",
+                "srv_request": {
+                    "endeffector_frame_override": "use_default_frame",
+                    "target_frame": "UFC_Paper-2_Gripping_Point",
+                    "translation": {
+                        "x": 0.01,
+                        "y": 0.05,
+                        "z": 0.05
+                    },
+                    "rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "execute_movement": true
+                },
+                "srv_response": {
+                    "success": true,
+                    "joint_names": [
+                        "X_Axis_Joint",
+                        "Y_Axis_Joint",
+                        "Z_Axis_Joint",
+                        "T_Axis_Joint"
+                    ],
+                    "joint_values": [
+                        -0.055521927773952484,
+                        -0.0026248209178447723,
+                        -0.02162100002169609,
+                        0.0
+                    ],
+                    "message": ""
+                },
+                "success": true
+            }
+        }
+    ]
+}

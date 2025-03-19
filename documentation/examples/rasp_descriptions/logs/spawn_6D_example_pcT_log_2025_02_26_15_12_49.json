@@ -1,0 +1,23 @@
+{
+    "action_sequence_name": "spawn_6D_example_pcT",
+    "action_log": [
+        {
+            "0_/assembly_manager/create_assembly_instruction_from_description": {
+                "service_client": "/assembly_manager/create_assembly_instruction_from_description",
+                "service_type": "assembly_manager_interfaces/srv/CreateAssemblyInstructionFromDescription",
+                "srv_start_time": "2025-02-26_15:12:36.683134",
+                "srv_end_time": "2025-02-26_15:12:49.649448",
+                "execution_time": "0:00:12.966314",
+                "srv_request": {
+                    "file_path": "/home/pmlab/Documents/SolidWorks_ASsembly_Instructor/examples/SWASI_6D_Example/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_tol.json",
+                    "spawn_components": true
+                },
+                "srv_response": {
+                    "instruction_id": "Description_Glas_6D_tol-1_UFC_6D_tol-1",
+                    "success": true
+                },
+                "success": true
+            }
+        }
+    ]
+}
