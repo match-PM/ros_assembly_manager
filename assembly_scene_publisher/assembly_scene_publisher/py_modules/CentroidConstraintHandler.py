@@ -112,6 +112,7 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
         
         return frame_names
     
+    
     # def calculate_constraint(self, 
     #                          initial_frame_pose:Pose,
     #                          scene: ami_msg.ObjectScene,

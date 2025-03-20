@@ -5,6 +5,29 @@ from geometry_msgs.msg import Pose
 from copy import deepcopy, copy
 
 from typing import Union
+
+from geometry_msgs.msg import Vector3
+
+class ConstraintRestriction:
+    def __init__(self, frame_name: str, constraining_vectors: list[Vector3], vector_directions: list[str]):
+        self.frame_name = frame_name
+        self.constraining_vectors: list[Vector3] = constraining_vectors
+        self.vector_directions: list[str]= vector_directions
+
+class ConstraintRestrictionList:
+    def __init__(self):
+        self._restrictions: list[ConstraintRestriction] = []
+
+    def get_list(self)->list[ConstraintRestriction]:
+        return self._restrictions
+    
+    def add_entry(self, restriction: ConstraintRestriction):
+        self._restrictions.append(restriction)
+
+class AssemblyConstants:
+    ASSEMBLY_FRAME_INDICATOR = 'assembly_frame_Description'
+    TARGET_FRAME_INDICATOR = 'target_frame_Description'
+
 def get_frames_for_planes_of_component(scene: ami_msg.ObjectScene, 
                              component_name: str,
                              logger: RcutilsLogger = None)-> list[ami_msg.RefFrame]:
@@ -271,3 +294,160 @@ def is_frame_from_scene( scene:ami_msg.ObjectScene, frame_name:str)->tuple[Union
             return None, ref_frame.frame_name
         
     return None, None
+
+def get_parent_of_component(scene: ami_msg.ObjectScene, 
+                            component_name: str)->str:
+    """
+    Returns the parent object of the given component.
+    """
+    for obj in scene.objects_in_scene:
+        obj: ami_msg.Object
+        if component_name == obj.obj_name:
+            return obj.parent_frame
+    return None
+
+def has_component_parent_of_name(scene: ami_msg.ObjectScene, parent_frame: str) -> bool:
+    if scene is None:
+        raise ValueError("Object scene not available!")
+
+    for obj in scene.objects_in_scene:
+        if obj.parent_frame == parent_frame:
+            return True  # ✅ Returns True if a matching parent is found
+    return False  # ✅ Returns False otherwise
+
+def is_component_assembled(scene: ami_msg.ObjectScene, 
+                        component_name:str)-> bool:
+
+    for instruction in scene.assembly_instructions:
+        instruction:ami_msg.AssemblyInstruction
+        parent = get_parent_of_component(scene, component_name)
+        if parent is not None:
+            if (component_name == instruction.component_1 and instruction.component_2 == parent) or \
+            (component_name == instruction.component_2 and instruction.component_1 == parent):
+                return True
+    
+    return False
+
+def get_components_to_assemble(scene: ami_msg.ObjectScene)-> list[str]:
+    components_to_assembly = []
+
+    for instruction in scene.assembly_instructions:
+        instruction:ami_msg.AssemblyInstruction
+        if instruction.component_1_is_moving_part:
+            moving_object = instruction.component_1
+            stationary_object = instruction.component_2
+        else:
+            moving_object = instruction.component_2
+            stationary_object = instruction.component_1
+        
+        parent = get_parent_of_component(scene=scene, component_name=moving_object)
+        if parent is None or stationary_object != parent:
+
+            components_to_assembly.append(moving_object)
+    
+    return components_to_assembly
+
+def get_component_for_frame_name(scene: ami_msg.ObjectScene, 
+                                frame_name:str)-> str:
+    """
+    This function returns the component name for the given frame name.
+    If the frame name is not associated with a component the function returns None.
+    """
+    for obj in scene.objects_in_scene:
+        obj:ami_msg.Object
+        for frame in obj.ref_frames:
+            frame:ami_msg.RefFrame
+            if frame.frame_name == frame_name:
+                return obj.obj_name
+    return None
+
+def check_object_exists(scene: ami_msg.ObjectScene, 
+                        object_name:str)-> bool:
+    
+    if scene is None:
+        return False
+    
+    for obj in scene.objects_in_scene:
+        obj:ami_msg.Object
+        if obj.obj_name == object_name:
+            return True
+    return False
+
+def get_assembly_and_target_frames(scene: ami_msg.ObjectScene)-> list[tuple[str,str]]:
+    frames = []
+    for obj in scene.objects_in_scene:
+        obj:ami_msg.Object
+        for frame in obj.ref_frames:
+            frame:ami_msg.RefFrame
+            if AssemblyConstants.ASSEMBLY_FRAME_INDICATOR in frame.frame_name:
+                frames.append((obj.obj_name,frame.frame_name))
+            if AssemblyConstants.TARGET_FRAME_INDICATOR in frame.frame_name:
+                frames.append((obj.obj_name,frame.frame_name))
+    return frames
+
+def get_list_of_components(scene: ami_msg.ObjectScene) -> list[str]:
+    return [obj.obj_name for obj in scene.objects_in_scene]
+
+def is_component_stationary(scene: ami_msg.ObjectScene, 
+                            component_name:str)-> bool:
+
+    is_stationary = True
+    for instruction in scene.assembly_instructions:
+        instruction:ami_msg.AssemblyInstruction
+        if component_name == instruction.component_1 and instruction.component_1_is_moving_part:
+            is_stationary = False
+
+        if component_name == instruction.component_2 and not instruction.component_1_is_moving_part:
+            is_stationary = False
+
+    return is_stationary
+
+def get_global_statonary_component(scene: ami_msg.ObjectScene)-> str:
+    """
+    Returns the name of the component that is not moved among all of the components.
+    """
+
+    components = get_list_of_components(scene=scene)
+    
+    for component in components:
+        if is_component_stationary(scene,
+                                component):
+            return component
+        
+    return None
+
+
+def find_matches_for_component(scene: ami_msg.ObjectScene, 
+                            component_name:str, 
+                            only_unassembled = True,
+                            logger: RcutilsLogger = None)-> list[str]:
+    """
+    The component to find the matches for should be the stationary component.
+    """
+
+    matches = []
+    for instruction in scene.assembly_instructions:
+        instruction:ami_msg.AssemblyInstruction
+
+        if logger is not None:
+            logger.warn(f"Instruction: {instruction.component_1} -> {instruction.component_2}")
+
+        test = is_component_assembled(scene, instruction.component_2)
+
+        if logger is not None:
+            logger.warn(f"Is component {instruction.component_2} assembled: {test}")
+
+        if component_name == instruction.component_1:
+            if ((not only_unassembled or is_component_assembled(scene, instruction.component_2)) and 
+                not instruction.component_1_is_moving_part):
+                #not instruction.component_2 == self.get_global_statonary_component()):
+
+                matches.append(instruction.component_2)
+
+        if component_name == instruction.component_2:
+            if ((not only_unassembled or is_component_assembled(scene, instruction.component_1)) and 
+                instruction.component_1_is_moving_part):
+                #not instruction.component_1 == self.get_global_statonary_component()):
+
+                matches.append(instruction.component_1)
+    return matches

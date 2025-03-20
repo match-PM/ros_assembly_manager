@@ -3,7 +3,7 @@ import assembly_manager_interfaces.msg as ami_msg
 # import ros logger type
 # RUtilsLogger
 from rclpy.impl.rcutils_logger import RcutilsLogger
-from geometry_msgs.msg import Pose
+from geometry_msgs.msg import Pose, Vector3
 from copy import deepcopy, copy
 import sympy as sp
 from assembly_scene_publisher.py_modules.geometry_type_functions import rotation_matrix_to_quaternion
@@ -13,7 +13,9 @@ from assembly_scene_publisher.py_modules.scene_functions import (check_frames_ex
                                                                                     get_ref_frame_by_name,
                                                                                     check_ref_frames_for_same_parent_frame,
                                                                                     get_parent_frame_for_ref_frame,
-                                                                                    get_ref_frame_poses_by_names
+                                                                                    get_ref_frame_poses_by_names,
+                                                                                    ConstraintRestriction,
+                                                                                    ConstraintRestrictionList
                                                                                     )   
 
 from assembly_scene_publisher.py_modules.geometry_functions import (create_3D_plane_2,
@@ -87,6 +89,32 @@ class InPlaneConstraintHandler(ami_msg.FrConstraintInPlane):
         frame_names = self.ref_frame_names
         
         return frame_names
+    
+    def get_frame_references_const(self, scene: ami_msg.ObjectScene)->ConstraintRestrictionList:
+        
+        frame_names = self.ref_frame_names
+
+        frames = get_ref_frame_poses_by_names(scene=scene,frame_names=self.ref_frame_names)
+
+        plane = create_3D_plane_2(frames,
+                                  plane_offset=0.0,
+                                  logger=self.logger)
+
+        restriction_collection = ConstraintRestrictionList()
+        
+        for frame in frame_names:
+            direction_vector = Vector3()
+
+            direction_vector.x = plane.normal_vector[0]
+            direction_vector.y = plane.normal_vector[1]
+            direction_vector.z = plane.normal_vector[2]
+
+            restriction = ConstraintRestriction(frame_name=frame,
+                                                direction_vector=direction_vector,
+                                                offset=self.plane_offset*self.multiplier)
+            restriction_collection.add_entry(restriction)
+
+        return restriction_collection
     
     def set_multiplier(self, unit: str = 'mm'):
         self.multiplier = 1
