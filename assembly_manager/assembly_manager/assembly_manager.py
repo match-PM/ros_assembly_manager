@@ -136,14 +136,101 @@ class AssemblyManagerNode(Node):
         
         return response
 
+    # def spawn_component(self, SpawnRequest: ami_srv.SpawnObject.Request, call_async = False)->bool:
+
+    #     self.logger.info('Spawn component request received!')
+    #     object_publish_executed =  None
+    #     moveit_spawner_executed =  None
+    #     unity_spawner_executed =  None
+    #     object_publish_success = False
+    #     moveit_spawner_success = False
+    #     unity_spawner_success = False
+
+    #     SpawnRequest.translation.x = SpawnRequest.translation.x + self.SPAWN_COMPONENT_OFFSET_X
+    #     SpawnRequest.translation.y = SpawnRequest.translation.y + self.SPAWN_COMPONENT_OFFSET_Y
+    #     SpawnRequest.translation.z = SpawnRequest.translation.z + self.SPAWN_COMPONENT_OFFSET_Z
+
+    #     if not self.object_topic_publisher_client_spawn.wait_for_service(timeout_sec=2.0):
+    #         self.logger.info('Spawn Service not available')
+    #         object_publish_executed =  False
+        
+    #     if object_publish_executed is None:
+    #         if call_async:
+    #             future = self.object_topic_publisher_client_spawn.call_async(SpawnRequest)
+    #             while not future.done():
+    #                 rclpy.spin_once(self)
+    #             object_publish_success=future.result().success
+    #         else:
+    #             response = self.object_topic_publisher_client_spawn.call(SpawnRequest)
+    #             object_publish_success = response.success
+
+    #     self.logger.info(f"Object publish success: {object_publish_success}. Gazebo running: {self.is_gazebo_running()}")
+
+    #     # spawing part in unity
+    #     if object_publish_success and not self.is_gazebo_running():
+    #         SpawnRequestUnity = unity_srv.SpawnObjectUnity.Request()
+    #         for key in SpawnRequest.__slots__:
+    #             setattr(SpawnRequestUnity, key, getattr(SpawnRequest, key))
+            
+    #         if not self.unity_object_spawner_client.wait_for_service(timeout_sec=2.0):
+    #             self.logger.info('Spawn Service not available')
+    #             unity_spawner_executed = False
+            
+    #         if unity_spawner_executed is None:
+    #             response_unity = self.unity_object_spawner_client.call(SpawnRequestUnity)
+    #             unity_spawner_success = response_unity.success
+    #     else:
+    #         unity_spawner_success = True
+
+    #     # spawning part in moveit
+    #     if object_publish_success:
+    #         if not self.moveit_object_spawner_client.wait_for_service(timeout_sec=2.0):
+    #             self.logger.info('Spawn Service not available')
+    #             moveit_spawner_executed =  False
+            
+    #         if moveit_spawner_executed is None:
+    #             if call_async:
+    #                 future = self.moveit_object_spawner_client.call_async(SpawnRequest)
+    #                 while not future.done():
+    #                     rclpy.spin_once(self)
+    #                 moveit_spawner_success=future.result().success
+    #             else:
+    #                 response = self.moveit_object_spawner_client.call(SpawnRequest)
+    #                 moveit_spawner_success = response.success
+
+    #     self.logger.info(f"Object publish success: {object_publish_success}, Moveit spawner success: {moveit_spawner_success}, Unity spawner success: {unity_spawner_success}")
+
+    #     # Destroy object from publisher if spawn in moveit failed
+    #     if not moveit_spawner_success or not unity_spawner_success:
+    #         request_destroy = ami_srv.DestroyObject.Request()
+    #         request_destroy.obj_name=SpawnRequest.obj_name
+
+    #         if not self.object_topic_publisher_client_destroy.wait_for_service(timeout_sec=2.0):
+    #             self.logger.info('Destroy Service not available')
+    #             return False
+            
+    #         if call_async:  
+    #             future = self.object_topic_publisher_client_destroy.call_async(request_destroy)
+    #             while not future.done():
+    #                 rclpy.spin_once(self)
+    #             destroy_success = future.result().success
+    #         else:
+    #             response = self.object_topic_publisher_client_destroy.call(request_destroy)
+    #             destroy_success = response.success
+
+    #         if (destroy_success):
+    #             self.logger.error('Object was spawned in publisher, but failed to spawn in Moveit. Object was deleted from publisher! Service call ignored!')
+        
+    #     return (object_publish_success and moveit_spawner_success and unity_spawner_success)
+    
+    
+    
     def spawn_component(self, SpawnRequest: ami_srv.SpawnObject.Request, call_async = False)->bool:
 
         self.logger.info('Spawn component request received!')
         object_publish_executed =  None
-        moveit_spawner_executed =  None
         unity_spawner_executed =  None
         object_publish_success = False
-        moveit_spawner_success = False
         unity_spawner_success = False
 
         SpawnRequest.translation.x = SpawnRequest.translation.x + self.SPAWN_COMPONENT_OFFSET_X
@@ -182,29 +269,13 @@ class AssemblyManagerNode(Node):
         else:
             unity_spawner_success = True
 
-        # spawning part in moveit
-        if object_publish_success:
-            if not self.moveit_object_spawner_client.wait_for_service(timeout_sec=2.0):
-                self.logger.info('Spawn Service not available')
-                moveit_spawner_executed =  False
-            
-            if moveit_spawner_executed is None:
-                if call_async:
-                    future = self.moveit_object_spawner_client.call_async(SpawnRequest)
-                    while not future.done():
-                        rclpy.spin_once(self)
-                    moveit_spawner_success=future.result().success
-                else:
-                    response = self.moveit_object_spawner_client.call(SpawnRequest)
-                    moveit_spawner_success = response.success
-
-        self.logger.info(f"Object publish success: {object_publish_success}, Moveit spawner success: {moveit_spawner_success}, Unity spawner success: {unity_spawner_success}")
+        self.logger.info(f"Object publish success: {object_publish_success}, Unity spawner success: {unity_spawner_success}")
 
         # Destroy object from publisher if spawn in moveit failed
-        if not moveit_spawner_success or not unity_spawner_success:
+        if not unity_spawner_success:
             request_destroy = ami_srv.DestroyObject.Request()
             request_destroy.obj_name=SpawnRequest.obj_name
-
+            
             if not self.object_topic_publisher_client_destroy.wait_for_service(timeout_sec=2.0):
                 self.logger.info('Destroy Service not available')
                 return False
@@ -221,7 +292,7 @@ class AssemblyManagerNode(Node):
             if (destroy_success):
                 self.logger.error('Object was spawned in publisher, but failed to spawn in Moveit. Object was deleted from publisher! Service call ignored!')
         
-        return (object_publish_success and moveit_spawner_success and unity_spawner_success)
+        return (object_publish_success and unity_spawner_success)
 
     def spawn_component_from_description_callback(self, request: ami_srv.SpawnComponentFromDescription.Request, response: ami_srv.SpawnComponentFromDescription.Response):
         response.success = self.spawn_component_from_description(request)

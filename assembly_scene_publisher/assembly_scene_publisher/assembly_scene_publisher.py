@@ -6,6 +6,7 @@ from rclpy.node import Node
 from tf2_ros import Buffer, TransformListener, TransformBroadcaster, StaticTransformBroadcaster
 from rclpy.callback_groups import ReentrantCallbackGroup, MutuallyExclusiveCallbackGroup
 
+from std_srvs.srv import Empty
 import assembly_manager_interfaces.srv as ami_srv
 import assembly_manager_interfaces.msg as ami_msg
 
@@ -51,6 +52,8 @@ class AssemblyScenePublisherNode(Node):
 
         self.get_frames_for_component_srv = self.create_service(ami_srv.FramesForComponent,f'assembly_manager/get_frames_for_component', self.get_frames_for_component,callback_group=self.callback_group)
         
+        self.clear_scene = self.create_service(Empty,f'assembly_manager/clear_scene', self.clear_scene,callback_group=self.callback_group)
+
         #self.timer = self.create_timer(5.0, self.object_scene.publish_information,callback_group=self.callback_group)
         
         self.get_logger().info("Assembly scene publisher started!")
@@ -189,7 +192,9 @@ class AssemblyScenePublisherNode(Node):
         response.success = True
         return response
     
-
+    def clear_scene(self, request: Empty.Request, response: Empty.Response):
+        self.object_scene.clear_scene()
+        return response
 
 
 def main(args=None):

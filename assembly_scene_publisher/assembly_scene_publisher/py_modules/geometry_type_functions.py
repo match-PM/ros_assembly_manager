@@ -17,6 +17,45 @@ def vector3_to_matrix1x3(vector:Vector3)->sp.Matrix:
 def point3D_to_vector3(point:Point)->Vector3:
     return Vector3(x=float(point.x), y=float(point.y), z=float(point.z))
 
+def get_normal_vectors_from_quaternion(quaternion:Quaternion)->list[Vector3]:
+    """
+    Get the normal vectors of the coordinate system defined by the quaternion.
+    The normal vectors are the columns of the rotation matrix defined by the quaternion.
+    
+    Args:
+        quaternion: A geometry_msgs.msg.Quaternion object.
+        
+    Returns:
+        A list containing the normal vectors of the coordinate system.
+    """
+    # Extract the rotation matrix from the quaternion
+    rotation_matrix = quaternion_to_rotation_matrix(quaternion)
+    
+    # Extract the normal vectors from the rotation matrix
+    normal_vectors = []
+    for i in range(3):
+        normal_vectors.append(Vector3(x=float(rotation_matrix[0, i]), y=float(rotation_matrix[1, i]), z=(float(rotation_matrix[2, i]))))
+        
+    return normal_vectors
+
+def get_normal_vectors_from_rotation_matrix(rotation_matrix:sp.Matrix)->list[Vector3]:
+    """
+    Get the normal vectors of the coordinate system defined by the rotation matrix.
+    The normal vectors are the columns of the rotation matrix.
+    
+    Args:
+        rotation_matrix: A 3x3 sympy.Matrix representing the rotation matrix.
+        
+    Returns:
+        A list containing the normal vectors of the coordinate system.
+    """
+    # Extract the normal vectors from the rotation matrix
+    normal_vectors = []
+    for i in range(3):
+        normal_vectors.append(Vector3(x=float(rotation_matrix[0, i]), y=float(rotation_matrix[1, i]), z=float(rotation_matrix[2, i])))
+        
+    return normal_vectors
+
 def check_and_return_quaternion(object_to_check,logger=None):
     """This function checks if a given quaternion is valid. This is the case if x=0, y=0, z=0, w=0. 
     In this case the function will set the quaterion to x=0, y=0, z=0, w=1.

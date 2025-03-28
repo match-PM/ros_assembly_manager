@@ -13,7 +13,8 @@ from assembly_scene_publisher.py_modules.scene_functions import     (check_frame
                                                                     get_ref_frame_by_name,
                                                                     check_ref_frames_for_same_parent_frame,
                                                                     get_parent_frame_for_ref_frame,
-                                                                    get_component_by_name)                                    
+                                                                    get_component_by_name,
+                                                                    ConstraintRestrictionList)                                    
 
 from assembly_scene_publisher.py_modules.CentroidConstraintHandler import CentroidConstraintHandler
 from assembly_scene_publisher.py_modules.OrthogonalConstraintHandler import OrthogonalConstraintHandler
@@ -134,6 +135,23 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
             frame_references.extend(self.in_plane_handler.get_frame_references())
             
         return frame_references
+    
+    def get_frame_references_const(self, scene: ami_msg.ObjectScene)->ConstraintRestrictionList:
+        
+        ref_list  = ConstraintRestrictionList()
+        
+        if self.centroid.is_active:
+            ref_list.add_list_to_list(self.centroid_handler.get_frame_references_const(scene=scene))
+        
+        if self.orthogonal.is_active:
+            
+            ref_list.add_list_to_list(self.orthogonal_handler.get_frame_references_const(scene=scene))
+        
+        if self.in_plane.is_active:
+            
+            ref_list.add_list_to_list(self.in_plane_handler.get_frame_references_const(scene=scene))
+        
+        return ref_list
     
     def calculate_frame_constraints(self, 
                                     initial_pose: Pose,
@@ -345,3 +363,47 @@ def calculate_constraints_for_scene(scene: ami_msg.ObjectScene,
 
     #logger.warn(f"final_scene{str(scene)}")
     return True
+
+def get_identification_order(scene: ami_msg.ObjectScene,
+                            frame_list: list[ami_msg.RefFrame],
+                            logger: RcutilsLogger = None)->ConstraintRestrictionList:
+    """
+    Get the vectors and the frame names relevant for the assembly in oder of the identification.
+
+    Args:
+        scene (ami_msg.ObjectScene): _description_
+        logger (RcutilsLogger, optional): _description_. Defaults to None.
+
+    Returns:
+        ConstraintRestrictionList: _description_
+    """
+    
+    reference_tree = build_frame_reference_tree(scene, frame_list, logger)
+    max_depth = get_dict_depth(reference_tree)
+    calculated_frames=[]
+    
+    if max_depth == 0:
+        if logger is not None:
+            logger.warn("222: No frame constraints found in the scene.")
+        return ConstraintRestrictionList()
+    
+    if logger is not None:
+        logger.warn(f"reference_tree{str(reference_tree)}")
+        
+    total_list = ConstraintRestrictionList()
+    for depth in range(max_depth-1, 0, -1):
+        unique_elements = get_unique_elements_at_depth(reference_tree, depth)
+        #logger.warn(f"unique_elements{unique_elements}")
+        
+        for frame_name in unique_elements:
+            
+            if frame_name not in calculated_frames:
+                
+                frame = get_ref_frame_by_name(scene, frame_name)
+                frame_constraints_handler = FrameConstraintsHandler.return_handler_from_msg(frame.constraints, scene=scene, logger=logger)
+                test_list = frame_constraints_handler.get_frame_references_const(scene=scene)
+                if logger is not None:
+                    logger.warn(f"Frame: {frame_name} - {str(test_list)}")
+                total_list.add_list_to_list(test_list)
+
+    return total_list

@@ -18,6 +18,10 @@
 #include "assembly_manager_interfaces/srv/disable_obj_collision.hpp"
 #include <iostream>
 #include <fstream>
+#include <moveit/planning_scene_monitor/planning_scene_monitor.h>
+#include <moveit_msgs/msg/planning_scene.hpp>
+#include <tf2_ros/buffer.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>  // Make sure this is included!
 
 //#include <moveit/robot_model/robot_model.h>
 //#include <moveit/robot_state/robot_state.h>
@@ -57,6 +61,7 @@
 using std::placeholders::_1;
 
 std::shared_ptr<robot_model_loader::RobotModelLoader> PM_Robot_Model_Loader;
+std::shared_ptr<planning_scene_monitor::PlanningSceneMonitor> planning_scene_monitor_;
 
 class MoveitObjectSpawnerNode : public rclcpp::Node
   {
@@ -73,9 +78,11 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr robot_description_subscriber_;
     rclcpp::Subscription<assembly_manager_interfaces::msg::ObjectScene>::SharedPtr assembly_scene_subscriber;
     std::string robot_description_string;
-    //std::shared_ptr<tf2_ros::TransformListener> tf_listener_{nullptr};
-    //std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
+    std::shared_ptr<tf2_ros::TransformListener> tf_listener_{nullptr};
+    std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
     std::vector<assembly_manager_interfaces::msg::Object> object_list;
+    tf2_msgs::msg::TFMessage::SharedPtr current_tf_msg;
+    
     
 
     MoveitObjectSpawnerNode() : Node("my_node")
@@ -104,10 +111,9 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
         RCLCPP_WARN(this->get_logger(), "Waiting for planing scene...");
       }
 
-      //tf_buffer_ = tf2_ros::Buffer(this->get_clock(), tf2::Duration(10), this->shared_from_this());
-      //tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
-
-      //tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+      tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
+      tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+      
     }
 
   private:
@@ -118,41 +124,62 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
     std::vector<moveit_msgs::msg::AttachedCollisionObject> collision_objects_list;
     moveit_msgs::msg::PlanningScene planning_scene;
 
+
+    bool clear_scene()
+    {
+      //std::vector<std::string> object_names = getSceneObjects();
+
+      try {
+        planning_scene.robot_state.attached_collision_objects.clear();
+        planning_scene.world.collision_objects.clear();
+        planning_scene.robot_state.is_diff = true;
+        planning_scene.is_diff = true;
+
+        for (size_t i = 0; i < object_list.size(); i++)
+        {
+        std::string object_id = object_list[i].obj_name;
+
+        // Detach the object if attached
+        moveit_msgs::msg::AttachedCollisionObject detach_object;
+        detach_object.object.id = object_id;
+        detach_object.object.operation = detach_object.object.REMOVE;
+        planning_scene.robot_state.attached_collision_objects.push_back(detach_object);
+
+        // Remove the object from the world
+        moveit_msgs::msg::CollisionObject remove_object;
+        remove_object.id = object_id;
+        remove_object.operation = remove_object.REMOVE;
+        planning_scene.world.collision_objects.push_back(remove_object);
+        // Verify if the object is indeed removed
+        }
+        planning_scene_diff_publisher->publish(planning_scene);
+        RCLCPP_ERROR(this->get_logger(), "DEBUG - Publishing object Destructions");
+
+        return true;
+        
+    } catch (const std::exception &ex) {
+        RCLCPP_ERROR(this->get_logger(), "Exception during object removal: %s", ex.what());
+        return false;
+    }
+    }
+
     void object_scene_callback(const assembly_manager_interfaces::msg::ObjectScene::SharedPtr msg)
     {
       // Check if the scene has changed
       if (check_scene_has_changed(msg->objects_in_scene))
       {
         RCLCPP_WARN(this->get_logger(), "Scene has changed!!!");
+        clear_scene();
         object_list = msg->objects_in_scene;
         // Update the scene
-        //apply_objects_to_moveit();
-        clear_scene_in_moveit();
+        apply_objects_to_moveit();
         }
       else
       {
-        RCLCPP_INFO(this->get_logger(), "Scene has not changed");
+        //RCLCPP_INFO(this->get_logger(), "Scene has not changed");
       }
 
       //object_list = msg->objects_in_scene;
-    }
-
-    bool clear_scene_in_moveit()
-    {
-      try
-      {
-        planning_scene.world.collision_objects.clear();
-        planning_scene.robot_state.attached_collision_objects.clear();
-        planning_scene.robot_state.is_diff = true;
-        planning_scene.is_diff = true;
-        planning_scene_diff_publisher->publish(planning_scene);
-        return true;
-      }
-      catch (const std::exception &ex)
-      {
-        RCLCPP_ERROR(this->get_logger(), "Exception occurred: %s", ex.what());
-        return false;
-      }
     }
 
     bool check_scene_has_changed(const std::vector<assembly_manager_interfaces::msg::Object> msg_object_list)
@@ -208,40 +235,226 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
       }
     }
 
-    bool spawn_scene_in_moviet()
+
+    bool apply_objects_to_moveit()
+      {
+
+        try{
+
+          planning_scene.world.collision_objects.clear(); 
+          planning_scene.robot_state.is_diff = true;
+          planning_scene.is_diff = true;
+          planning_scene.robot_state.attached_collision_objects.clear();
+
+          for (size_t i = 0; i < object_list.size(); i++)
+          {
+            std::string object_id = object_list[i].obj_name;
+            std::string parent_frame = object_list[i].parent_frame;
+            geometry_msgs::msg::Pose object_pose = object_list[i].obj_pose;
+            std::string stl_path = object_list[i].cad_data;
+
+            geometry_msgs::msg::Pose adapted_pose;
+
+            // Check if file found
+            std::ifstream file(stl_path);
+            
+            if (!file.good()){
+              RCLCPP_ERROR(this->get_logger(),"CAD-File for component %s not found!", object_id.c_str());
+              return false;
+            }
+
+            std::string new_parent_frame = get_robot_parent_frame(parent_frame);
+
+            if (new_parent_frame == parent_frame){
+              adapted_pose = object_pose;
+            }
+            else{
+              adapted_pose = get_adapted_pose(parent_frame, new_parent_frame, object_pose);
+            }
+
+            if (new_parent_frame == "unused_frame"){
+              RCLCPP_ERROR(this->get_logger(),"Parent frame %s not found!", parent_frame.c_str());
+              return false;
+            }
+
+            moveit_msgs::msg::AttachedCollisionObject spawining_object;
+
+            if (parent_frame == "unused_frame"){
+              spawining_object.object.header.frame_id = "world";
+            }
+            else{
+              spawining_object.object.header.frame_id = new_parent_frame;
+            }
+            spawining_object.object.id = object_id;
+            spawining_object.link_name = new_parent_frame;
+            std::string MeshFilePath = "file://" + stl_path;
+            shapes::Mesh * m = shapes::createMeshFromResource(MeshFilePath);
+            shape_msgs::msg::Mesh shelf_mesh;
+            shapes::ShapeMsg shelf_mesh_msg;
+            //bool success = shapes::constructMsgFromShape(m,shelf_mesh_msg);
+            shapes::constructMsgFromShape(m,shelf_mesh_msg);
+            shelf_mesh = boost::get<shape_msgs::msg::Mesh>(shelf_mesh_msg);
+
+            spawining_object.object.meshes.push_back(shelf_mesh);
+            spawining_object.object.mesh_poses.push_back(adapted_pose);
+            spawining_object.object.operation = spawining_object.object.ADD;
+            delete m;  // Cleanup the mesh object
+            planning_scene.robot_state.attached_collision_objects.push_back(spawining_object);
+
+          }
+
+          planning_scene_diff_publisher->publish(planning_scene);
+          return true; //returns True/False
+        } 
+
+        catch(const std::exception& ex)
+        {
+          RCLCPP_ERROR(this->get_logger(), "Exception occurred: %s", ex.what());
+          return false;
+        }
+      }
+
+    geometry_msgs::msg::Pose get_adapted_pose(std::string initial_parent, 
+                                              std::string new_parent, 
+                                              geometry_msgs::msg::Pose initial_pose)
+    {
+      geometry_msgs::msg::Pose adapted_pose;
+      geometry_msgs::msg::TransformStamped transform_stamped_parent;
+      geometry_msgs::msg::TransformStamped transform_stamped_parent_2 = convert_to_transform_stamped(initial_pose);
+
+      geometry_msgs::msg::TransformStamped result_transform;
+
+      try{
+        // now
+        transform_stamped_parent = tf_buffer_->lookupTransform(new_parent, initial_parent , tf2::get_now());
+        // From p_frame to moveit_parent_frame
+        //RCLCPP_WARN(this->get_logger(), "Debug-Info: p_frame: %s, moveit_parent_frame: %s", initial_parent.c_str(), new_parent.c_str());
+      }
+      catch (tf2::TransformException &ex) {
+        RCLCPP_ERROR(this->get_logger(), "Exception: %s", ex.what());
+        return adapted_pose;
+      }
+
+      tf2::doTransform(transform_stamped_parent_2, result_transform, transform_stamped_parent);
+
+      // adapted_pose.position.x = transform_stamped_parent.transform.translation.x; //+ transform_stamped_parent_2.transform.translation.x;
+      // adapted_pose.position.y = transform_stamped_parent.transform.translation.y; //+ transform_stamped_parent_2.transform.translation.y;
+      // adapted_pose.position.z = transform_stamped_parent.transform.translation.z; //+ transform_stamped_parent_2.transform.translation.z;
+      // //adapted_pose.orientation = (transform_stamped_parent_2.transform.rotation,transform_stamped_parent.transform.rotation);
+      // adapted_pose.orientation = transform_stamped_parent.transform.rotation;
+
+      return convert_to_pose(result_transform);
+      
+    }
+
+    geometry_msgs::msg::TransformStamped convert_to_transform_stamped(geometry_msgs::msg::Pose pose)
+    {
+      geometry_msgs::msg::TransformStamped transform_stamped;
+      transform_stamped.transform.translation.x = pose.position.x;
+      transform_stamped.transform.translation.y = pose.position.y;
+      transform_stamped.transform.translation.z = pose.position.z;
+      transform_stamped.transform.rotation = pose.orientation;
+      return transform_stamped;
+    }
+
+    geometry_msgs::msg::Pose convert_to_pose(geometry_msgs::msg::TransformStamped transform)
+    {
+      geometry_msgs::msg::Pose pose;
+      pose.position.x = transform.transform.translation.x;
+      pose.position.y = transform.transform.translation.y;
+      pose.position.z = transform.transform.translation.z;
+      pose.orientation = transform.transform.rotation;
+      return pose;
+    }
+
+    std::string get_robot_parent_frame(std::string initial_parent)
+    {
+      //Check if parent_frame is a robot link. if not find the next robot link.
+      bool parent_frame_is_robot_link = false;
+
+      const moveit::core::RobotModelPtr& kinematic_model = PM_Robot_Model_Loader->getModel();
+      std::vector<std::string> list_of_robot_links=kinematic_model->getLinkModelNames();
+      std::string moveit_parent_frame = initial_parent;
+
+      // Check if parent_frame is a robot link. Search for only 10 times
+      int search_count = 0;
+
+      while (search_count < 20){
+
+        for (const std::string& link : list_of_robot_links) 
+          {
+            if(moveit_parent_frame == link){
+              return moveit_parent_frame;
+            }
+          }
+
+        // if parent_frame is not a robot link, find the next link and check
+        if (parent_frame_is_robot_link == false){
+          std::string new_moveit_parent_frame;
+          tf_buffer_->_getParent(moveit_parent_frame, tf2::TimePointZero, new_moveit_parent_frame);
+          moveit_parent_frame = new_moveit_parent_frame;
+          //RCLCPP_WARN(this->get_logger(), "Debug-Info: Parent frame is not a robot link. New parent frame: %s", moveit_parent_frame.c_str());
+        }
+        search_count++;
+      }
+      return "unused_frame";
+    }
+
+    void logRegisteredObjects()
     {
       for (size_t i = 0; i < object_list.size(); i++)
       {
         std::string object_id = object_list[i].obj_name;
-        std::string parent_frame = object_list[i].parent_frame;
-        geometry_msgs::msg::Pose object_pose = object_list[i].obj_pose;
-        std::string stl_path = object_list[i].cad_data;
-        // Check if file found
-        std::ifstream file(stl_path);
-        
-        if (!file.good()){
-          RCLCPP_ERROR(this->get_logger(),"CAD-File for component %s not found!", object_id.c_str());
-          return false;
-        }
-        RCLCPP_ERROR(this->get_logger(),"Spawning component %s found!", object_id.c_str());
-
-        bool object_applied_success = apply_object_to_moveit(object_id, parent_frame, object_pose, stl_path);
+        RCLCPP_INFO(this->get_logger(), "Object ID: %s", object_id.c_str());
       }
     }
+
+    // bool spawn_scene_in_moviet()
+    // {
+    //   clear_scene();
+
+    //   for (size_t i = 0; i < object_list.size(); i++)
+    //   {
+    //     std::string object_id = object_list[i].obj_name;
+    //     std::string parent_frame = object_list[i].parent_frame;
+    //     geometry_msgs::msg::Pose object_pose = object_list[i].obj_pose;
+    //     std::string stl_path = object_list[i].cad_data;
+    //     // Check if file found
+    //     std::ifstream file(stl_path);
+        
+    //     if (!file.good()){
+    //       RCLCPP_ERROR(this->get_logger(),"CAD-File for component %s not found!", object_id.c_str());
+    //       return false;
+    //     }
+
+    //     RCLCPP_ERROR(this->get_logger(),"Test1");
+    //     std::string new_parent_frame = get_robot_parent_frame(parent_frame);
+    //     RCLCPP_ERROR(this->get_logger(),"Test2");
+
+    //     if (new_parent_frame == "unused_frame"){
+    //       RCLCPP_ERROR(this->get_logger(),"Parent frame %s not found!", parent_frame.c_str());
+    //       return false;
+    //     }
+
+    //     RCLCPP_ERROR(this->get_logger(),"Spawning component %s found!", object_id.c_str());
+
+    //     bool object_applied_success = apply_object_to_moveit(object_id, new_parent_frame, object_pose, stl_path);
+    //   }
+    // }
 
     void disable_collision(const std::shared_ptr<assembly_manager_interfaces::srv::DisableObjCollision::Request> request, std::shared_ptr<assembly_manager_interfaces::srv::DisableObjCollision::Response>response){
       return;
     }
 
-    geometry_msgs::msg::Pose translation_rotation_to_pose(geometry_msgs::msg::Vector3 translation, geometry_msgs::msg::Quaternion rotation){
-      geometry_msgs::msg::Pose pose;
-      pose.position.x = translation.x;
-      pose.position.y = translation.y;
-      pose.position.z = translation.z;
-      pose.orientation = rotation;
+    // geometry_msgs::msg::Pose translation_rotation_to_pose(geometry_msgs::msg::Vector3 translation, geometry_msgs::msg::Quaternion rotation){
+    //   geometry_msgs::msg::Pose pose;
+    //   pose.position.x = translation.x;
+    //   pose.position.y = translation.y;
+    //   pose.position.z = translation.z;
+    //   pose.orientation = rotation;
 
-      return pose;
-    }
+    //   return pose;
+    // }
 
     void spawn_object(const std::shared_ptr<assembly_manager_interfaces::srv::SpawnObject::Request> request, std::shared_ptr<assembly_manager_interfaces::srv::SpawnObject::Response>      response)
     {
@@ -285,43 +498,86 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
       response->success=true;
     }
 
-    int get_index_component_in_list(std::string component_name)
-    {
-      int index = -1;  
-      //check if object exists in object list.
-      int obj_name_length = component_names_list.size();
-      for (int i = 0; i < obj_name_length; i++) {
-        if (component_names_list[i] == component_name) {
-          index = i;
-          return index;
-        }
-      }
-    }
+    // int get_index_component_in_list(std::string component_name)
+    // {
+    //   int index = -1;  
+    //   //check if object exists in object list.
+    //   int obj_name_length = component_names_list.size();
+    //   for (int i = 0; i < obj_name_length; i++) {
+    //     if (component_names_list[i] == component_name) {
+    //       index = i;
+    //       return index;
+    //     }
+    //   }
+    // }
 
     void destroy_object(const std::shared_ptr<assembly_manager_interfaces::srv::DestroyObject::Request> request, std::shared_ptr<assembly_manager_interfaces::srv::DestroyObject::Response>      response)
     {
-      response->success = false;
-      for (const auto& obj_name : component_names_list) {
-        if (obj_name == request->obj_name){
-          //Deleting stl from stl_path_list
-          int index;
-          index = get_index_component_in_list(obj_name);
+      // response->success = false;
+      // for (const auto& obj_name : component_names_list) {
+      //   if (obj_name == request->obj_name){
+      //     //Deleting stl from stl_path_list
+      //     int index;
+      //     index = get_index_component_in_list(obj_name);
           
-          if (index != -1) {
-            component_stl_paths_list.erase(component_stl_paths_list.begin() + index);
-            component_names_list.erase(component_names_list.begin()+index);
-            component_parents_list.erase(component_parents_list.begin()+index);
-            component_pose_list.erase(component_pose_list.begin()+index);
-          } 
-          else {
-            RCLCPP_ERROR(this->get_logger(),"Error in Destroy Object. Stl not found in list!");
-          }
-          response->success = remove_object_from_moveit(request->obj_name);
-          RCLCPP_INFO(this->get_logger(), "Destroying Object %s", request->obj_name.c_str());
-          break;
-        }
-      }      
+      //     if (index != -1) {
+      //       component_stl_paths_list.erase(component_stl_paths_list.begin() + index);
+      //       component_names_list.erase(component_names_list.begin()+index);
+      //       component_parents_list.erase(component_parents_list.begin()+index);
+      //       component_pose_list.erase(component_pose_list.begin()+index);
+      //     } 
+      //     else {
+      //       RCLCPP_ERROR(this->get_logger(),"Error in Destroy Object. Stl not found in list!");
+      //     }
+      //     response->success = remove_object_from_moveit(request->obj_name);
+      //     RCLCPP_INFO(this->get_logger(), "Destroying Object %s", request->obj_name.c_str());
+      //     break;
+      //   }
+      // }      
+      response->success = true;
     }
+
+    // std::vector<std::string> getSceneObjects()
+    // {
+    //     std::vector<std::string> object_names;
+
+    //     // Lock the planning scene for reading
+    //     planning_scene_monitor::LockedPlanningSceneRO scene(planning_scene_monitor_);
+
+    //     if (!scene)
+    //     {
+    //         RCLCPP_ERROR(this->get_logger(), "Failed to lock planning scene.");
+    //         return object_names;
+    //     }
+
+    //     // Get Collision Objects
+    //     const auto &collision_objects = scene->getWorld()->getObjectIds();
+    //     RCLCPP_ERROR(this->get_logger(), "Collision Objects in Scene:");
+    //     for (const auto &obj : collision_objects)
+    //     {
+    //         RCLCPP_ERROR(this->get_logger(), "- %s", obj.c_str());
+    //         object_names.push_back(obj);
+    //     }
+    //     // Get all attached objects
+    //     std::vector<const moveit::core::AttachedBody *> attached_bodies;
+    //     scene->getCurrentState().getAttachedBodies(attached_bodies);
+
+    //     RCLCPP_INFO(this->get_logger(), "Attached Objects in Scene: %zu", attached_bodies.size());
+
+    //     for (const auto &body : attached_bodies)
+    //     {
+    //         RCLCPP_INFO(this->get_logger(), "- %s", body->getName().c_str());
+    //         object_names.push_back(body->getName());
+    //     }
+    //     // // Get Attached Objects
+    //     // const auto &attached_objects = scene->getAttachedObjects();
+    //     // RCLCPP_ERROR(this->get_logger(), "Attached Objects:");
+    //     // for (const auto &obj : attached_objects)
+    //     // {
+    //     //     RCLCPP_ERROR(this->get_logger(), "- %s", obj.first.c_str());
+    //     // }
+    //     return object_names;
+    // }
 
     // geometry_msgs::msg::Pose get_pose_of_object(std::string obj_name){
     //   int index = get_index_component_in_list(obj_name);
@@ -332,16 +588,6 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
     //     RCLCPP_ERROR(this->get_logger(),"Error in get_pose_of_object. Object not found in list!");
     //   }
     // }
-
-    void logRegisteredObjects()
-    {
-      for (size_t i = 0; i < object_list.size(); i++)
-      {
-        std::string object_id = object_list[i].obj_name;
-        RCLCPP_INFO(this->get_logger(), "Object ID: %s", object_id.c_str());
-      }
-    }
-
 
     // void tfCallback(const tf2_msgs::msg::TFMessage::SharedPtr msg)
     // {
@@ -464,6 +710,130 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
     //   }
     // }
 
+
+    // void tfCallback(const tf2_msgs::msg::TFMessage::SharedPtr msg)
+    // {
+    //   current_tf_msg = msg;
+    //   RCLCPP_WARN(this->get_logger(), "RECIEVED TF MESSAGE");
+    //   // // Process the received TFMessage
+    //   // for (const auto& transform : msg->transforms)
+    //   // {
+        
+    //   //   for (const auto& obj_name : component_names_list) {
+    //   //     // if frame name = object name
+        
+    //   //     if (obj_name == transform.child_frame_id){
+    //   //       geometry_msgs::msg::Pose object_pose;
+    //   //       object_pose.position.x      = transform.transform.translation.x;
+    //   //       object_pose.position.y      = transform.transform.translation.y;
+    //   //       object_pose.position.z      = transform.transform.translation.z;
+    //   //       object_pose.orientation.x   = transform.transform.rotation.x;
+    //   //       object_pose.orientation.y   = transform.transform.rotation.y;
+    //   //       object_pose.orientation.z   = transform.transform.rotation.z;
+    //   //       object_pose.orientation.w   = transform.transform.rotation.w;
+    //   //       std::string p_frame = transform.header.frame_id;
+    //   //       std::string c_frame = transform.child_frame_id;
+
+    //   //       //check if object exists in object list.
+    //   //       int index = get_index_component_in_list(obj_name);
+
+    //   //       // if object exists in list
+    //   //       if (index != -1) {
+    //   //         std::string stl_path = component_stl_paths_list[index];
+    //   //         std::string old_parent_frame = component_parents_list[index];
+    //   //         geometry_msgs::msg::Pose old_component_pose = component_pose_list[index];
+    //   //         std::string moveit_parent_frame = p_frame;
+
+    //   //         // if no changes occured
+    //   //         if (old_parent_frame == moveit_parent_frame && pose_is_equal(old_component_pose, object_pose))
+    //   //         {
+    //   //           RCLCPP_DEBUG(this->get_logger(), "Debug-Info: no change %s", obj_name.c_str());
+    //   //           return;
+    //   //         }
+    //   //         // update changes
+    //   //         else{
+    //   //           RCLCPP_WARN(this->get_logger(), "Debug-Info: Change occured %s", obj_name.c_str());
+    //   //           component_parents_list[index] = p_frame;
+    //   //           component_pose_list[index] = object_pose;
+    //   //         }
+
+    //   //         //Check if parent_frame is a robot link. if not find the next robot link.
+    //   //         bool parent_frame_is_robot_link = false;
+
+    //   //         const moveit::core::RobotModelPtr& kinematic_model = PM_Robot_Model_Loader->getModel();
+    //   //         std::vector<std::string> list_of_robot_links=kinematic_model->getLinkModelNames();
+              
+    //   //         // Check if parent_frame is a robot link. Search for only 10 times
+    //   //         int search_count = 0;
+    //   //         while (!parent_frame_is_robot_link){
+    //   //           for (const std::string& link : list_of_robot_links) {
+    //   //             if(moveit_parent_frame == link){
+    //   //               parent_frame_is_robot_link = true;
+    //   //               break;
+    //   //             }
+    //   //           }
+
+    //   //           // if parent_frame is not a robot link, find the next link and check
+    //   //           if (parent_frame_is_robot_link == false){
+    //   //             std::string new_movei_parent_frame;
+    //   //             tf_buffer_->_getParent(moveit_parent_frame, tf2::TimePointZero, new_movei_parent_frame);
+    //   //             moveit_parent_frame=new_movei_parent_frame;
+    //   //             RCLCPP_WARN(this->get_logger(), "Debug-Info: Parent frame is not a robot link. New parent frame: %s", moveit_parent_frame.c_str());
+
+    //   //           }
+    //   //           if (search_count > 10)
+    //   //           {
+    //   //             return;
+    //   //           }
+                
+    //   //           search_count++;
+    //   //         } 
+
+    //   //         geometry_msgs::msg::TransformStamped transform_stamped_parent;
+
+    //   //         try{
+    //   //           // now
+    //   //           transform_stamped_parent = tf_buffer_->lookupTransform(moveit_parent_frame, c_frame , tf2::get_now());
+    //   //           // From p_frame to moveit_parent_frame
+    //   //           RCLCPP_WARN(this->get_logger(), "Debug-Info: p_frame: %s, moveit_parent_frame: %s", p_frame.c_str(), moveit_parent_frame.c_str());
+    //   //         }
+    //   //         catch (tf2::TransformException &ex) {
+    //   //           RCLCPP_ERROR(this->get_logger(), "Exception: %s", ex.what());
+    //   //           return;
+    //   //         }
+
+    //   //         geometry_msgs::msg::TransformStamped transform_stamped_parent_2;
+
+    //   //         try{
+    //   //           // now
+    //   //           transform_stamped_parent_2 = tf_buffer_->lookupTransform(moveit_parent_frame, p_frame , tf2::get_now());
+    //   //           //transform_stamped_parent_2 = tf_buffer_->lookupTransform(moveit_parent_frame, p_frame , tf2::TimePointZero);
+
+    //   //           // From p_frame to moveit_parent_frame
+    //   //           RCLCPP_WARN(this->get_logger(), "Debug-Info: p_frame: %s, moveit_parent_frame: %s", p_frame.c_str(), moveit_parent_frame.c_str());
+    //   //         }
+    //   //         catch (tf2::TransformException &ex) {
+    //   //           RCLCPP_ERROR(this->get_logger(), "Exception: %s", ex.what());
+    //   //           return;
+    //   //         }
+
+    //   //         object_pose.position.x = transform_stamped_parent.transform.translation.x; //+ transform_stamped_parent_2.transform.translation.x;
+    //   //         object_pose.position.y = transform_stamped_parent.transform.translation.y; //+ transform_stamped_parent_2.transform.translation.y;
+    //   //         object_pose.position.z = transform_stamped_parent.transform.translation.z; //+ transform_stamped_parent_2.transform.translation.z;
+    //   //         object_pose.orientation = (transform_stamped_parent_2.transform.rotation,transform_stamped_parent.transform.rotation);
+
+    //   //         // RCLCPP_INFO(this->get_logger(), "Moveit_Parent_frame %s", moveit_parent_frame.c_str());
+    //   //         bool object_applied_success = apply_object_to_moveit(c_frame, moveit_parent_frame, object_pose, stl_path);
+    //   //       }
+    //   //       else {
+    //   //         RCLCPP_ERROR(this->get_logger(),"Error in tfCallback. Stl not found!");
+    //   //       }
+    //   //     }
+    //   //   }
+    //   // }
+    // }
+
+
     // bool apply_object_to_moveit(std::string c_frame, std::string p_frame,geometry_msgs::msg::Pose obj_pose,std::string stl_path) 
     //   {
     //     // robot_model_loader::RobotModelLoader robot_model_loader(this->shared_from_this());
@@ -532,146 +902,85 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
     //     }
     //   }
 
-    bool apply_objects_to_moveit()
-      {
-        try{
 
-          planning_scene.world.collision_objects.clear(); 
-          planning_scene.robot_state.is_diff = true;
-          planning_scene.is_diff = true;
-          planning_scene.robot_state.attached_collision_objects.clear();
+    // bool apply_object_to_moveit(std::string object_id, std::string p_frame,geometry_msgs::msg::Pose obj_pose,std::string stl_path) 
+    //   {
+    //     // robot_model_loader::RobotModelLoader robot_model_loader(this->shared_from_this());
+    //     // const moveit::core::RobotModelPtr& robot_model = robot_model_loader.getModel();
+    //     RCLCPP_INFO(this->get_logger(), "Spawn Object in Moveit: '%s'. Partent frame '%s'", object_id.c_str(), p_frame.c_str());
 
-          for (size_t i = 0; i < object_list.size(); i++)
-          {
-            std::string object_id = object_list[i].obj_name;
-            std::string parent_frame = object_list[i].parent_frame;
-            geometry_msgs::msg::Pose object_pose = object_list[i].obj_pose;
-            std::string stl_path = object_list[i].cad_data;
+    //     try{
+    //       remove_object_from_moveit(object_id);
 
-            // Check if file found
-            std::ifstream file(stl_path);
-            
-            if (!file.good()){
-              RCLCPP_ERROR(this->get_logger(),"CAD-File for component %s not found!", object_id.c_str());
-              return false;
-            }
-            RCLCPP_ERROR(this->get_logger(),"Spawning component %s found!", object_id.c_str());
+    //       moveit_msgs::msg::AttachedCollisionObject spawining_object;
 
+    //       if (p_frame == "unused_frame"){
+    //         spawining_object.object.header.frame_id = "world";
+    //       }
+    //       else{
+    //         spawining_object.object.header.frame_id = p_frame;
+    //       }
 
-            moveit_msgs::msg::AttachedCollisionObject spawining_object;
+    //       spawining_object.object.id = object_id;
+    //       spawining_object.link_name = p_frame;
+    //       std::string MeshFilePath = "file://" + stl_path;
+    //       shapes::Mesh * m = shapes::createMeshFromResource(MeshFilePath);
+    //       shape_msgs::msg::Mesh shelf_mesh;
+    //       shapes::ShapeMsg shelf_mesh_msg;
+    //       //bool success = shapes::constructMsgFromShape(m,shelf_mesh_msg);
+    //       shapes::constructMsgFromShape(m,shelf_mesh_msg);
+    //       shelf_mesh = boost::get<shape_msgs::msg::Mesh>(shelf_mesh_msg);
 
-            if (parent_frame == "unused_frame"){
-              spawining_object.object.header.frame_id = "world";
-            }
-            else{
-              spawining_object.object.header.frame_id = parent_frame;
-            }
-            spawining_object.object.id = object_id;
-            spawining_object.link_name = parent_frame;
-            std::string MeshFilePath = "file://" + stl_path;
-            shapes::Mesh * m = shapes::createMeshFromResource(MeshFilePath);
-            shape_msgs::msg::Mesh shelf_mesh;
-            shapes::ShapeMsg shelf_mesh_msg;
-            //bool success = shapes::constructMsgFromShape(m,shelf_mesh_msg);
-            shapes::constructMsgFromShape(m,shelf_mesh_msg);
-            shelf_mesh = boost::get<shape_msgs::msg::Mesh>(shelf_mesh_msg);
+    //       spawining_object.object.meshes.push_back(shelf_mesh);
+    //       spawining_object.object.mesh_poses.push_back(obj_pose);
+    //       spawining_object.object.operation = spawining_object.object.ADD;
 
-            spawining_object.object.meshes.push_back(shelf_mesh);
-            spawining_object.object.mesh_poses.push_back(object_pose);
-            spawining_object.object.operation = spawining_object.object.ADD;
-            delete m;  // Cleanup the mesh object
-            planning_scene.robot_state.attached_collision_objects.push_back(spawining_object);
+    //       delete m;  // Cleanup the mesh object
 
-          }
+    //       planning_scene.world.collision_objects.clear(); 
+    //       planning_scene.robot_state.is_diff = true;
+    //       planning_scene.is_diff = true;
 
-          planning_scene_diff_publisher->publish(planning_scene);
-          return true; //returns True/False
-        } 
+    //       planning_scene.robot_state.attached_collision_objects.clear();
+    //       planning_scene.robot_state.attached_collision_objects.push_back(spawining_object);
+    //       planning_scene_diff_publisher->publish(planning_scene);
 
-        catch(const std::exception& ex)
-        {
-          RCLCPP_ERROR(this->get_logger(), "Exception occurred: %s", ex.what());
-          return false;
-        }
-      }
+    //       return true; //returns True/False
 
-    bool apply_object_to_moveit(std::string object_id, std::string p_frame,geometry_msgs::msg::Pose obj_pose,std::string stl_path) 
-      {
-        // robot_model_loader::RobotModelLoader robot_model_loader(this->shared_from_this());
-        // const moveit::core::RobotModelPtr& robot_model = robot_model_loader.getModel();
-        RCLCPP_INFO(this->get_logger(), "Spawn Object in Moveit: '%s'. Partent frame '%s'", object_id.c_str(), p_frame.c_str());
-
-        try{
-          remove_object_from_moveit(object_id);
-
-          moveit_msgs::msg::AttachedCollisionObject spawining_object;
-
-          if (p_frame == "unused_frame"){
-            spawining_object.object.header.frame_id = "world";
-          }
-          else{
-            spawining_object.object.header.frame_id = p_frame;
-          }
-
-          spawining_object.object.id = object_id;
-          spawining_object.link_name = p_frame;
-          std::string MeshFilePath = "file://" + stl_path;
-          shapes::Mesh * m = shapes::createMeshFromResource(MeshFilePath);
-          shape_msgs::msg::Mesh shelf_mesh;
-          shapes::ShapeMsg shelf_mesh_msg;
-          //bool success = shapes::constructMsgFromShape(m,shelf_mesh_msg);
-          shapes::constructMsgFromShape(m,shelf_mesh_msg);
-          shelf_mesh = boost::get<shape_msgs::msg::Mesh>(shelf_mesh_msg);
-
-          spawining_object.object.meshes.push_back(shelf_mesh);
-          spawining_object.object.mesh_poses.push_back(obj_pose);
-          spawining_object.object.operation = spawining_object.object.ADD;
-
-          delete m;  // Cleanup the mesh object
-
-          planning_scene.world.collision_objects.clear(); 
-          planning_scene.robot_state.is_diff = true;
-          planning_scene.is_diff = true;
-
-          planning_scene.robot_state.attached_collision_objects.clear();
-          planning_scene.robot_state.attached_collision_objects.push_back(spawining_object);
-          planning_scene_diff_publisher->publish(planning_scene);
-
-          return true; //returns True/False
-
-        } catch(const std::exception& ex){
-            RCLCPP_ERROR(this->get_logger(), "Part '%s'could not be spawned in Moveit. Check STL_Path ", object_id.c_str());
-            RCLCPP_ERROR(this->get_logger(), "Exception occurred: %s", ex.what());
-            return false;
-        }
-      }
+    //     } catch(const std::exception& ex){
+    //         RCLCPP_ERROR(this->get_logger(), "Part '%s'could not be spawned in Moveit. Check STL_Path ", object_id.c_str());
+    //         RCLCPP_ERROR(this->get_logger(), "Exception occurred: %s", ex.what());
+    //         return false;
+    //     }
+    //   }
 
 
-    bool pose_is_equal(geometry_msgs::msg::Pose pose_1, geometry_msgs::msg::Pose pose_2){
-      int round_trans = 9;
-      int round_rot = 6;
-      if (  (round_to_digits(pose_1.position.x, round_trans) == round_to_digits(pose_2.position.x, round_trans))&&
-            (round_to_digits(pose_1.position.y, round_trans) == round_to_digits(pose_2.position.y, round_trans))&&
-            (round_to_digits(pose_1.position.z, round_trans) == round_to_digits(pose_2.position.z, round_trans))&&
-            (round_to_digits(pose_1.orientation.w, round_rot) == round_to_digits(pose_2.orientation.w, round_rot))&&
-            (round_to_digits(pose_1.orientation.x, round_rot) == round_to_digits(pose_2.orientation.x, round_rot))&&
-            (round_to_digits(pose_1.orientation.y, round_rot) == round_to_digits(pose_2.orientation.y, round_rot))&&
-            (round_to_digits(pose_1.orientation.z, round_rot) == round_to_digits(pose_2.orientation.z, round_rot)))
-      {
-        return true;
-      }
-      else
-      {
-        RCLCPP_ERROR(this->get_logger(), "Pose not equal");
-        return false;
-      }
-    }
+    // bool pose_is_equal(geometry_msgs::msg::Pose pose_1, geometry_msgs::msg::Pose pose_2){
+    //   int round_trans = 9;
+    //   int round_rot = 6;
+    //   if (  (round_to_digits(pose_1.position.x, round_trans) == round_to_digits(pose_2.position.x, round_trans))&&
+    //         (round_to_digits(pose_1.position.y, round_trans) == round_to_digits(pose_2.position.y, round_trans))&&
+    //         (round_to_digits(pose_1.position.z, round_trans) == round_to_digits(pose_2.position.z, round_trans))&&
+    //         (round_to_digits(pose_1.orientation.w, round_rot) == round_to_digits(pose_2.orientation.w, round_rot))&&
+    //         (round_to_digits(pose_1.orientation.x, round_rot) == round_to_digits(pose_2.orientation.x, round_rot))&&
+    //         (round_to_digits(pose_1.orientation.y, round_rot) == round_to_digits(pose_2.orientation.y, round_rot))&&
+    //         (round_to_digits(pose_1.orientation.z, round_rot) == round_to_digits(pose_2.orientation.z, round_rot)))
+    //   {
+    //     return true;
+    //   }
+    //   else
+    //   {
+    //     RCLCPP_ERROR(this->get_logger(), "Pose not equal");
+    //     return false;
+    //   }
+    // }
 
-    double round_to_digits(double value, int digits)
-    {
-        double rounded_number = std::round(value * std::pow(10, digits)) / std::pow(10, digits);
-        return rounded_number;
-    }
+    // double round_to_digits(double value, int digits)
+    // {
+    //     double rounded_number = std::round(value * std::pow(10, digits)) / std::pow(10, digits);
+    //     return rounded_number;
+    // }
+
     // bool remove_object_from_moveit(std::string obj_name){
     //   try{
 
@@ -735,40 +1044,41 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
 
     // }
 
-    bool remove_object_from_moveit(const std::string &obj_name)
-    {
-    try {
-        // Detach the object if attached
-        moveit_msgs::msg::AttachedCollisionObject detach_object;
-        detach_object.object.id = obj_name;
-        detach_object.object.operation = detach_object.object.REMOVE;
-        planning_scene.robot_state.attached_collision_objects.clear();
-        planning_scene.robot_state.attached_collision_objects.push_back(detach_object);
-        planning_scene.robot_state.is_diff = true;
-        planning_scene.is_diff = true;
-        planning_scene_diff_publisher->publish(planning_scene);
-        // Remove the object from the world
-        moveit_msgs::msg::CollisionObject remove_object;
-        remove_object.id = obj_name;
-        remove_object.operation = remove_object.REMOVE;
-        planning_scene.world.collision_objects.clear();
-        planning_scene.world.collision_objects.push_back(remove_object);
-        planning_scene.robot_state.is_diff = true;
-        planning_scene.is_diff = true;
-        planning_scene_diff_publisher->publish(planning_scene);
-        // Verify if the object is indeed removed
-        auto known_objects = planning_scene_interface_.getKnownObjectNames();
-        if (std::find(known_objects.begin(), known_objects.end(), obj_name) != known_objects.end()) {
-            RCLCPP_WARN(this->get_logger(), "Object %s still exists in the planning scene.", obj_name.c_str());
-            return false;
-        }
+    // bool remove_object_from_moveit(const std::string &obj_name)
+    // {
+    //   try {
+    //       // Detach the object if attached
+    //       moveit_msgs::msg::AttachedCollisionObject detach_object;
+    //       detach_object.object.id = obj_name;
+    //       detach_object.object.operation = detach_object.object.REMOVE;
+    //       planning_scene.robot_state.attached_collision_objects.clear();
+    //       planning_scene.robot_state.attached_collision_objects.push_back(detach_object);
+    //       planning_scene.robot_state.is_diff = true;
+    //       planning_scene.is_diff = true;
+    //       planning_scene_diff_publisher->publish(planning_scene);
+    //       // Remove the object from the world
+    //       moveit_msgs::msg::CollisionObject remove_object;
+    //       remove_object.id = obj_name;
+    //       remove_object.operation = remove_object.REMOVE;
+    //       planning_scene.world.collision_objects.clear();
+    //       planning_scene.world.collision_objects.push_back(remove_object);
+    //       planning_scene.robot_state.is_diff = true;
+    //       planning_scene.is_diff = true;
+    //       planning_scene_diff_publisher->publish(planning_scene);
+    //       // Verify if the object is indeed removed
+    //       auto known_objects = planning_scene_interface_.getKnownObjectNames();
+    //       if (std::find(known_objects.begin(), known_objects.end(), obj_name) != known_objects.end()) {
+    //           RCLCPP_WARN(this->get_logger(), "Object %s still exists in the planning scene.", obj_name.c_str());
+    //           return false;
+    //       }
 
-        return true;
-    } catch (const std::exception &ex) {
-        RCLCPP_ERROR(this->get_logger(), "Exception during object removal: %s", ex.what());
-        return false;
-    }
-}
+    //       return true;
+    //     } 
+    //   catch (const std::exception &ex) {
+    //       RCLCPP_ERROR(this->get_logger(), "Exception during object removal: %s", ex.what());
+    //       return false;
+    //   }
+    // }
 
   };
 
@@ -779,7 +1089,11 @@ int main(int argc, char **argv)
   
   auto node = std::make_shared<MoveitObjectSpawnerNode>();
   PM_Robot_Model_Loader = std::make_shared<robot_model_loader::RobotModelLoader>(node,"robot_description");
-
+  planning_scene_monitor_ = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(node, "robot_description");
+  // Update scene from monitored topics
+  planning_scene_monitor_->startSceneMonitor();
+  planning_scene_monitor_->startStateMonitor();
+  planning_scene_monitor_->startWorldGeometryMonitor();
   rclcpp::executors::MultiThreadedExecutor executor;
   executor.add_node(node);
 

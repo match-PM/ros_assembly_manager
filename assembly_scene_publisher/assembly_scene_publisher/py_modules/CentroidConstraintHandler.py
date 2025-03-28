@@ -6,14 +6,17 @@ from rclpy.impl.rcutils_logger import RcutilsLogger
 from geometry_msgs.msg import Pose, Vector3, Quaternion
 from copy import deepcopy, copy
 import sympy as sp
-from assembly_scene_publisher.py_modules.geometry_type_functions import rotation_matrix_to_quaternion
+from assembly_scene_publisher.py_modules.geometry_type_functions import (rotation_matrix_to_quaternion, 
+                                                                         get_normal_vectors_from_quaternion)
 
 from assembly_scene_publisher.py_modules.scene_functions import (check_frames_exist_in_scene, 
                                                                                     check_for_duplicate_frames, 
                                                                                     get_ref_frame_by_name,
                                                                                     check_ref_frames_for_same_parent_frame,
                                                                                     get_parent_frame_for_ref_frame,
-                                                                                    get_ref_frame_poses_by_names)    
+                                                                                    get_ref_frame_poses_by_names,
+                                                                                    ConstraintRestriction,
+                                                                                    ConstraintRestrictionList)    
 
 from assembly_scene_publisher.py_modules.geometry_functions import (get_transformed_pose, 
                                                                     compute_eigenvectors_and_centroid )
@@ -112,6 +115,26 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
         
         return frame_names
     
+    
+    def get_frame_references_const(self, scene: ami_msg.ObjectScene)->ConstraintRestrictionList:
+        
+        frame_names = self.ref_frame_names
+
+        restriction_collection = ConstraintRestrictionList()
+        
+        for frame in frame_names:
+            fr: ami_msg.RefFrame = get_ref_frame_by_name(frame_name=frame,
+                                                         scene=scene)
+            
+            normal_vectors = get_normal_vectors_from_quaternion(fr.pose.orientation)
+            
+            restriction = ConstraintRestriction(frame_name=frame,
+                                                constraining_vectors=normal_vectors,
+                                                vector_directions=['x','y','z'])
+            
+            restriction_collection.add_entry(restriction)
+        
+        return restriction_collection
     
     # def calculate_constraint(self, 
     #                          initial_frame_pose:Pose,

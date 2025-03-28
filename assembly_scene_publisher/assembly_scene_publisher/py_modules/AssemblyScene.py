@@ -17,7 +17,8 @@ from assembly_scene_publisher.py_modules.frame_constraints import (FrameConstrai
                                                                     update_ref_frame_by_constraint, 
                                                                     build_frame_reference_tree,
                                                                     calculate_frame_contrains_for_frame_list,
-                                                                    calculate_constraints_for_scene)
+                                                                    calculate_constraints_for_scene,
+                                                                    get_identification_order)
 from copy import deepcopy,copy
 from assembly_scene_publisher.py_modules.scene_functions import (get_parent_frame_for_ref_frame,
                                                                  get_ref_frame_by_name,
@@ -26,7 +27,8 @@ from assembly_scene_publisher.py_modules.scene_functions import (get_parent_fram
                                                                  get_frames_for_plane,
                                                                  get_frame_names_from_list,
                                                                  get_frames_for_axis,
-                                                                 get_frames_for_planes_of_component)
+                                                                 get_frames_for_planes_of_component,
+                                                                 get_component_by_name)
 
 
 from assembly_scene_publisher.py_modules.geometry_functions import (get_point_of_plane_intersection, 
@@ -52,7 +54,7 @@ from assembly_scene_publisher.py_modules.tf_functions import (adapt_transform_fo
 class AssemblyManagerScene():
     UNUSED_FRAME_CONST = 'unused_frame'
     def __init__(self, node: Node):
-        self.scene = ami_msg.ObjectScene()
+        self.scene:ami_msg.ObjectScene = ami_msg.ObjectScene()
         self.node = node
         self.callback_group_pub = ReentrantCallbackGroup()
         self._scene_publisher = node.create_publisher(ami_msg.ObjectScene,'/assembly_manager/scene',10,callback_group=self.callback_group_pub)
@@ -62,7 +64,7 @@ class AssemblyManagerScene():
         #self.tf_broadcaster = TransformBroadcaster(node)
         self.tf_buffer = Buffer(cache_time=rclpy.duration.Duration(seconds=10.0))
         self.tf_listener = TransformListener(self.tf_buffer, node,spin_thread=True)
-
+    
     def publish_information(self):
         self.publish_scene()
         self.publish_to_tf()
@@ -1150,7 +1152,27 @@ class AssemblyManagerScene():
     def update_scene_with_constraints(self):
         calculate_constraints_for_scene(self.scene, logger=self.logger)
         self.publish_information()
+    
+    def destroy_all_ref_frames(self):
+        for obj in self.scene.objects_in_scene:
+            obj: ami_msg.Object
+            for frame in obj.ref_frames:
+                frame: ami_msg.RefFrame
+                frame.parent_frame = self.UNUSED_FRAME_CONST
+                #fr = get_ref_frame_by_name(self.scene, frame.frame_name, logger=self.logger)
+                #fr.parent_frame = self.UNUSED_FRAME_CONST
+        
+        for frame in self.scene.ref_frames_in_scene:
+            frame: ami_msg.RefFrame
+            frame.parent_frame = self.UNUSED_FRAME_CONST
 
+        self.publish_to_tf()
+            
+    def clear_scene(self):
+        self.destroy_all_ref_frames()
+        self.scene = ami_msg.ObjectScene()
+        self.publish_information()
+        
     def get_core_frames_for_component(self, component_name:str)->list[str]:
         if not self.check_object_exists(component_name):
             self.logger.error("Object does not exist")
@@ -1170,9 +1192,13 @@ class AssemblyManagerScene():
         #                                                frame_list=frames, 
         #                                                logger=self.logger)
 
-        suc = calculate_constraints_for_scene(self.scene, logger=self.logger)
-        self.publish_information()
+        #suc = calculate_constraints_for_scene(self.scene, logger=self.logger)
+        #self.publish_information()
         final_list = []
+        
+        component = get_component_by_name(self.scene, component_name)
+        
+        list_res = get_identification_order(self.scene, component.ref_frames, self.logger)
         
         # for frame in frames:
         #     frame: ami_msg.RefFrame

@@ -13,6 +13,9 @@ class ConstraintRestriction:
         self.frame_name = frame_name
         self.constraining_vectors: list[Vector3] = constraining_vectors
         self.vector_directions: list[str]= vector_directions
+    
+    def __str__(self):
+        return f'Frame: {self.frame_name}, Constraining vectors: {self.constraining_vectors}, Vector directions: {self.vector_directions}'
 
 class ConstraintRestrictionList:
     def __init__(self):
@@ -23,7 +26,26 @@ class ConstraintRestrictionList:
     
     def add_entry(self, restriction: ConstraintRestriction):
         self._restrictions.append(restriction)
+    
+    def __iter__(self):
+        return iter(self._restrictions)  # Allows iteration
 
+    def __len__(self):
+        return len(self._restrictions)  # Allows `len()`
+
+    def __str__(self):
+        string_value = ""
+        for restriction in self._restrictions:
+            string_value += str(restriction) + "\n"
+        return string_value
+
+    def add_list_to_list(self, other_list: "ConstraintRestrictionList"):
+        """Merges another ConstraintRestrictionList into this one."""
+        if not isinstance(other_list, ConstraintRestrictionList):
+            raise TypeError("Expected a ConstraintRestrictionList instance.")
+        
+        self._restrictions.extend(other_list._restrictions)
+        
 class AssemblyConstants:
     ASSEMBLY_FRAME_INDICATOR = 'assembly_frame_Description'
     TARGET_FRAME_INDICATOR = 'target_frame_Description'

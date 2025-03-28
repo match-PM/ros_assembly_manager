@@ -105,13 +105,14 @@ class InPlaneConstraintHandler(ami_msg.FrConstraintInPlane):
         for frame in frame_names:
             direction_vector = Vector3()
 
-            direction_vector.x = plane.normal_vector[0]
-            direction_vector.y = plane.normal_vector[1]
-            direction_vector.z = plane.normal_vector[2]
-
+            direction_vector.x = float(plane.normal_vector[0])
+            direction_vector.y = float(plane.normal_vector[1])
+            direction_vector.z = float(plane.normal_vector[2])
+            
             restriction = ConstraintRestriction(frame_name=frame,
-                                                direction_vector=direction_vector,
-                                                offset=self.plane_offset*self.multiplier)
+                                                constraining_vectors=[direction_vector],
+                                                vector_directions=[self.normal_axis])
+            
             restriction_collection.add_entry(restriction)
 
         return restriction_collection
