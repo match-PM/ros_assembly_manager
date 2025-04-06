@@ -16,6 +16,7 @@ from scipy.optimize import minimize, least_squares
 from assembly_scene_publisher.py_modules.frame_constraints import (FrameConstraintsHandler, 
                                                                     update_ref_frame_by_constraint, 
                                                                     build_frame_reference_tree,
+                                                                    calculate_constraints_for_component,
                                                                     calculate_frame_contrains_for_frame_list,
                                                                     calculate_constraints_for_scene,
                                                                     get_identification_order)
@@ -24,6 +25,7 @@ from assembly_scene_publisher.py_modules.scene_functions import (get_parent_fram
                                                                  get_ref_frame_by_name,
                                                                  get_axis_from_scene,
                                                                  get_plane_from_scene,
+                                                                 get_component_for_frame_name,
                                                                  get_frames_for_plane,
                                                                  get_frame_names_from_list,
                                                                  get_frames_for_axis,
@@ -613,12 +615,22 @@ class AssemblyManagerScene():
         parent_frame = get_parent_frame_for_ref_frame(scene=self.scene, frame_name=frame_name, logger=self.logger)
         pose_to_modify = get_ref_frame_by_name(self.scene, frame_name, logger=self.logger).pose
         
+        component_name = get_component_for_frame_name(self.scene, frame_name)
+        
         if parent_frame is not None:
             pose_to_modify.position.x += translation.x
             pose_to_modify.position.y += translation.y
             pose_to_modify.position.z += translation.z
             pose_to_modify.orientation = quaternion_multiply(pose_to_modify.orientation,rotation)
-            self.update_scene_with_constraints()
+            
+            if component_name is not None:
+                calculate_constraints_for_component(scene=self.scene,
+                                    component_name=component_name,
+                                    logger=self.logger)
+                self.publish_information()
+            else:
+                self.update_scene_with_constraints()
+            
 
             self.logger.info(f'Pose for object {frame_name} updated!')
             return True
@@ -666,8 +678,17 @@ class AssemblyManagerScene():
 
             # right now there is an error with the orientation. Beside that, the question is, how we would like to handle the orientation (should it actually be modified).
             # frame.pose = pose_to_modify
-
-            self.update_scene_with_constraints()
+            
+            component_name = get_component_for_frame_name(self.scene, frame_name)
+            
+            if component_name is not None:
+                calculate_constraints_for_component(scene=self.scene,
+                                    component_name=component_name,
+                                    logger=self.logger)
+                self.publish_information()
+            else:
+                self.update_scene_with_constraints()
+                
             return True
         else:
             return False
