@@ -254,7 +254,7 @@ class AssemblyManagerNode(Node):
         self.logger.info(f"Object publish success: {object_publish_success}. Gazebo running: {self.is_gazebo_running()}")
 
         # spawing part in unity
-        if object_publish_success and not self.is_gazebo_running():
+        if object_publish_success and self.is_unity_running():
             SpawnRequestUnity = unity_srv.SpawnObjectUnity.Request()
             for key in SpawnRequest.__slots__:
                 setattr(SpawnRequestUnity, key, getattr(SpawnRequest, key))
@@ -570,6 +570,13 @@ class AssemblyManagerNode(Node):
             return True
         return False
 
+    def is_unity_running(self)->bool:
+        """Check if the Unity node is active."""
+        node_names = self.get_node_names()
+        if 'ROS2UnityCam1Publisher' in node_names:
+            return True
+        return False
+    
 def main(args=None):
     rclpy.init(args=args)
     node = AssemblyManagerNode()

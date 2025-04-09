@@ -131,7 +131,10 @@ class AssemblyScenePublisherNode(Node):
         return response
 
     def modify_frame_relative(self, request: ami_srv.ModifyPoseRelative.Request, response: ami_srv.ModifyPoseRelative.Response):
-        modify_success = self.object_scene.modify_frame_relative(request.frame_name, translation=request.rel_position, rotation=request.rel_rotation)
+        modify_success = self.object_scene.modify_frame_relative(request.frame_name, 
+                                                                 translation=request.rel_position, 
+                                                                 rotation=request.rel_rotation,
+                                                                 not_relativ_to_parent_but_child=request.not_relativ_to_parent_but_child)
         response.success = modify_success
         return response
         

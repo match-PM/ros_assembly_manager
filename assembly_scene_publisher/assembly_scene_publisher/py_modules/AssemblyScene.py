@@ -603,7 +603,10 @@ class AssemblyManagerScene():
             self.logger.warn(f"Pose could not be updated. Frame '{frame_obj_name}' not found!")
             return False
 
-    def modify_frame_relative(self,frame_name:str, translation: Point, rotation: Quaternion)-> bool:
+    def modify_frame_relative(self,frame_name:str, 
+                              translation: Point, 
+                              rotation: Quaternion,
+                              not_relativ_to_parent_but_child:bool = False)-> bool:
         self.logger.warn(f"Pose of frame '{frame_name}' will be updated relative to its parent frame!")
         pose_to_modify: Pose = None
 
@@ -617,26 +620,43 @@ class AssemblyManagerScene():
         
         component_name = get_component_for_frame_name(self.scene, frame_name)
         
-        if parent_frame is not None:
+        if parent_frame is None:
+            self.logger.error(f"Pose of frame '{frame_name}' will be updated relative to the world frame!")
+            return False
+        
+        if not_relativ_to_parent_but_child:
+            # Find the parent Frame
+            self.logger.error(f"Pose of frame '{frame_name}' will be updated relative to its child frame!")
+            parent__T__child = get_transform_matrix_from_tf(pose_to_modify)
+            transform = Pose()
+            transform.position.x = translation.x
+            transform.position.y = translation.y
+            transform.position.z = translation.z
+            transform.orientation = rotation
+            child__T__new_frame = get_transform_matrix_from_tf(transform)
+            partent__T__new_frame = parent__T__child * child__T__new_frame
+            new_pose = transform_matrix_to_pose(partent__T__new_frame)
+            pose_to_modify.position.x = new_pose.position.x
+            pose_to_modify.position.y = new_pose.position.y
+            pose_to_modify.position.z = new_pose.position.z
+            pose_to_modify.orientation = new_pose.orientation
+        else:
             pose_to_modify.position.x += translation.x
             pose_to_modify.position.y += translation.y
             pose_to_modify.position.z += translation.z
             pose_to_modify.orientation = quaternion_multiply(pose_to_modify.orientation,rotation)
             
-            if component_name is not None:
-                calculate_constraints_for_component(scene=self.scene,
-                                    component_name=component_name,
-                                    logger=self.logger)
-                self.publish_information()
-            else:
-                self.update_scene_with_constraints()
-            
-
-            self.logger.info(f'Pose for object {frame_name} updated!')
-            return True
+        if component_name is not None:
+            calculate_constraints_for_component(scene=self.scene,
+                                component_name=component_name,
+                                logger=self.logger)
+            self.publish_information()
         else:
-            self.logger.warn(f"Pose could not be updated. Frame '{frame_name}' not found!")
-            return False   
+            self.update_scene_with_constraints()
+        
+        self.logger.info(f'Pose for object {frame_name} updated!')
+        return True
+
 
     def modify_frame_absolut(self,frame_name:str, new_world_pose: Pose)-> bool:
         # Give pose in world coordinates
