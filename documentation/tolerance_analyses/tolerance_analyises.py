@@ -22,19 +22,23 @@ from assembly_scene_publisher.py_modules.scene_functions import get_frames_for_p
 class TolMeasurment():
     STD_CAMERA= 5 #um
     STD_LASER = 1 #um
-    NUM_ITERATIONS = 2
+    NUM_ITERATIONS = 50
 
     SCOPE_FRAME = "assembly_frame_Description_Glas_6D_tol-1_UFC_6D_tol-1"
+    TARGET_FRAME = 'target_frame_Description_Glas_6D_tol-1_UFC_6D_tol-1'
     COMPONENT = 'UFC_6D_tol-1'
     
     def __init__(self, ros_node:Node) -> None:
         self.ros_node = ros_node
         self.programmer = RosSequentialActionProgrammer(ros_node)
-        #self.programmer.load_from_JSON('/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/rsap_description.json')
-        self.programmer.load_from_JSON('/home/mll/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/rsap_description.json')
+        self.programmer.load_from_JSON('/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/rsap_description.json')
+        #self.programmer.load_from_JSON('/home/mll/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/rsap_description.json')
 
-        self.instruction_json = '/home/mll/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_tol.json'
-        self.results_path = '/home/mll/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/logs'
+        self.instruction_json = '/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_tol.json'
+        #self.instruction_json = '/home/mll/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_tol.json'
+        #self.results_path = '/home/mll/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/logs'
+        self.results_path = '/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/logs'
+
         self.init_spawning_action()
 
         #self.programmer.config.execution_log.set_execution_log_mode(1)
@@ -117,7 +121,7 @@ class TolMeasurment():
         self.ros_node.destroy_node()
 
     def execute_sequence(self):
-        self.programmer.execute_action_list(index_start=0, log_mode=ExecutionLog.LOG_AT_END)
+        self.programmer.execute_action_list(index_start=0, log_mode=ExecutionLog.LOG_NEVER)
     
     def gen_value_gauss(self, std:float):
         value = random.gauss(0, std)
@@ -126,7 +130,7 @@ class TolMeasurment():
     def modify_relatives(self):
         
         multiplier = 1e-6
-        for i in range(1, len(self.programmer.action_list)):
+        for i in range(0, len(self.programmer.action_list)):
             x_value = self.gen_value_gauss(self.STD_CAMERA)
             y_value = self.gen_value_gauss(self.STD_CAMERA)
             z_value = self.gen_value_gauss(self.STD_LASER)
@@ -138,19 +142,32 @@ class TolMeasurment():
                     action.set_srv_req_dict_value_from_key(path_key='rel_position.x', 
                                                            new_value=x_value*multiplier, 
                                                            override_to_implicit=False)
+                    
                     action.set_srv_req_dict_value_from_key(path_key='rel_position.y', 
                                                            new_value=y_value*multiplier, 
                                                            override_to_implicit=False)
 
+                    action.set_srv_req_dict_value_from_key(path_key='rel_position.z', 
+                                                           new_value=0.0, 
+                                                           override_to_implicit=False)
+                    
                     action.set_srv_req_dict_value_from_key(path_key='not_relativ_to_parent_but_child', 
                                                         new_value=True, 
                                                         override_to_implicit=False)
                                     
                 elif 'Laser' in name:
+                    action.set_srv_req_dict_value_from_key(path_key='rel_position.x', 
+                                                           new_value=0.0, 
+                                                           override_to_implicit=False)
+                    
+                    action.set_srv_req_dict_value_from_key(path_key='rel_position.y', 
+                                                           new_value=0.0, 
+                                                           override_to_implicit=False)
                     #self.ros_node.get_logger().info(f"Action {name} modified")
                     action.set_srv_req_dict_value_from_key(path_key='rel_position.z', 
                                                            new_value=z_value*multiplier, 
                                                            override_to_implicit=False)
+                    
                     action.set_srv_req_dict_value_from_key(path_key='not_relativ_to_parent_but_child', 
                                     new_value=True, 
                                     override_to_implicit=False)
@@ -158,24 +175,25 @@ class TolMeasurment():
                 else:
                     self.ros_node.get_logger().info(f"Action {name} not modified")
 
-        print("TEST")
-        for i in range(1, len(self.programmer.action_list)):
+        # print("TEST")
+        # for i in range(0, len(self.programmer.action_list)-1):
 
-            action = self.programmer.get_action_at_index(i)
-            if action.client == '/assembly_manager/modify_frame_relative':
-                print(action.service_request)
-        self.programmer.save_to_JSON()       
+        #     action = self.programmer.get_action_at_index(i)
+        #     if action.client == '/assembly_manager/modify_frame_relative':
+        #         print(action.service_request)
+        # save_success = self.programmer.save_to_JSON()
+        # print(f"Save success: {save_success}")       
     
     def execute_n_iterations(self, iterations:int)->bool:
         
         for iteration in range(iterations):
-
+            start_time = time.time()
+            
             self.call_spawning_action()
             self.init_recalculation_action()
 
             self.ros_node.get_logger().info(f"Iteration {iteration}")
-            start_time = time.time()
-
+            
             self.modify_relatives()
             
             self.execute_sequence()
@@ -184,11 +202,14 @@ class TolMeasurment():
             # get the current frame
             frame = get_ref_frame_by_name(self.scene, self.SCOPE_FRAME)
             
+            target_frame = get_ref_frame_by_name(self.scene, self.TARGET_FRAME)
+            
             if frame is None:
                 self.ros_node.get_logger().info("Frame not found")
                 return False
             
             #self.results_calculated_poses.append(frame.pose)
+            frame.pose.orientation = target_frame.pose.orientation
             
             self.save_pose_to_file(frame.pose, f'poses_list.json')
             
@@ -200,6 +221,83 @@ class TolMeasurment():
         return True
             #self.programmer.save_to_JSON()
     
+    def plot_distributions(self):
+        poses_dict = self.load_poses_from_file(f'poses_list.json')
+        transform_x_values = []
+        transform_y_values = []
+        transform_z_values = []
+        roll_values = []
+        pitch_values = []
+        yaw_values = []
+        
+        for pose in poses_dict:
+            pose:dict
+            transform_x_values.append(pose['position']['x']*1e6)
+            transform_y_values.append(pose['position']['y']*1e6)
+            transform_z_values.append(pose['position']['z']*1e6)
+
+            quat = Quaternion()
+            quat.w = pose['orientation']['w']
+            quat.x = pose['orientation']['x']
+            quat.y = pose['orientation']['y']
+            quat.z = pose['orientation']['z']
+            # this function does not work poperly
+            roll, pitch, yaw = quaternion_to_euler(quat)
+            roll_values.append(roll)
+            pitch_values.append(pitch)
+            yaw_values.append(yaw)
+        
+        transform_x_values = [x - np.mean(transform_x_values) for x in transform_x_values]
+        transform_y_values = [y - np.mean(transform_y_values) for y in transform_y_values]
+        transform_z_values = [z - np.mean(transform_z_values) for z in transform_z_values]
+        roll_values = [r - np.mean(roll_values) for r in roll_values]
+        pitch_values = [p - np.mean(pitch_values) for p in pitch_values]
+        yaw_values = [y - np.mean(yaw_values) for y in yaw_values]
+        # Plot the distributions
+        import matplotlib.pyplot as plt
+        plt.figure(figsize=(12, 8))
+        
+        plt.subplot(2, 3, 1)
+        plt.hist(transform_x_values, bins=30, color='blue', alpha=0.7)
+        plt.title('Transform X Distribution')
+        plt.xlabel('Transform X (um)')
+        plt.ylabel('Frequency')
+        
+        plt.subplot(2, 3, 2)
+        plt.hist(transform_y_values, bins=30, color='green', alpha=0.7)
+        plt.title('Transform Y Distribution')
+        plt.xlabel('Transform Y (um)')
+        plt.ylabel('Frequency')
+        
+        plt.subplot(2, 3, 3)
+        plt.hist(transform_z_values, bins=30, color='red', alpha=0.7)
+        plt.title('Transform Z Distribution')
+        plt.xlabel('Transform Z (um)')
+        plt.ylabel('Frequency')
+        
+        plt.subplot(2, 3, 4)
+        plt.hist(roll_values, bins=30, color='purple', alpha=0.7)
+        plt.title('Roll Distribution')
+        plt.xlabel('Roll (rad)')
+        plt.ylabel('Frequency')
+        
+        plt.subplot(2, 3, 5)
+        plt.hist(pitch_values, bins=30, color='orange', alpha=0.7)
+        plt.title('Pitch Distribution')
+        plt.xlabel('Pitch (rad)')
+        plt.ylabel('Frequency')
+        
+        plt.subplot(2, 3, 6)
+        plt.hist(yaw_values, bins=30, color='cyan', alpha=0.7)
+        plt.title('Yaw Distribution')
+        plt.xlabel('Yaw (rad)')
+        plt.ylabel('Frequency')
+        
+        plt.tight_layout()
+        # save the figure
+        plt.savefig(f'{self.results_path}/distributions.png')
+        plt.show()
+        
     def assess_results(self,poses_dict:list[dict]=None)->tuple:
         transform_x_values = []
         transform_y_values = []
@@ -372,5 +470,6 @@ if __name__ == '__main__':
     #frames = tol_measurment.get_relevant_frames()
     #print(frames)
     tol_measurment.execute_simulation()
+    tol_measurment.plot_distributions()
     rclpy.shutdown()
     
