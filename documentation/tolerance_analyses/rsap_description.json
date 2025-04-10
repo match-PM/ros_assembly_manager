@@ -1,24 +1,9 @@
 {
     "name": "rsap_description",
-    "saved_at": "2025-04-09 23:27:10.145150",
+    "saved_at": "2025-04-10 18:07:50.649402",
     "action_list": [
         {
             "action_position": 0,
-            "action_type": "ServiceAction",
-            "name": "/assembly_manager/create_assembly_instruction_from_description",
-            "service_client": "/assembly_manager/create_assembly_instruction_from_description",
-            "service_type": "assembly_manager_interfaces/srv/CreateAssemblyInstructionFromDescription",
-            "error_identifier": "success",
-            "description": "",
-            "service_request": {
-                "file_path": "/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_tol.json",
-                "spawn_components": true
-            },
-            "has_breakpoint": false,
-            "is_active": true
-        },
-        {
-            "action_position": 1,
             "action_type": "ServiceAction",
             "name": "UFC_6D_tol-1_Laser_1_T",
             "service_client": "/assembly_manager/modify_frame_relative",
@@ -44,7 +29,7 @@
             "is_active": true
         },
         {
-            "action_position": 2,
+            "action_position": 1,
             "action_type": "ServiceAction",
             "name": "UFC_6D_tol-1_Laser_2_T",
             "service_client": "/assembly_manager/modify_frame_relative",
@@ -56,7 +41,33 @@
                 "rel_position": {
                     "x": 0.0,
                     "y": 0.0,
-                    "z": 7.0
+                    "z": -4.4449339841790046e-07
+                },
+                "rel_rotation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 1.0
+                },
+                "not_relativ_to_parent_but_child": true
+            },
+            "has_breakpoint": false,
+            "is_active": true
+        },
+        {
+            "action_position": 2,
+            "action_type": "ServiceAction",
+            "name": "UFC_6D_tol-1_Laser_3_T",
+            "service_client": "/assembly_manager/modify_frame_relative",
+            "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+            "error_identifier": "success",
+            "description": "",
+            "service_request": {
+                "frame_name": "UFC_6D_tol-1_Laser_3_T",
+                "rel_position": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 2.453309010648171e-06
                 },
                 "rel_rotation": {
                     "x": 0.0,
@@ -72,17 +83,17 @@
         {
             "action_position": 3,
             "action_type": "ServiceAction",
-            "name": "UFC_6D_tol-1_Laser_3_T",
+            "name": "UFC_6D_tol-1_Laser_4_T",
             "service_client": "/assembly_manager/modify_frame_relative",
             "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
             "error_identifier": "success",
             "description": "",
             "service_request": {
-                "frame_name": "UFC_6D_tol-1_Laser_3_T",
+                "frame_name": "UFC_6D_tol-1_Laser_4_T",
                 "rel_position": {
                     "x": 0.0,
                     "y": 0.0,
-                    "z": 7.0
+                    "z": 1.9187721418929289e-07
                 },
                 "rel_rotation": {
                     "x": 0.0,
@@ -98,17 +109,17 @@
         {
             "action_position": 4,
             "action_type": "ServiceAction",
-            "name": "UFC_6D_tol-1_Laser_4_T",
+            "name": "UFC_6D_tol-1_Laser_1_B",
             "service_client": "/assembly_manager/modify_frame_relative",
             "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
             "error_identifier": "success",
             "description": "",
             "service_request": {
-                "frame_name": "UFC_6D_tol-1_Laser_4_T",
+                "frame_name": "UFC_6D_tol-1_Laser_1_B",
                 "rel_position": {
                     "x": 0.0,
                     "y": 0.0,
-                    "z": 7.0
+                    "z": 2.84226647155643e-07
                 },
                 "rel_rotation": {
                     "x": 0.0,
@@ -124,17 +135,17 @@
         {
             "action_position": 5,
             "action_type": "ServiceAction",
-            "name": "UFC_6D_tol-1_Laser_1_B",
+            "name": "UFC_6D_tol-1_Laser_2_B",
             "service_client": "/assembly_manager/modify_frame_relative",
             "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
             "error_identifier": "success",
             "description": "",
             "service_request": {
-                "frame_name": "UFC_6D_tol-1_Laser_1_B",
+                "frame_name": "UFC_6D_tol-1_Laser_2_B",
                 "rel_position": {
                     "x": 0.0,
                     "y": 0.0,
-                    "z": 7.0
+                    "z": 5.263401246682115e-07
                 },
                 "rel_rotation": {
                     "x": 0.0,
@@ -150,17 +161,17 @@
         {
             "action_position": 6,
             "action_type": "ServiceAction",
-            "name": "UFC_6D_tol-1_Laser_2_B",
+            "name": "UFC_6D_tol-1_Laser_3_B",
             "service_client": "/assembly_manager/modify_frame_relative",
             "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
             "error_identifier": "success",
             "description": "",
             "service_request": {
-                "frame_name": "UFC_6D_tol-1_Laser_2_B",
+                "frame_name": "UFC_6D_tol-1_Laser_3_B",
                 "rel_position": {
                     "x": 0.0,
                     "y": 0.0,
-                    "z": 7.0
+                    "z": 1.909593194037272e-06
                 },
                 "rel_rotation": {
                     "x": 0.0,
@@ -176,17 +187,17 @@
         {
             "action_position": 7,
             "action_type": "ServiceAction",
-            "name": "UFC_6D_tol-1_Laser_3_B",
+            "name": "UFC_6D_tol-1_Laser_4_B",
             "service_client": "/assembly_manager/modify_frame_relative",
             "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
             "error_identifier": "success",
             "description": "",
             "service_request": {
-                "frame_name": "UFC_6D_tol-1_Laser_3_B",
+                "frame_name": "UFC_6D_tol-1_Laser_4_B",
                 "rel_position": {
                     "x": 0.0,
                     "y": 0.0,
-                    "z": 7.0
+                    "z": 1.0347939975634653e-06
                 },
                 "rel_rotation": {
                     "x": 0.0,
@@ -202,17 +213,17 @@
         {
             "action_position": 8,
             "action_type": "ServiceAction",
-            "name": "UFC_6D_tol-1_Laser_4_B",
+            "name": "UFC_6D_tol-1_Vision_Point_1_T",
             "service_client": "/assembly_manager/modify_frame_relative",
             "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
             "error_identifier": "success",
             "description": "",
             "service_request": {
-                "frame_name": "UFC_6D_tol-1_Laser_4_B",
+                "frame_name": "UFC_6D_tol-1_Vision_Point_1_T",
                 "rel_position": {
-                    "x": 0.0,
-                    "y": 0.0,
-                    "z": 7.0
+                    "x": -3.4867071411845354e-06,
+                    "y": 6.033635874798779e-07,
+                    "z": 0.0
                 },
                 "rel_rotation": {
                     "x": 0.0,
@@ -228,16 +239,16 @@
         {
             "action_position": 9,
             "action_type": "ServiceAction",
-            "name": "UFC_6D_tol-1_Vision_Point_1_T",
+            "name": "UFC_6D_tol-1_Vision_Point_2_T",
             "service_client": "/assembly_manager/modify_frame_relative",
             "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
             "error_identifier": "success",
             "description": "",
             "service_request": {
-                "frame_name": "UFC_6D_tol-1_Vision_Point_1_T",
+                "frame_name": "UFC_6D_tol-1_Vision_Point_2_T",
                 "rel_position": {
-                    "x": 50.0,
-                    "y": 25.0,
+                    "x": -4.488622980636479e-06,
+                    "y": -6.423822038670428e-06,
                     "z": 0.0
                 },
                 "rel_rotation": {
@@ -254,16 +265,16 @@
         {
             "action_position": 10,
             "action_type": "ServiceAction",
-            "name": "UFC_6D_tol-1_Vision_Point_2_T",
+            "name": "UFC_6D_tol-1_Vision_Point_3_T",
             "service_client": "/assembly_manager/modify_frame_relative",
             "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
             "error_identifier": "success",
             "description": "",
             "service_request": {
-                "frame_name": "UFC_6D_tol-1_Vision_Point_2_T",
+                "frame_name": "UFC_6D_tol-1_Vision_Point_3_T",
                 "rel_position": {
-                    "x": 50.0,
-                    "y": 25.0,
+                    "x": -2.248039534853219e-06,
+                    "y": -2.744171850905486e-06,
                     "z": 0.0
                 },
                 "rel_rotation": {
@@ -280,16 +291,16 @@
         {
             "action_position": 11,
             "action_type": "ServiceAction",
-            "name": "UFC_6D_tol-1_Vision_Point_3_T",
+            "name": "UFC_6D_tol-1_Vision_Point_4_T",
             "service_client": "/assembly_manager/modify_frame_relative",
             "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
             "error_identifier": "success",
             "description": "",
             "service_request": {
-                "frame_name": "UFC_6D_tol-1_Vision_Point_3_T",
+                "frame_name": "UFC_6D_tol-1_Vision_Point_4_T",
                 "rel_position": {
-                    "x": 50.0,
-                    "y": 25.0,
+                    "x": 9.592425096888728e-07,
+                    "y": 2.8639584665440826e-06,
                     "z": 0.0
                 },
                 "rel_rotation": {
@@ -306,16 +317,16 @@
         {
             "action_position": 12,
             "action_type": "ServiceAction",
-            "name": "UFC_6D_tol-1_Vision_Point_4_T",
+            "name": "UFC_6D_tol-1_Vision_Point_1_B",
             "service_client": "/assembly_manager/modify_frame_relative",
             "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
             "error_identifier": "success",
             "description": "",
             "service_request": {
-                "frame_name": "UFC_6D_tol-1_Vision_Point_4_T",
+                "frame_name": "UFC_6D_tol-1_Vision_Point_1_B",
                 "rel_position": {
-                    "x": 50.0,
-                    "y": 25.0,
+                    "x": -3.955953025255805e-06,
+                    "y": -1.322799203742751e-06,
                     "z": 0.0
                 },
                 "rel_rotation": {
@@ -332,16 +343,16 @@
         {
             "action_position": 13,
             "action_type": "ServiceAction",
-            "name": "UFC_6D_tol-1_Vision_Point_1_B",
+            "name": "UFC_6D_tol-1_Vision_Point_2_B",
             "service_client": "/assembly_manager/modify_frame_relative",
             "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
             "error_identifier": "success",
             "description": "",
             "service_request": {
-                "frame_name": "UFC_6D_tol-1_Vision_Point_1_B",
+                "frame_name": "UFC_6D_tol-1_Vision_Point_2_B",
                 "rel_position": {
-                    "x": 50.0,
-                    "y": 25.0,
+                    "x": 5.054940395194385e-06,
+                    "y": 4.991751890470935e-06,
                     "z": 0.0
                 },
                 "rel_rotation": {
@@ -358,16 +369,16 @@
         {
             "action_position": 14,
             "action_type": "ServiceAction",
-            "name": "UFC_6D_tol-1_Vision_Point_2_B",
+            "name": "UFC_6D_tol-1_Vision_Point_3_B",
             "service_client": "/assembly_manager/modify_frame_relative",
             "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
             "error_identifier": "success",
             "description": "",
             "service_request": {
-                "frame_name": "UFC_6D_tol-1_Vision_Point_2_B",
+                "frame_name": "UFC_6D_tol-1_Vision_Point_3_B",
                 "rel_position": {
-                    "x": 50.0,
-                    "y": 25.0,
+                    "x": -2.452049431403214e-06,
+                    "y": -4.349529493582233e-06,
                     "z": 0.0
                 },
                 "rel_rotation": {
@@ -384,32 +395,6 @@
         {
             "action_position": 15,
             "action_type": "ServiceAction",
-            "name": "UFC_6D_tol-1_Vision_Point_3_B",
-            "service_client": "/assembly_manager/modify_frame_relative",
-            "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
-            "error_identifier": "success",
-            "description": "",
-            "service_request": {
-                "frame_name": "UFC_6D_tol-1_Vision_Point_3_B",
-                "rel_position": {
-                    "x": 50.0,
-                    "y": 25.0,
-                    "z": 0.0
-                },
-                "rel_rotation": {
-                    "x": 0.0,
-                    "y": 0.0,
-                    "z": 0.0,
-                    "w": 1.0
-                },
-                "not_relativ_to_parent_but_child": true
-            },
-            "has_breakpoint": false,
-            "is_active": true
-        },
-        {
-            "action_position": 16,
-            "action_type": "ServiceAction",
             "name": "UFC_6D_tol-1_Vision_Point_4_B",
             "service_client": "/assembly_manager/modify_frame_relative",
             "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
@@ -418,8 +403,8 @@
             "service_request": {
                 "frame_name": "UFC_6D_tol-1_Vision_Point_4_B",
                 "rel_position": {
-                    "x": 50.0,
-                    "y": 25.0,
+                    "x": -1.9527874057576546e-06,
+                    "y": 1.858334327783193e-06,
                     "z": 0.0
                 },
                 "rel_rotation": {
@@ -430,32 +415,6 @@
                 },
                 "not_relativ_to_parent_but_child": true
             },
-            "has_breakpoint": false,
-            "is_active": true
-        },
-        {
-            "action_position": 17,
-            "action_type": "ServiceAction",
-            "name": "/assembly_manager/calculate_assembly_instructions",
-            "service_client": "/assembly_manager/calculate_assembly_instructions",
-            "service_type": "assembly_manager_interfaces/srv/CalculateAssemblyInstructions",
-            "error_identifier": "success",
-            "description": "",
-            "service_request": {
-                "instruction_id": "Description_Glas_6D_tol-1_UFC_6D_tol-1"
-            },
-            "has_breakpoint": false,
-            "is_active": true
-        },
-        {
-            "action_position": 18,
-            "action_type": "ServiceAction",
-            "name": "/assembly_manager/get_scene",
-            "service_client": "/assembly_manager/get_scene",
-            "service_type": "assembly_manager_interfaces/srv/GetScene",
-            "error_identifier": null,
-            "description": "",
-            "service_request": {},
             "has_breakpoint": false,
             "is_active": true
         }

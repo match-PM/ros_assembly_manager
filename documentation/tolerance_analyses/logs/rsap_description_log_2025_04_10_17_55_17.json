@@ -1,0 +1,453 @@
+{
+    "action_sequence_name": "rsap_description",
+    "action_log": [
+        {
+            "0_UFC_6D_tol-1_Laser_1_T": {
+                "service_client": "/assembly_manager/modify_frame_relative",
+                "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+                "srv_start_time": "2025-04-10_17:55:01.416087",
+                "srv_end_time": "2025-04-10_17:55:02.742941",
+                "execution_time": "0:00:01.326854",
+                "srv_request": {
+                    "frame_name": "UFC_6D_tol-1_Laser_1_T",
+                    "rel_position": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 7.0
+                    },
+                    "rel_rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "not_relativ_to_parent_but_child": true
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "1_UFC_6D_tol-1_Laser_2_T": {
+                "service_client": "/assembly_manager/modify_frame_relative",
+                "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+                "srv_start_time": "2025-04-10_17:55:02.751144",
+                "srv_end_time": "2025-04-10_17:55:03.530196",
+                "execution_time": "0:00:00.779052",
+                "srv_request": {
+                    "frame_name": "UFC_6D_tol-1_Laser_2_T",
+                    "rel_position": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 7.0
+                    },
+                    "rel_rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "not_relativ_to_parent_but_child": true
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "2_UFC_6D_tol-1_Laser_3_T": {
+                "service_client": "/assembly_manager/modify_frame_relative",
+                "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+                "srv_start_time": "2025-04-10_17:55:03.532901",
+                "srv_end_time": "2025-04-10_17:55:04.744543",
+                "execution_time": "0:00:01.211642",
+                "srv_request": {
+                    "frame_name": "UFC_6D_tol-1_Laser_3_T",
+                    "rel_position": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 7.0
+                    },
+                    "rel_rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "not_relativ_to_parent_but_child": true
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "3_UFC_6D_tol-1_Laser_4_T": {
+                "service_client": "/assembly_manager/modify_frame_relative",
+                "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+                "srv_start_time": "2025-04-10_17:55:04.750972",
+                "srv_end_time": "2025-04-10_17:55:05.581091",
+                "execution_time": "0:00:00.830119",
+                "srv_request": {
+                    "frame_name": "UFC_6D_tol-1_Laser_4_T",
+                    "rel_position": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 7.0
+                    },
+                    "rel_rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "not_relativ_to_parent_but_child": true
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "4_UFC_6D_tol-1_Laser_1_B": {
+                "service_client": "/assembly_manager/modify_frame_relative",
+                "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+                "srv_start_time": "2025-04-10_17:55:05.583972",
+                "srv_end_time": "2025-04-10_17:55:06.663774",
+                "execution_time": "0:00:01.079802",
+                "srv_request": {
+                    "frame_name": "UFC_6D_tol-1_Laser_1_B",
+                    "rel_position": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 7.0
+                    },
+                    "rel_rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "not_relativ_to_parent_but_child": true
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "5_UFC_6D_tol-1_Laser_2_B": {
+                "service_client": "/assembly_manager/modify_frame_relative",
+                "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+                "srv_start_time": "2025-04-10_17:55:06.668307",
+                "srv_end_time": "2025-04-10_17:55:07.727021",
+                "execution_time": "0:00:01.058714",
+                "srv_request": {
+                    "frame_name": "UFC_6D_tol-1_Laser_2_B",
+                    "rel_position": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 7.0
+                    },
+                    "rel_rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "not_relativ_to_parent_but_child": true
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "6_UFC_6D_tol-1_Laser_3_B": {
+                "service_client": "/assembly_manager/modify_frame_relative",
+                "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+                "srv_start_time": "2025-04-10_17:55:07.735323",
+                "srv_end_time": "2025-04-10_17:55:08.766962",
+                "execution_time": "0:00:01.031639",
+                "srv_request": {
+                    "frame_name": "UFC_6D_tol-1_Laser_3_B",
+                    "rel_position": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 7.0
+                    },
+                    "rel_rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "not_relativ_to_parent_but_child": true
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "7_UFC_6D_tol-1_Laser_4_B": {
+                "service_client": "/assembly_manager/modify_frame_relative",
+                "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+                "srv_start_time": "2025-04-10_17:55:08.773745",
+                "srv_end_time": "2025-04-10_17:55:09.849866",
+                "execution_time": "0:00:01.076121",
+                "srv_request": {
+                    "frame_name": "UFC_6D_tol-1_Laser_4_B",
+                    "rel_position": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 7.0
+                    },
+                    "rel_rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "not_relativ_to_parent_but_child": true
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "8_UFC_6D_tol-1_Vision_Point_1_T": {
+                "service_client": "/assembly_manager/modify_frame_relative",
+                "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+                "srv_start_time": "2025-04-10_17:55:09.852671",
+                "srv_end_time": "2025-04-10_17:55:10.689478",
+                "execution_time": "0:00:00.836807",
+                "srv_request": {
+                    "frame_name": "UFC_6D_tol-1_Vision_Point_1_T",
+                    "rel_position": {
+                        "x": 50.0,
+                        "y": 25.0,
+                        "z": 0.0
+                    },
+                    "rel_rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "not_relativ_to_parent_but_child": true
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "9_UFC_6D_tol-1_Vision_Point_2_T": {
+                "service_client": "/assembly_manager/modify_frame_relative",
+                "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+                "srv_start_time": "2025-04-10_17:55:10.698451",
+                "srv_end_time": "2025-04-10_17:55:11.567523",
+                "execution_time": "0:00:00.869072",
+                "srv_request": {
+                    "frame_name": "UFC_6D_tol-1_Vision_Point_2_T",
+                    "rel_position": {
+                        "x": 50.0,
+                        "y": 25.0,
+                        "z": 0.0
+                    },
+                    "rel_rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "not_relativ_to_parent_but_child": true
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "10_UFC_6D_tol-1_Vision_Point_3_T": {
+                "service_client": "/assembly_manager/modify_frame_relative",
+                "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+                "srv_start_time": "2025-04-10_17:55:11.573995",
+                "srv_end_time": "2025-04-10_17:55:12.582566",
+                "execution_time": "0:00:01.008571",
+                "srv_request": {
+                    "frame_name": "UFC_6D_tol-1_Vision_Point_3_T",
+                    "rel_position": {
+                        "x": 50.0,
+                        "y": 25.0,
+                        "z": 0.0
+                    },
+                    "rel_rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "not_relativ_to_parent_but_child": true
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "11_UFC_6D_tol-1_Vision_Point_4_T": {
+                "service_client": "/assembly_manager/modify_frame_relative",
+                "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+                "srv_start_time": "2025-04-10_17:55:12.590852",
+                "srv_end_time": "2025-04-10_17:55:13.536341",
+                "execution_time": "0:00:00.945489",
+                "srv_request": {
+                    "frame_name": "UFC_6D_tol-1_Vision_Point_4_T",
+                    "rel_position": {
+                        "x": 50.0,
+                        "y": 25.0,
+                        "z": 0.0
+                    },
+                    "rel_rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "not_relativ_to_parent_but_child": true
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "12_UFC_6D_tol-1_Vision_Point_1_B": {
+                "service_client": "/assembly_manager/modify_frame_relative",
+                "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+                "srv_start_time": "2025-04-10_17:55:13.544596",
+                "srv_end_time": "2025-04-10_17:55:14.400113",
+                "execution_time": "0:00:00.855517",
+                "srv_request": {
+                    "frame_name": "UFC_6D_tol-1_Vision_Point_1_B",
+                    "rel_position": {
+                        "x": 50.0,
+                        "y": 25.0,
+                        "z": 0.0
+                    },
+                    "rel_rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "not_relativ_to_parent_but_child": true
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "13_UFC_6D_tol-1_Vision_Point_2_B": {
+                "service_client": "/assembly_manager/modify_frame_relative",
+                "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+                "srv_start_time": "2025-04-10_17:55:14.406847",
+                "srv_end_time": "2025-04-10_17:55:15.358192",
+                "execution_time": "0:00:00.951345",
+                "srv_request": {
+                    "frame_name": "UFC_6D_tol-1_Vision_Point_2_B",
+                    "rel_position": {
+                        "x": 50.0,
+                        "y": 25.0,
+                        "z": 0.0
+                    },
+                    "rel_rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "not_relativ_to_parent_but_child": true
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "14_UFC_6D_tol-1_Vision_Point_3_B": {
+                "service_client": "/assembly_manager/modify_frame_relative",
+                "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+                "srv_start_time": "2025-04-10_17:55:15.365166",
+                "srv_end_time": "2025-04-10_17:55:16.213022",
+                "execution_time": "0:00:00.847856",
+                "srv_request": {
+                    "frame_name": "UFC_6D_tol-1_Vision_Point_3_B",
+                    "rel_position": {
+                        "x": 50.0,
+                        "y": 25.0,
+                        "z": 0.0
+                    },
+                    "rel_rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "not_relativ_to_parent_but_child": true
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "15_UFC_6D_tol-1_Vision_Point_4_B": {
+                "service_client": "/assembly_manager/modify_frame_relative",
+                "service_type": "assembly_manager_interfaces/srv/ModifyPoseRelative",
+                "srv_start_time": "2025-04-10_17:55:16.216177",
+                "srv_end_time": "2025-04-10_17:55:17.297572",
+                "execution_time": "0:00:01.081395",
+                "srv_request": {
+                    "frame_name": "UFC_6D_tol-1_Vision_Point_4_B",
+                    "rel_position": {
+                        "x": 50.0,
+                        "y": 25.0,
+                        "z": 0.0
+                    },
+                    "rel_rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "not_relativ_to_parent_but_child": true
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        }
+    ]
+}
