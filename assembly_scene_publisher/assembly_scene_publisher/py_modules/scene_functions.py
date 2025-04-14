@@ -1,12 +1,16 @@
 
 import assembly_manager_interfaces.msg as ami_msg
 from rclpy.impl.rcutils_logger import RcutilsLogger
-from geometry_msgs.msg import Pose
+from geometry_msgs.msg import Pose, Transform
 from copy import deepcopy, copy
+from tf2_ros import Buffer, TransformListener, TransformBroadcaster, StaticTransformBroadcaster
 
 from typing import Union
 
 from geometry_msgs.msg import Vector3
+
+from assembly_scene_publisher.py_modules.geometry_type_functions import get_relative_transform_for_transforms
+from assembly_scene_publisher.py_modules.tf_functions import get_transform_for_frame, get_transform_for_frame_in_world
 
 class ConstraintRestriction:
     def __init__(self, frame_name: str, constraining_vectors: list[Vector3], vector_directions: list[str]):
@@ -437,6 +441,56 @@ def get_global_statonary_component(scene: ami_msg.ObjectScene)-> str:
             return component
         
     return None
+
+def get_rel_transform_for_frames(scene: ami_msg.ObjectScene,
+                                 from_frame:str,
+                                    to_frame:str,
+                                    tf_buffer: Buffer,
+                                    logger: RcutilsLogger = None)-> Transform:
+    """
+    This function returns the relative transformation between two frames.
+    If the frames do not exist the function returns None.
+    """
+    from_frame_obj = get_ref_frame_by_name(scene, from_frame)
+    to_frame_obj = get_ref_frame_by_name(scene, to_frame)
+    
+    if from_frame_obj is None or to_frame_obj is None:
+        if logger is not None:
+            logger.error(f"Frames {from_frame} or {to_frame} do not exist in the scene.")
+        return None
+    
+    from_frame_obj: ami_msg.RefFrame
+    to_frame_obj: ami_msg.RefFrame
+    
+    try:
+        # from_frame_tr = get_transform_for_frame(from_frame_obj.frame_name,
+        #                                         from_frame_obj.parent_frame,
+        #                                         tf_buffer,
+        #                                         logger=logger)
+        
+        # to_frame_tr = get_transform_for_frame(to_frame_obj.frame_name,
+        #                                         to_frame_obj.parent_frame,
+        #                                         tf_buffer,
+        #                                         logger=logger)
+        
+        from_frame_tr = get_transform_for_frame_in_world(from_frame_obj.frame_name,
+                                                tf_buffer,
+                                                logger=logger)
+        
+        to_frame_tr = get_transform_for_frame_in_world(to_frame_obj.frame_name,
+                                                tf_buffer,
+                                                logger=logger)
+        
+    except ValueError as e:
+        if logger is not None:
+            logger.error(f"Frames {from_frame} or {to_frame} do not exist in the scene.")
+        return None        
+        
+
+    rel_transform = get_relative_transform_for_transforms(from_frame_tr,
+                                                    to_frame_tr,
+                                                    logger=logger)
+    return rel_transform
 
 
 def find_matches_for_component(scene: ami_msg.ObjectScene, 

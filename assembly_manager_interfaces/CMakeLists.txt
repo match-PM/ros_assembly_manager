@@ -23,6 +23,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/GetScene.srv"
   "srv/ModifyPoseAbsolut.srv"
   "srv/ModifyPoseRelative.srv"
+  "srv/ModifyPoseFromFrame.srv"
   "srv/ChangeParentFrame.srv"
   "srv/DisableObjCollision.srv"
   "srv/CalculateAssemblyInstructions.srv"

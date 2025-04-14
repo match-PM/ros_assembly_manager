@@ -51,8 +51,10 @@ class AssemblyScenePublisherNode(Node):
         self.spawn_frames_from_description_srv = self.create_service(ami_srv.SpawnFramesFromDescription,f'assembly_manager/spawn_frames_from_description',self.spawn_frames_from_description,callback_group=self.callback_group) 
 
         self.get_frames_for_component_srv = self.create_service(ami_srv.FramesForComponent,f'assembly_manager/get_frames_for_component', self.get_frames_for_component,callback_group=self.callback_group)
-        
-        self.clear_scene = self.create_service(Empty,f'assembly_manager/clear_scene', self.clear_scene,callback_group=self.callback_group)
+
+        self.modify_frame_from_frame_srv = self.create_service(ami_srv.ModifyPoseFromFrame,f'assembly_manager/modify_frame_from_frame',self.modify_frame_from_frame,callback_group=self.callback_group)
+
+        self.clear_scene_srv = self.create_service(Empty,f'assembly_manager/clear_scene', self.clear_scene,callback_group=self.callback_group)
 
         #self.timer = self.create_timer(5.0, self.object_scene.publish_information,callback_group=self.callback_group)
         
@@ -152,6 +154,12 @@ class AssemblyScenePublisherNode(Node):
         else:
             response.success = True
             response.assembly_transform = transfrom
+        return response
+    
+    def modify_frame_from_frame(self, request: ami_srv.ModifyPoseFromFrame.Request, response: ami_srv.ModifyPoseFromFrame.Response):
+        modify_success = self.object_scene.modify_frame_set_to_frame(frame_to_set=request.frame_to_set,
+                                                                frame_to_set_to=request.from_frame)
+        response.success = modify_success
         return response
     
     def spawn_frames_from_description(self, request: ami_srv.SpawnFramesFromDescription.Request, response: ami_srv.SpawnFramesFromDescription.Response):

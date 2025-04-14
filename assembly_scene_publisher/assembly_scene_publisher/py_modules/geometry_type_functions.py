@@ -1,6 +1,6 @@
 import sympy as sp
 from geometry_msgs.msg import Vector3, Quaternion
-from geometry_msgs.msg import TransformStamped
+from geometry_msgs.msg import TransformStamped, Transform
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
 import numpy as np
@@ -105,7 +105,7 @@ def get_point_from_ros_obj(position: Union[Vector3, Point]) -> sp.Point3D:
     
     return point
 
-def get_transform_matrix_from_tf(tf: Union[Pose, TransformStamped])-> sp.Matrix:
+def get_transform_matrix_from_tf(tf: Union[Pose, TransformStamped, Transform])-> sp.Matrix:
     if isinstance(tf, Pose):
         tf: Pose
         r:sp.Matrix = quaternion_to_rotation_matrix(tf.orientation)
@@ -113,7 +113,11 @@ def get_transform_matrix_from_tf(tf: Union[Pose, TransformStamped])-> sp.Matrix:
     elif isinstance(tf, TransformStamped):
         tf: TransformStamped
         r:sp.Matrix = quaternion_to_rotation_matrix(tf.transform.rotation)
-        t = sp.Matrix([tf.transform.translation.x, tf.transform.translation.y, tf.transform.translation.z])         
+        t = sp.Matrix([tf.transform.translation.x, tf.transform.translation.y, tf.transform.translation.z])   
+    elif isinstance(tf, Transform):
+        tf: Transform
+        r:sp.Matrix = quaternion_to_rotation_matrix(tf.rotation)
+        t = sp.Matrix([tf.translation.x, tf.translation.y, tf.translation.z])      
     else:
         return None
     transform_matrix = sp.eye(4)
@@ -152,6 +156,23 @@ def transform_matrix_to_pose(transform_matrix:sp.Matrix, logger = None)-> Pose:
         position=Point(x=float(translation_vector[0]), y=float(translation_vector[1]), z=float(translation_vector[2])),
         orientation=Quaternion(x=float(quaternion.x), y=float(quaternion.y), z=float(quaternion.z), w=float(quaternion.w)))
     return pose_msg 
+
+def transform_matrix_to_transform(transform_matrix:sp.Matrix, logger = None)-> Transform:
+    # Extract the rotation matrix and translation vector from the transformation matrix
+    rotation_matrix = transform_matrix[:3, :3]
+    translation_vector = transform_matrix[:3, 3]
+
+    # Convert the rotation matrix to a quaternion
+    quaternion = rotation_matrix_to_quaternion(rotation_matrix)
+
+    if logger is not None:
+        logger.debug(f"Quaternion: {quaternion}")
+
+    # Create a Transform message
+    transform_msg = Transform(
+        translation=Vector3(x=float(translation_vector[0]), y=float(translation_vector[1]), z=float(translation_vector[2])),
+        rotation=Quaternion(x=float(quaternion.x), y=float(quaternion.y), z=float(quaternion.z), w=float(quaternion.w)))
+    return transform_msg
 
 # def rotation_matrix_to_quaternion(Rot_mat)-> sp.Matrix:
 #     r = R.from_matrix(Rot_mat)
@@ -291,3 +312,31 @@ def euler_to_matrix(angles:list):
                 [0, sp.sin(angles[0]), sp.cos(angles[0])]])
 
     return Rz * Ry * Rx
+
+def get_relative_transform_for_transforms(from_frame: TransformStamped,
+                                        to_frame: TransformStamped,
+                                        logger = None)-> Transform:
+    """
+    Calculate the relative transformation between two frames.
+    Args:
+        from_frame: The first frame (Pose).
+        to_frame: The second frame (Pose).
+        logger: Optional logger for logging messages.
+    Returns:
+
+        A Pose object representing the relative transformation.
+    """
+    # Convert the poses to transformation matrices
+    from_transform_matrix = get_transform_matrix_from_tf(from_frame)
+    to_transform_matrix = get_transform_matrix_from_tf(to_frame)
+    
+    if from_transform_matrix is None or to_transform_matrix is None:
+        if logger is not None:
+            logger.error("Invalid input type in method 'get_relative_transform_for_frames'!")
+        return None
+    # Calculate the relative transformation matrix
+    relative_transform_matrix = to_transform_matrix * from_transform_matrix.inv()
+    # Convert the relative transformation matrix back to a Pose
+    relative_transform = transform_matrix_to_transform(relative_transform_matrix)
+    
+    return relative_transform

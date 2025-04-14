@@ -23,6 +23,7 @@ from assembly_scene_publisher.py_modules.frame_constraints import (FrameConstrai
 from copy import deepcopy,copy
 from assembly_scene_publisher.py_modules.scene_functions import (get_parent_frame_for_ref_frame,
                                                                  get_ref_frame_by_name,
+                                                                 is_frame_from_scene,
                                                                  get_axis_from_scene,
                                                                  get_plane_from_scene,
                                                                  get_component_for_frame_name,
@@ -712,6 +713,43 @@ class AssemblyManagerScene():
             return True
         else:
             return False
+
+    def modify_frame_set_to_frame(self, frame_to_set: str, from_frame: str)-> bool:
+        
+        if not is_frame_from_scene(self.scene, frame_to_set):
+            self.logger.error(f"Frame '{frame_to_set}' does not exist in the scene!")
+            return False
+        
+        frame_parent = get_parent_frame_for_ref_frame(self.scene, frame_to_set, logger=self.logger)
+        
+        # Transform of point in world 
+        try:      
+            transform = get_transform_for_frame(from_frame, frame_parent, self.tf_buffer, logger=self.logger)
+        except ValueError as e:
+            self.logger.error(f"Frame '{from_frame}' does not exist in the tf buffer!")
+            return False
+               
+        ref_frame = get_ref_frame_by_name(self.scene, frame_to_set, logger=self.logger)
+        
+        ref_frame.pose.position.x = transform.transform.translation.x
+        ref_frame.pose.position.y = transform.transform.translation.y
+        ref_frame.pose.position.z = transform.transform.translation.z
+        ref_frame.pose.orientation.x = transform.transform.rotation.x
+        ref_frame.pose.orientation.y = transform.transform.rotation.y
+        ref_frame.pose.orientation.z = transform.transform.rotation.z
+        ref_frame.pose.orientation.w = transform.transform.rotation.w
+          
+        component_name = get_component_for_frame_name(self.scene, frame_to_set)
+        
+        if component_name is not None:
+            calculate_constraints_for_component(scene=self.scene,
+                                component_name=component_name,
+                                logger=self.logger)
+            self.publish_information()
+        else:
+            self.update_scene_with_constraints()
+            
+        return True
 
 
     def create_assembly_instructions(self,instruction: ami_msg.AssemblyInstruction)->bool:
