@@ -22,7 +22,7 @@ from assembly_scene_publisher.py_modules.scene_functions import get_frames_for_p
 class TolMeasurment():
     STD_CAMERA= 5 #um
     STD_LASER = 1 #um
-    NUM_ITERATIONS = 50
+    NUM_ITERATIONS = 2
 
     SCOPE_FRAME = "assembly_frame_Description_Glas_6D_tol-1_UFC_6D_tol-1"
     TARGET_FRAME = 'target_frame_Description_Glas_6D_tol-1_UFC_6D_tol-1'
