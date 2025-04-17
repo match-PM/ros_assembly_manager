@@ -1,0 +1,3412 @@
+{
+    "action_sequence_name": "Assemble_UFC_to_Glas_ideal",
+    "action_log": [
+        {
+            "1_Reset Gonio Left": {
+                "service_client": "/pm_moveit_server/reset_gonio_left",
+                "service_type": "pm_msgs/srv/EmptyWithSuccess",
+                "srv_start_time": "2025-04-11_16:27:59.576755",
+                "srv_end_time": "2025-04-11_16:28:01.442179",
+                "execution_time": "0:00:01.865424",
+                "srv_request": {},
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "2_/assembly_manager/clear_scene": {
+                "service_client": "/assembly_manager/clear_scene",
+                "service_type": "std_srvs/srv/Empty",
+                "srv_start_time": "2025-04-11_16:28:03.289379",
+                "srv_end_time": "2025-04-11_16:28:03.295289",
+                "execution_time": "0:00:00.005910",
+                "srv_request": {},
+                "srv_response": {},
+                "success": true
+            }
+        },
+        {
+            "3_Reset Gonio Right": {
+                "service_client": "/pm_moveit_server/reset_gonio_right",
+                "service_type": "pm_msgs/srv/EmptyWithSuccess",
+                "srv_start_time": "2025-04-11_16:28:03.784476",
+                "srv_end_time": "2025-04-11_16:28:04.183948",
+                "execution_time": "0:00:00.399472",
+                "srv_request": {},
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "4_Reset Adhesive Test Station": {
+                "service_client": "/pm_robot_primitive_skills/reset_test_station",
+                "service_type": "pm_msgs/srv/EmptyWithSuccess",
+                "srv_start_time": "2025-04-11_16:28:04.616883",
+                "srv_end_time": "2025-04-11_16:28:04.640855",
+                "execution_time": "0:00:00.023972",
+                "srv_request": {},
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "5_Move to start position": {
+                "service_client": "/pm_moveit_server/move_cam1_to_frame",
+                "service_type": "pm_moveit_interfaces/srv/MoveToFrame",
+                "srv_start_time": "2025-04-11_16:28:05.130530",
+                "srv_end_time": "2025-04-11_16:28:07.402579",
+                "execution_time": "0:00:02.272049",
+                "srv_request": {
+                    "endeffector_frame_override": "use_default_frame",
+                    "target_frame": "Gonio_Right_Part_1_Origin",
+                    "translation": {
+                        "x": -0.1,
+                        "y": 0.0,
+                        "z": 0.03
+                    },
+                    "rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "execute_movement": true
+                },
+                "srv_response": {
+                    "success": true,
+                    "joint_names": [
+                        "X_Axis_Joint",
+                        "Y_Axis_Joint",
+                        "Z_Axis_Joint"
+                    ],
+                    "joint_values": [
+                        -0.057500001043081284,
+                        -0.043172501027584076,
+                        -0.017038706690073013
+                    ],
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "10_Spawn Ideal - nick": {
+                "service_client": "/assembly_manager/create_assembly_instruction_from_description",
+                "service_type": "assembly_manager_interfaces/srv/CreateAssemblyInstructionFromDescription",
+                "srv_start_time": "2025-04-11_16:28:13.372453",
+                "srv_end_time": "2025-04-11_16:28:13.383336",
+                "execution_time": "0:00:00.010883",
+                "srv_request": {
+                    "file_path": "/home/niklas/SolidWorks_ASsembly_Instructor/examples/SWASI_6D_Example_Ideal/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_ideal.json",
+                    "spawn_components": true
+                },
+                "srv_response": {
+                    "instruction_id": "",
+                    "success": false
+                },
+                "success": false
+            }
+        },
+        {
+            "9_Spawn Ideal - mll": {
+                "service_client": "/assembly_manager/create_assembly_instruction_from_description",
+                "service_type": "assembly_manager_interfaces/srv/CreateAssemblyInstructionFromDescription",
+                "srv_start_time": "2025-04-11_16:28:18.848874",
+                "srv_end_time": "2025-04-11_16:28:32.996957",
+                "execution_time": "0:00:14.148083",
+                "srv_request": {
+                    "file_path": "/home/mll/SolidWorks_ASsembly_Instructor/examples/SWASI_6D_Example_Ideal/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_ideal.json",
+                    "spawn_components": true
+                },
+                "srv_response": {
+                    "instruction_id": "Description_Glas_6D_ideal-1_UFC_6D_ideal-1",
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "11_Get Scene": {
+                "service_client": "/assembly_manager/get_scene",
+                "service_type": "assembly_manager_interfaces/srv/GetScene",
+                "srv_start_time": "2025-04-11_16:28:36.443046",
+                "srv_end_time": "2025-04-11_16:28:36.473227",
+                "execution_time": "0:00:00.030181",
+                "srv_request": {},
+                "srv_response": {
+                    "scene": {
+                        "objects_in_scene": [
+                            {
+                                "obj_name": "UFC_6D_ideal-1",
+                                "parent_frame": "Gonio_Right_Part_1_Origin",
+                                "obj_pose": {
+                                    "position": {
+                                        "x": 0.0,
+                                        "y": 0.0,
+                                        "z": 1e-06
+                                    },
+                                    "orientation": {
+                                        "x": 0.0,
+                                        "y": 0.0,
+                                        "z": 0.0,
+                                        "w": 1.0
+                                    }
+                                },
+                                "cad_data": "/home/mll/SolidWorks_ASsembly_Instructor/examples/SWASI_6D_Example_Ideal/SWASI_Exports/components/UFC_6D_tol.STL",
+                                "ref_frames": [
+                                    {
+                                        "frame_name": "UFC_6D_ideal-1_Vision_Point_1_T",
+                                        "parent_frame": "UFC_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.032,
+                                                "y": -0.002,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "UFC_6D_ideal-1_Laser_1_T",
+                                                    "UFC_6D_ideal-1_Laser_2_T",
+                                                    "UFC_6D_ideal-1_Laser_3_T",
+                                                    "UFC_6D_ideal-1_Laser_4_T"
+                                                ],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_6D_ideal-1_Vision_Point_1_B",
+                                        "parent_frame": "UFC_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.032,
+                                                "y": -0.002,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "UFC_6D_ideal-1_Laser_1_B",
+                                                    "UFC_6D_ideal-1_Laser_2_B",
+                                                    "UFC_6D_ideal-1_Laser_3_B",
+                                                    "UFC_6D_ideal-1_Laser_4_B"
+                                                ],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_6D_ideal-1_Vision_Point_2_T",
+                                        "parent_frame": "UFC_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.002,
+                                                "y": -0.002,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "UFC_6D_ideal-1_Laser_1_T",
+                                                    "UFC_6D_ideal-1_Laser_2_T",
+                                                    "UFC_6D_ideal-1_Laser_3_T",
+                                                    "UFC_6D_ideal-1_Laser_4_T"
+                                                ],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_6D_ideal-1_Vision_Point_2_B",
+                                        "parent_frame": "UFC_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.002,
+                                                "y": -0.002,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "UFC_6D_ideal-1_Laser_1_B",
+                                                    "UFC_6D_ideal-1_Laser_2_B",
+                                                    "UFC_6D_ideal-1_Laser_3_B",
+                                                    "UFC_6D_ideal-1_Laser_4_B"
+                                                ],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_6D_ideal-1_Vision_Point_3_T",
+                                        "parent_frame": "UFC_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.002,
+                                                "y": -0.022,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "UFC_6D_ideal-1_Laser_1_T",
+                                                    "UFC_6D_ideal-1_Laser_2_T",
+                                                    "UFC_6D_ideal-1_Laser_3_T",
+                                                    "UFC_6D_ideal-1_Laser_4_T"
+                                                ],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_6D_ideal-1_Vision_Point_3_B",
+                                        "parent_frame": "UFC_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.002,
+                                                "y": -0.022,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "UFC_6D_ideal-1_Laser_1_B",
+                                                    "UFC_6D_ideal-1_Laser_2_B",
+                                                    "UFC_6D_ideal-1_Laser_3_B",
+                                                    "UFC_6D_ideal-1_Laser_4_B"
+                                                ],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_6D_ideal-1_Vision_Point_4_T",
+                                        "parent_frame": "UFC_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.032,
+                                                "y": -0.022,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "UFC_6D_ideal-1_Laser_1_T",
+                                                    "UFC_6D_ideal-1_Laser_2_T",
+                                                    "UFC_6D_ideal-1_Laser_3_T",
+                                                    "UFC_6D_ideal-1_Laser_4_T"
+                                                ],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_6D_ideal-1_Vision_Point_4_B",
+                                        "parent_frame": "UFC_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.032,
+                                                "y": -0.022,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "UFC_6D_ideal-1_Laser_1_B",
+                                                    "UFC_6D_ideal-1_Laser_2_B",
+                                                    "UFC_6D_ideal-1_Laser_3_B",
+                                                    "UFC_6D_ideal-1_Laser_4_B"
+                                                ],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_6D_ideal-1_Laser_1_T",
+                                        "parent_frame": "UFC_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.031,
+                                                "y": -0.003,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_6D_ideal-1_Laser_2_T",
+                                        "parent_frame": "UFC_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.003,
+                                                "y": -0.003,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_6D_ideal-1_Laser_3_T",
+                                        "parent_frame": "UFC_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.003,
+                                                "y": -0.021,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_6D_ideal-1_Laser_4_T",
+                                        "parent_frame": "UFC_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.031,
+                                                "y": -0.021,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_6D_ideal-1_Gripping_Point",
+                                        "parent_frame": "UFC_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.017,
+                                                "y": -0.012,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 5.8980598183211455e-18,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "UFC_6D_ideal-1_Vision_Point_1_T",
+                                                    "UFC_6D_ideal-1_Vision_Point_2_T",
+                                                    "UFC_6D_ideal-1_Vision_Point_3_T",
+                                                    "UFC_6D_ideal-1_Vision_Point_4_T"
+                                                ],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_6D_ideal-1_Laser_1_B",
+                                        "parent_frame": "UFC_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.031,
+                                                "y": -0.003,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_6D_ideal-1_Laser_2_B",
+                                        "parent_frame": "UFC_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.003,
+                                                "y": -0.003,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_6D_ideal-1_Laser_3_B",
+                                        "parent_frame": "UFC_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.003,
+                                                "y": -0.021,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_6D_ideal-1_Laser_4_B",
+                                        "parent_frame": "UFC_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.031,
+                                                "y": -0.021,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_6D_ideal-1_Axis_Center_B",
+                                        "parent_frame": "UFC_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.017,
+                                                "y": -0.022,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.7071067811865475,
+                                                "z": 0.7071067811865476,
+                                                "w": 0.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "UFC_6D_ideal-1_Vision_Point_3_B",
+                                                    "UFC_6D_ideal-1_Vision_Point_4_B"
+                                                ],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_6D_ideal-1_Axis_Center_T",
+                                        "parent_frame": "UFC_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.017,
+                                                "y": -0.022,
+                                                "z": 0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.7071067811865475,
+                                                "z": 0.7071067811865476,
+                                                "w": 0.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "UFC_6D_ideal-1_Vision_Point_3_T",
+                                                    "UFC_6D_ideal-1_Vision_Point_4_T"
+                                                ],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_6D_ideal-1_Front_Bottom_Reference",
+                                        "parent_frame": "UFC_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.002,
+                                                "y": -0.022,
+                                                "z": 0.003
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "UFC_6D_ideal-1_Vision_Point_3_B"
+                                                ],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 3.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "UFC_6D_ideal-1_Front_Top_Reference",
+                                        "parent_frame": "UFC_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.002,
+                                                "y": -0.022,
+                                                "z": -0.001
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "UFC_6D_ideal-1_Vision_Point_3_T"
+                                                ],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": -3.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "assembly_frame_Description_Glas_6D_ideal-1_UFC_6D_ideal-1",
+                                        "parent_frame": "UFC_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.017000000000000015,
+                                                "y": -0.02200000000000002,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    }
+                                ],
+                                "ref_axis": [
+                                    {
+                                        "axis_name": "UFC_6D_ideal-1_Bottom_Axis",
+                                        "point_names": [
+                                            "UFC_6D_ideal-1_Vision_Point_3_B",
+                                            "UFC_6D_ideal-1_Vision_Point_4_B"
+                                        ]
+                                    },
+                                    {
+                                        "axis_name": "UFC_6D_ideal-1_Top_Axis",
+                                        "point_names": [
+                                            "UFC_6D_ideal-1_Vision_Point_3_T",
+                                            "UFC_6D_ideal-1_Vision_Point_4_T"
+                                        ]
+                                    }
+                                ],
+                                "ref_planes": [
+                                    {
+                                        "ref_plane_name": "UFC_6D_ideal-1_Top_Plane",
+                                        "point_names": [
+                                            "UFC_6D_ideal-1_Vision_Point_1_T",
+                                            "UFC_6D_ideal-1_Vision_Point_2_T",
+                                            "UFC_6D_ideal-1_Vision_Point_3_T"
+                                        ],
+                                        "axis_names": [
+                                            ""
+                                        ],
+                                        "ideal_norm_vector": {
+                                            "x": -1.25936649e-29,
+                                            "y": -3.51108032e-15,
+                                            "z": -1.0
+                                        }
+                                    },
+                                    {
+                                        "ref_plane_name": "UFC_6D_ideal-1_Bottom_Plane",
+                                        "point_names": [
+                                            "UFC_6D_ideal-1_Vision_Point_1_B",
+                                            "UFC_6D_ideal-1_Vision_Point_2_B",
+                                            "UFC_6D_ideal-1_Vision_Point_3_B"
+                                        ],
+                                        "axis_names": [
+                                            ""
+                                        ],
+                                        "ideal_norm_vector": {
+                                            "x": 0.0,
+                                            "y": 0.0,
+                                            "z": -1.0
+                                        }
+                                    },
+                                    {
+                                        "ref_plane_name": "UFC_6D_ideal-1_Axis_T_Plane",
+                                        "point_names": [
+                                            "UFC_6D_ideal-1_Axis_Center_T",
+                                            "",
+                                            ""
+                                        ],
+                                        "axis_names": [
+                                            "UFC_6D_ideal-1_Top_Axis"
+                                        ],
+                                        "ideal_norm_vector": {
+                                            "x": -1.0,
+                                            "y": 3.63999577e-15,
+                                            "z": -1.15597736e-16
+                                        }
+                                    },
+                                    {
+                                        "ref_plane_name": "UFC_6D_ideal-1_Axis_B_Plane",
+                                        "point_names": [
+                                            "UFC_6D_ideal-1_Axis_Center_B",
+                                            "",
+                                            ""
+                                        ],
+                                        "axis_names": [
+                                            "UFC_6D_ideal-1_Bottom_Axis"
+                                        ],
+                                        "ideal_norm_vector": {
+                                            "x": -1.0,
+                                            "y": -1.73472348e-16,
+                                            "z": 0.0
+                                        }
+                                    },
+                                    {
+                                        "ref_plane_name": "UFC_6D_ideal-1_Front_Plane_B",
+                                        "point_names": [
+                                            "UFC_6D_ideal-1_Front_Bottom_Reference",
+                                            "UFC_6D_ideal-1_Vision_Point_3_B",
+                                            "UFC_6D_ideal-1_Vision_Point_4_B"
+                                        ],
+                                        "axis_names": [
+                                            ""
+                                        ],
+                                        "ideal_norm_vector": {
+                                            "x": -1.734717e-16,
+                                            "y": 1.0,
+                                            "z": 1.15648235e-15
+                                        }
+                                    },
+                                    {
+                                        "ref_plane_name": "UFC_6D_ideal-1_Front_Plane_T",
+                                        "point_names": [
+                                            "UFC_6D_ideal-1_Front_Top_Reference",
+                                            "UFC_6D_ideal-1_Vision_Point_3_T",
+                                            "UFC_6D_ideal-1_Vision_Point_4_T"
+                                        ],
+                                        "axis_names": [
+                                            ""
+                                        ],
+                                        "ideal_norm_vector": {
+                                            "x": -3.58509278e-15,
+                                            "y": -1.0,
+                                            "z": 5.20879142e-15
+                                        }
+                                    }
+                                ]
+                            },
+                            {
+                                "obj_name": "Glas_6D_ideal-1",
+                                "parent_frame": "Gonio_Left_Part_Origin",
+                                "obj_pose": {
+                                    "position": {
+                                        "x": 0.0,
+                                        "y": 0.0,
+                                        "z": 1e-06
+                                    },
+                                    "orientation": {
+                                        "x": 0.0,
+                                        "y": 0.0,
+                                        "z": 0.0,
+                                        "w": 1.0
+                                    }
+                                },
+                                "cad_data": "/home/mll/SolidWorks_ASsembly_Instructor/examples/SWASI_6D_Example_Ideal/SWASI_Exports/components/Glas_6D_tol.STL",
+                                "ref_frames": [
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Vision_Point_1_T",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.032,
+                                                "y": -0.002,
+                                                "z": 0.001
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "Glas_6D_ideal-1_Laser_1_T",
+                                                    "Glas_6D_ideal-1_Laser_2_T",
+                                                    "Glas_6D_ideal-1_Laser_3_T",
+                                                    "Glas_6D_ideal-1_Laser_4_T"
+                                                ],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Vision_Point_1_B",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.032,
+                                                "y": -0.002,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "Glas_6D_ideal-1_Laser_1_B",
+                                                    "Glas_6D_ideal-1_Laser_2_B",
+                                                    "Glas_6D_ideal-1_Laser_3_B",
+                                                    "Glas_6D_ideal-1_Laser_4_B"
+                                                ],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Vision_Point_2_T",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.002,
+                                                "y": -0.002,
+                                                "z": 0.001
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "Glas_6D_ideal-1_Laser_1_T",
+                                                    "Glas_6D_ideal-1_Laser_2_T",
+                                                    "Glas_6D_ideal-1_Laser_3_T",
+                                                    "Glas_6D_ideal-1_Laser_4_T"
+                                                ],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Vision_Point_2_B",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.002,
+                                                "y": -0.002,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "Glas_6D_ideal-1_Laser_1_B",
+                                                    "Glas_6D_ideal-1_Laser_2_B",
+                                                    "Glas_6D_ideal-1_Laser_3_B",
+                                                    "Glas_6D_ideal-1_Laser_4_B"
+                                                ],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Vision_Point_3_T",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.002,
+                                                "y": -0.022,
+                                                "z": 0.001
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "Glas_6D_ideal-1_Laser_1_T",
+                                                    "Glas_6D_ideal-1_Laser_2_T",
+                                                    "Glas_6D_ideal-1_Laser_3_T",
+                                                    "Glas_6D_ideal-1_Laser_4_T"
+                                                ],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Vision_Point_3_B",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.002,
+                                                "y": -0.022,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "Glas_6D_ideal-1_Laser_1_B",
+                                                    "Glas_6D_ideal-1_Laser_2_B",
+                                                    "Glas_6D_ideal-1_Laser_3_B",
+                                                    "Glas_6D_ideal-1_Laser_4_B"
+                                                ],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Vision_Point_4_T",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.032,
+                                                "y": -0.022,
+                                                "z": 0.001
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "Glas_6D_ideal-1_Laser_1_T",
+                                                    "Glas_6D_ideal-1_Laser_2_T",
+                                                    "Glas_6D_ideal-1_Laser_3_T",
+                                                    "Glas_6D_ideal-1_Laser_4_T"
+                                                ],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Vision_Point_4_B",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.032,
+                                                "y": -0.022,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "Glas_6D_ideal-1_Laser_1_B",
+                                                    "Glas_6D_ideal-1_Laser_2_B",
+                                                    "Glas_6D_ideal-1_Laser_3_B",
+                                                    "Glas_6D_ideal-1_Laser_4_B"
+                                                ],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Laser_1_T",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.031,
+                                                "y": -0.003,
+                                                "z": 0.001
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Laser_2_T",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.003,
+                                                "y": -0.003,
+                                                "z": 0.001
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Laser_3_T",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.003,
+                                                "y": -0.021,
+                                                "z": 0.001
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Laser_4_T",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.031,
+                                                "y": -0.021,
+                                                "z": 0.001
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Gripping_Point",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.017,
+                                                "y": -0.012,
+                                                "z": 0.001
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 5.8980598183211455e-18,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "Glas_6D_ideal-1_Vision_Point_1_T",
+                                                    "Glas_6D_ideal-1_Vision_Point_2_T",
+                                                    "Glas_6D_ideal-1_Vision_Point_3_T",
+                                                    "Glas_6D_ideal-1_Vision_Point_4_T"
+                                                ],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Laser_1_B",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.031,
+                                                "y": -0.003,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Laser_2_B",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.003,
+                                                "y": -0.003,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Laser_3_B",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.003,
+                                                "y": -0.021,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Laser_4_B",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.031,
+                                                "y": -0.021,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Axis_Center_B",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.017,
+                                                "y": -0.022,
+                                                "z": 0.0
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.7071067811865475,
+                                                "z": 0.7071067811865476,
+                                                "w": 0.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "Glas_6D_ideal-1_Vision_Point_3_B",
+                                                    "Glas_6D_ideal-1_Vision_Point_4_B"
+                                                ],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Axis_Center_T",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.017,
+                                                "y": -0.022,
+                                                "z": 0.001
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.7071067811865475,
+                                                "z": 0.7071067811865476,
+                                                "w": 0.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "Glas_6D_ideal-1_Vision_Point_3_T",
+                                                    "Glas_6D_ideal-1_Vision_Point_4_T"
+                                                ],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Front_Bottom_Reference",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.002,
+                                                "y": -0.022,
+                                                "z": 0.003
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "Glas_6D_ideal-1_Vision_Point_3_B"
+                                                ],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 3.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Front_Top_Reference",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.002,
+                                                "y": -0.022,
+                                                "z": -0.002
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": true,
+                                                "ref_frame_names": [
+                                                    "Glas_6D_ideal-1_Vision_Point_3_T"
+                                                ],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": -3.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Glue_Point_1",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.005,
+                                                "y": -0.005,
+                                                "z": 0.001
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.7071067811865475,
+                                                "w": 0.7071067811865476
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": true,
+                                                "frame_1": "Glas_6D_ideal-1_Vision_Point_2_T",
+                                                "frame_2": "Glas_6D_ideal-1_Vision_Point_1_T",
+                                                "frame_3": "Glas_6D_ideal-1_Vision_Point_3_T",
+                                                "distance_from_f1": 3.0,
+                                                "unit_distance_from_f1": "mm",
+                                                "distance_from_f1_f2_connection": -3.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Glue_Point_2",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.005,
+                                                "y": -0.019,
+                                                "z": 0.001
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": true,
+                                                "frame_1": "Glas_6D_ideal-1_Vision_Point_3_T",
+                                                "frame_2": "Glas_6D_ideal-1_Vision_Point_2_T",
+                                                "frame_3": "Glas_6D_ideal-1_Vision_Point_4_T",
+                                                "distance_from_f1": 3.0,
+                                                "unit_distance_from_f1": "mm",
+                                                "distance_from_f1_f2_connection": -3.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Glue_Point_3",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.029,
+                                                "y": -0.019,
+                                                "z": 0.001
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": -0.7071067811865475,
+                                                "w": 0.7071067811865476
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": true,
+                                                "frame_1": "Glas_6D_ideal-1_Vision_Point_4_T",
+                                                "frame_2": "Glas_6D_ideal-1_Vision_Point_3_T",
+                                                "frame_3": "Glas_6D_ideal-1_Vision_Point_1_T",
+                                                "distance_from_f1": 3.0,
+                                                "unit_distance_from_f1": "mm",
+                                                "distance_from_f1_f2_connection": -3.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "Glas_6D_ideal-1_Glue_Point_4",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.029,
+                                                "y": -0.005,
+                                                "z": 0.001
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 1.0,
+                                                "w": 0.0
+                                            }
+                                        },
+                                        "constraints_dict": "",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": true,
+                                                "frame_1": "Glas_6D_ideal-1_Vision_Point_1_T",
+                                                "frame_2": "Glas_6D_ideal-1_Vision_Point_4_T",
+                                                "frame_3": "Glas_6D_ideal-1_Vision_Point_2_T",
+                                                "distance_from_f1": 3.0,
+                                                "unit_distance_from_f1": "mm",
+                                                "distance_from_f1_f2_connection": -3.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "frame_name": "target_frame_Description_Glas_6D_ideal-1_UFC_6D_ideal-1",
+                                        "parent_frame": "Glas_6D_ideal-1",
+                                        "pose": {
+                                            "position": {
+                                                "x": -0.017000000000000015,
+                                                "y": -0.02200000000000002,
+                                                "z": 0.0015000000237486155
+                                            },
+                                            "orientation": {
+                                                "x": 0.0,
+                                                "y": 0.0,
+                                                "z": 0.0,
+                                                "w": 1.0
+                                            }
+                                        },
+                                        "constraints_dict": "{}",
+                                        "constraints": {
+                                            "unit": "mm",
+                                            "centroid": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "dim": "xyz",
+                                                "offset_values": {
+                                                    "x": 0.0,
+                                                    "y": 0.0,
+                                                    "z": 0.0
+                                                }
+                                            },
+                                            "orthogonal": {
+                                                "is_active": false,
+                                                "frame_1": "",
+                                                "frame_2": "",
+                                                "frame_3": "",
+                                                "distance_from_f1": 0.0,
+                                                "unit_distance_from_f1": "%",
+                                                "distance_from_f1_f2_connection": 0.0,
+                                                "frame_normal_plane_axis": "z",
+                                                "frame_orthogonal_connection_axis": "x"
+                                            },
+                                            "in_plane": {
+                                                "is_active": false,
+                                                "ref_frame_names": [],
+                                                "plane_offset": 0.0,
+                                                "normal_axis": "z"
+                                            }
+                                        }
+                                    }
+                                ],
+                                "ref_axis": [
+                                    {
+                                        "axis_name": "Glas_6D_ideal-1_Bottom_Axis",
+                                        "point_names": [
+                                            "Glas_6D_ideal-1_Vision_Point_3_B",
+                                            "Glas_6D_ideal-1_Vision_Point_4_B"
+                                        ]
+                                    },
+                                    {
+                                        "axis_name": "Glas_6D_ideal-1_Top_Axis",
+                                        "point_names": [
+                                            "Glas_6D_ideal-1_Vision_Point_3_T",
+                                            "Glas_6D_ideal-1_Vision_Point_4_T"
+                                        ]
+                                    }
+                                ],
+                                "ref_planes": [
+                                    {
+                                        "ref_plane_name": "Glas_6D_ideal-1_Top_Plane",
+                                        "point_names": [
+                                            "Glas_6D_ideal-1_Vision_Point_1_T",
+                                            "Glas_6D_ideal-1_Vision_Point_2_T",
+                                            "Glas_6D_ideal-1_Vision_Point_3_T"
+                                        ],
+                                        "axis_names": [
+                                            ""
+                                        ],
+                                        "ideal_norm_vector": {
+                                            "x": 3.66923051e-19,
+                                            "y": -3.48679419e-15,
+                                            "z": -1.0
+                                        }
+                                    },
+                                    {
+                                        "ref_plane_name": "Glas_6D_ideal-1_Bottom_Plane",
+                                        "point_names": [
+                                            "Glas_6D_ideal-1_Vision_Point_1_B",
+                                            "Glas_6D_ideal-1_Vision_Point_2_B",
+                                            "Glas_6D_ideal-1_Vision_Point_3_B"
+                                        ],
+                                        "axis_names": [
+                                            ""
+                                        ],
+                                        "ideal_norm_vector": {
+                                            "x": 0.0,
+                                            "y": 0.0,
+                                            "z": -1.0
+                                        }
+                                    },
+                                    {
+                                        "ref_plane_name": "Glas_6D_ideal-1_Axis_T_Plane",
+                                        "point_names": [
+                                            "Glas_6D_ideal-1_Axis_Center_T",
+                                            "",
+                                            ""
+                                        ],
+                                        "axis_names": [
+                                            "Glas_6D_ideal-1_Top_Axis"
+                                        ],
+                                        "ideal_norm_vector": {
+                                            "x": -1.0,
+                                            "y": 3.24046451e-15,
+                                            "z": -4.916521e-24
+                                        }
+                                    },
+                                    {
+                                        "ref_plane_name": "Glas_6D_ideal-1_Axis_B_Plane",
+                                        "point_names": [
+                                            "Glas_6D_ideal-1_Axis_Center_B",
+                                            "",
+                                            ""
+                                        ],
+                                        "axis_names": [
+                                            "Glas_6D_ideal-1_Bottom_Axis"
+                                        ],
+                                        "ideal_norm_vector": {
+                                            "x": -1.0,
+                                            "y": -1.73472348e-16,
+                                            "z": 0.0
+                                        }
+                                    },
+                                    {
+                                        "ref_plane_name": "Glas_6D_ideal-1_Front_Plane_B",
+                                        "point_names": [
+                                            "Glas_6D_ideal-1_Front_Bottom_Reference",
+                                            "Glas_6D_ideal-1_Vision_Point_3_B",
+                                            "Glas_6D_ideal-1_Vision_Point_4_B"
+                                        ],
+                                        "axis_names": [
+                                            ""
+                                        ],
+                                        "ideal_norm_vector": {
+                                            "x": -1.734717e-16,
+                                            "y": 1.0,
+                                            "z": 1.15648235e-15
+                                        }
+                                    },
+                                    {
+                                        "ref_plane_name": "Glas_6D_ideal-1_Front_Plane_T",
+                                        "point_names": [
+                                            "Glas_6D_ideal-1_Front_Top_Reference",
+                                            "Glas_6D_ideal-1_Vision_Point_3_T",
+                                            "Glas_6D_ideal-1_Vision_Point_4_T"
+                                        ],
+                                        "axis_names": [
+                                            ""
+                                        ],
+                                        "ideal_norm_vector": {
+                                            "x": -3.23522328e-15,
+                                            "y": -1.0,
+                                            "z": -3.46944759e-15
+                                        }
+                                    }
+                                ]
+                            }
+                        ],
+                        "ref_frames_in_scene": [],
+                        "axis_in_scene": [],
+                        "planes_in_scene": [],
+                        "assembly_instructions": [
+                            {
+                                "id": "Description_Glas_6D_ideal-1_UFC_6D_ideal-1",
+                                "component_1": "Glas_6D_ideal-1",
+                                "component_2": "UFC_6D_ideal-1",
+                                "component_1_is_moving_part": false,
+                                "plane_match_1": {
+                                    "plane_name_component_1": "Glas_6D_ideal-1_Top_Plane",
+                                    "plane_name_component_2": "UFC_6D_ideal-1_Bottom_Plane",
+                                    "plane_offset": -0.0005000000237487257,
+                                    "inv_normal_vector": false
+                                },
+                                "plane_match_2": {
+                                    "plane_name_component_1": "Glas_6D_ideal-1_Axis_T_Plane",
+                                    "plane_name_component_2": "UFC_6D_ideal-1_Axis_B_Plane",
+                                    "plane_offset": 0.0,
+                                    "inv_normal_vector": false
+                                },
+                                "plane_match_3": {
+                                    "plane_name_component_1": "Glas_6D_ideal-1_Front_Plane_T",
+                                    "plane_name_component_2": "UFC_6D_ideal-1_Front_Plane_B",
+                                    "plane_offset": 0.0,
+                                    "inv_normal_vector": true
+                                }
+                            }
+                        ]
+                    },
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "12_Laser - Correct UFC L_1_T": {
+                "service_client": "/pm_skills/correct_frame_with_laser",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_16:31:14.699037",
+                "srv_end_time": "2025-04-11_16:31:17.347307",
+                "execution_time": "0:00:02.648270",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Laser_1_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "message": "Measurement: 0.0"
+                },
+                "success": true
+            }
+        },
+        {
+            "12_Laser - Correct UFC L_1_T": {
+                "service_client": "/pm_skills/correct_frame_with_laser",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_16:31:14.699037",
+                "srv_end_time": "2025-04-11_16:31:17.347307",
+                "execution_time": "0:00:02.648270",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Laser_1_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "message": "Measurement: 0.0"
+                },
+                "success": true
+            }
+        },
+        {
+            "12_Laser - Correct UFC L_1_T": {
+                "service_client": "/pm_skills/correct_frame_with_laser",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_16:31:14.699037",
+                "srv_end_time": "2025-04-11_16:31:17.347307",
+                "execution_time": "0:00:02.648270",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Laser_1_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "message": "Measurement: 0.0"
+                },
+                "success": true
+            }
+        },
+        {
+            "13_Laser - Correct UFC L_2_T": {
+                "service_client": "/pm_skills/correct_frame_with_laser",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_16:31:21.325223",
+                "srv_end_time": "2025-04-11_16:31:24.037801",
+                "execution_time": "0:00:02.712578",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Laser_2_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "message": "Measurement: 0.0"
+                },
+                "success": true
+            }
+        },
+        {
+            "14_Laser - Correct UFC L_3_T": {
+                "service_client": "/pm_skills/correct_frame_with_laser",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_16:31:26.084871",
+                "srv_end_time": "2025-04-11_16:31:28.692733",
+                "execution_time": "0:00:02.607862",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Laser_3_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "message": "Measurement: 0.0"
+                },
+                "success": true
+            }
+        },
+        {
+            "14_Laser - Correct UFC L_3_T": {
+                "service_client": "/pm_skills/correct_frame_with_laser",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_16:31:26.084871",
+                "srv_end_time": "2025-04-11_16:31:28.692733",
+                "execution_time": "0:00:02.607862",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Laser_3_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "message": "Measurement: 0.0"
+                },
+                "success": true
+            }
+        },
+        {
+            "15_Laser - Correct UFC L_4_T": {
+                "service_client": "/pm_skills/correct_frame_with_laser",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_16:30:57.498314",
+                "srv_end_time": "2025-04-11_16:31:02.920425",
+                "execution_time": "0:00:05.422111",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Laser_4_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": -0.0003154474258422851
+                    },
+                    "message": "Measurement: 0.00028455257415771484"
+                },
+                "success": true
+            }
+        },
+        {
+            "16_Align Right Gonio to Plane": {
+                "service_client": "/pm_moveit_server/align_gonio_right",
+                "service_type": "pm_moveit_interfaces/srv/AlignGonio",
+                "srv_start_time": "2025-04-11_16:31:05.413473",
+                "srv_end_time": "2025-04-11_16:31:12.449240",
+                "execution_time": "0:00:07.035767",
+                "srv_request": {
+                    "endeffector_frame_override": "UFC_6D_ideal-1_Vision_Point_1_T",
+                    "target_frame": "Cam1_Toolhead_TCP",
+                    "rotation_offset_deg": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "execute_movement": true
+                },
+                "srv_response": {
+                    "success": true,
+                    "joint_names": [],
+                    "joint_values": [],
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "12_Laser - Correct UFC L_1_T": {
+                "service_client": "/pm_skills/correct_frame_with_laser",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_16:31:14.699037",
+                "srv_end_time": "2025-04-11_16:31:17.347307",
+                "execution_time": "0:00:02.648270",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Laser_1_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "message": "Measurement: 0.0"
+                },
+                "success": true
+            }
+        },
+        {
+            "13_Laser - Correct UFC L_2_T": {
+                "service_client": "/pm_skills/correct_frame_with_laser",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_16:31:21.325223",
+                "srv_end_time": "2025-04-11_16:31:24.037801",
+                "execution_time": "0:00:02.712578",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Laser_2_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "message": "Measurement: 0.0"
+                },
+                "success": true
+            }
+        },
+        {
+            "14_Laser - Correct UFC L_3_T": {
+                "service_client": "/pm_skills/correct_frame_with_laser",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_16:31:26.084871",
+                "srv_end_time": "2025-04-11_16:31:28.692733",
+                "execution_time": "0:00:02.607862",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Laser_3_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "message": "Measurement: 0.0"
+                },
+                "success": true
+            }
+        },
+        {
+            "17_Camera Top - Correct UFC V_1_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_16:31:49.625827",
+                "srv_end_time": "2025-04-11_16:31:57.835374",
+                "execution_time": "0:00:08.209547",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_1_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": -2.694223075687369e-22,
+                        "y": -2.2000000476837156e-06,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "17_Camera Top - Correct UFC V_1_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_16:31:49.625827",
+                "srv_end_time": "2025-04-11_16:31:57.835374",
+                "execution_time": "0:00:08.209547",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_1_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": -2.694223075687369e-22,
+                        "y": -2.2000000476837156e-06,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "30_Grip UFC": {
+                "service_client": "/pm_skills/grip_component",
+                "service_type": "pm_skills_interfaces/srv/GripComponent",
+                "srv_start_time": "2025-04-11_16:32:14.250839",
+                "srv_end_time": "2025-04-11_16:32:29.674923",
+                "execution_time": "0:00:15.424084",
+                "srv_request": {
+                    "component_name": "UFC_6D_ideal-1"
+                },
+                "srv_response": {
+                    "success": true,
+                    "message": "Component 'UFC_6D_ideal-1' gripped successfully!"
+                },
+                "success": true
+            }
+        },
+        {
+            "38_Align Gonio Left to UFC": {
+                "service_client": "/pm_moveit_server/align_gonio_left",
+                "service_type": "pm_moveit_interfaces/srv/AlignGonio",
+                "srv_start_time": "2025-04-11_16:32:39.093430",
+                "srv_end_time": "2025-04-11_16:32:45.933419",
+                "execution_time": "0:00:06.839989",
+                "srv_request": {
+                    "endeffector_frame_override": "target_frame_Description_Glas_6D_ideal-1_UFC_6D_ideal-1",
+                    "target_frame": "assembly_frame_Description_Glas_6D_ideal-1_UFC_6D_ideal-1",
+                    "rotation_offset_deg": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "execute_movement": true
+                },
+                "srv_response": {
+                    "success": true,
+                    "joint_names": [],
+                    "joint_values": [],
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "39_Move UFC to Place Position - Offset": {
+                "service_client": "/pm_moveit_server/move_tool_to_frame",
+                "service_type": "pm_moveit_interfaces/srv/MoveToFrame",
+                "srv_start_time": "2025-04-11_16:32:48.866183",
+                "srv_end_time": "2025-04-11_16:32:57.539222",
+                "execution_time": "0:00:08.673039",
+                "srv_request": {
+                    "endeffector_frame_override": "assembly_frame_Description_Glas_6D_ideal-1_UFC_6D_ideal-1",
+                    "target_frame": "target_frame_Description_Glas_6D_ideal-1_UFC_6D_ideal-1",
+                    "translation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.01
+                    },
+                    "rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "execute_movement": true
+                },
+                "srv_response": {
+                    "success": true,
+                    "joint_names": [
+                        "X_Axis_Joint",
+                        "Y_Axis_Joint",
+                        "Z_Axis_Joint",
+                        "T_Axis_Joint"
+                    ],
+                    "joint_values": [
+                        -0.5605378746986389,
+                        -0.03764902055263519,
+                        0.01959589682519436,
+                        0.006199980154633522
+                    ],
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "40_Move UFC to Place Position": {
+                "service_client": "/pm_moveit_server/move_tool_to_frame",
+                "service_type": "pm_moveit_interfaces/srv/MoveToFrame",
+                "srv_start_time": "2025-04-11_16:32:58.236724",
+                "srv_end_time": "2025-04-11_16:33:05.045572",
+                "execution_time": "0:00:06.808848",
+                "srv_request": {
+                    "endeffector_frame_override": "assembly_frame_Description_Glas_6D_ideal-1_UFC_6D_ideal-1",
+                    "target_frame": "target_frame_Description_Glas_6D_ideal-1_UFC_6D_ideal-1",
+                    "translation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "execute_movement": true
+                },
+                "srv_response": {
+                    "success": true,
+                    "joint_names": [
+                        "X_Axis_Joint",
+                        "Y_Axis_Joint",
+                        "Z_Axis_Joint",
+                        "T_Axis_Joint"
+                    ],
+                    "joint_values": [
+                        -0.5605378746986389,
+                        -0.03764902055263519,
+                        0.02959589660167694,
+                        0.006199980154633522
+                    ],
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "41_Move UV in curing Position": {
+                "service_client": "/pm_robot_primitive_skills/move_uv_in_curing_position",
+                "service_type": "example_interfaces/srv/SetBool",
+                "srv_start_time": "2025-04-11_16:33:06.880001",
+                "srv_end_time": "2025-04-11_16:33:07.292615",
+                "execution_time": "0:00:00.412614",
+                "srv_request": {
+                    "data": true
+                },
+                "srv_response": {
+                    "success": true,
+                    "message": "UV LEDs moved in curing position!"
+                },
+                "success": true
+            }
+        },
+        {
+            "42_Activate UV Curing": {
+                "service_client": "/pm_skills/uv_cure_dummy",
+                "service_type": "pm_msgs/srv/EmptyWithSuccess",
+                "srv_start_time": "2025-04-11_16:33:12.820831",
+                "srv_end_time": "2025-04-11_16:33:14.855545",
+                "execution_time": "0:00:02.034714",
+                "srv_request": {},
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "43_Release Part": {
+                "service_client": "/assembly_manager/change_obj_parent_frame",
+                "service_type": "assembly_manager_interfaces/srv/ChangeParentFrame",
+                "srv_start_time": "2025-04-11_16:33:16.921542",
+                "srv_end_time": "2025-04-11_16:33:16.995997",
+                "execution_time": "0:00:00.074455",
+                "srv_request": {
+                    "obj_name": "UFC_6D_ideal-1",
+                    "new_parent_frame": "Glas_6D_ideal-1"
+                },
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "44_Move UV in curing Position 2": {
+                "service_client": "/pm_robot_primitive_skills/move_uv_in_curing_position",
+                "service_type": "example_interfaces/srv/SetBool",
+                "srv_start_time": "2025-04-11_16:33:19.432154",
+                "srv_end_time": "2025-04-11_16:33:19.944108",
+                "execution_time": "0:00:00.511954",
+                "srv_request": {
+                    "data": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "message": "UV LEDs moved in curing position!"
+                },
+                "success": true
+            }
+        },
+        {
+            "45_Lift Toolhead": {
+                "service_client": "/pm_moveit_server/move_tool_relative",
+                "service_type": "pm_moveit_interfaces/srv/MoveRelative",
+                "srv_start_time": "2025-04-11_16:33:21.331528",
+                "srv_end_time": "2025-04-11_16:33:23.370123",
+                "execution_time": "0:00:02.038595",
+                "srv_request": {
+                    "translation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.05
+                    },
+                    "rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "execute_movement": true
+                },
+                "srv_response": {
+                    "success": true,
+                    "joint_names": [
+                        "X_Axis_Joint",
+                        "Y_Axis_Joint",
+                        "Z_Axis_Joint",
+                        "T_Axis_Joint"
+                    ],
+                    "joint_values": [
+                        -0.5605378746986389,
+                        -0.0376489982008934,
+                        -0.02040419913828373,
+                        0.006199883297085762
+                    ],
+                    "message": "Movement successfull!"
+                },
+                "success": true
+            }
+        },
+        {
+            "52_/pm_robot_calibration/calibrate_laser_on_calibration_cube": {
+                "service_client": "/pm_robot_calibration/calibrate_laser_on_calibration_cube",
+                "service_type": "pm_msgs/srv/EmptyWithSuccess",
+                "srv_start_time": "2025-04-11_16:33:31.081839",
+                "srv_end_time": "2025-04-11_16:33:31.597268",
+                "execution_time": "0:00:00.515429",
+                "srv_request": {},
+                "srv_response": {
+                    "success": false
+                },
+                "success": false
+            }
+        }
+    ]
+}

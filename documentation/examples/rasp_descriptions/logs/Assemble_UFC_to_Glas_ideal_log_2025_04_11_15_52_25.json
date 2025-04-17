@@ -1,0 +1,19 @@
+{
+    "action_sequence_name": "Assemble_UFC_to_Glas_ideal",
+    "action_log": [
+        {
+            "52_/pm_robot_calibration/calibrate_laser_on_calibration_cube": {
+                "service_client": "/pm_robot_calibration/calibrate_laser_on_calibration_cube",
+                "service_type": "pm_msgs/srv/EmptyWithSuccess",
+                "srv_start_time": "2025-04-11_15:50:38.558237",
+                "srv_end_time": "2025-04-11_15:52:25.241571",
+                "execution_time": "0:01:46.683334",
+                "srv_request": {},
+                "srv_response": {
+                    "success": false
+                },
+                "success": false
+            }
+        }
+    ]
+}

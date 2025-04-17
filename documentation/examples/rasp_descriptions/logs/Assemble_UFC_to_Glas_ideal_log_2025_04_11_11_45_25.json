@@ -1,0 +1,824 @@
+{
+    "action_sequence_name": "Assemble_UFC_to_Glas_ideal",
+    "action_log": [
+        {
+            "1_Reset Gonio Left": {
+                "service_client": "/pm_moveit_server/reset_gonio_left",
+                "service_type": "pm_msgs/srv/EmptyWithSuccess",
+                "srv_start_time": "2025-04-11_10:38:59.463251",
+                "srv_end_time": "2025-04-11_10:39:00.098350",
+                "execution_time": "0:00:00.635099",
+                "srv_request": {},
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "2_/assembly_manager/clear_scene": {
+                "service_client": "/assembly_manager/clear_scene",
+                "service_type": "std_srvs/srv/Empty",
+                "srv_start_time": "2025-04-11_10:39:05.425868",
+                "srv_end_time": "2025-04-11_10:39:05.429422",
+                "execution_time": "0:00:00.003554",
+                "srv_request": {},
+                "srv_response": {},
+                "success": true
+            }
+        },
+        {
+            "3_Reset Gonio Right": {
+                "service_client": "/pm_moveit_server/reset_gonio_right",
+                "service_type": "pm_msgs/srv/EmptyWithSuccess",
+                "srv_start_time": "2025-04-11_10:39:05.808601",
+                "srv_end_time": "2025-04-11_10:39:06.041333",
+                "execution_time": "0:00:00.232732",
+                "srv_request": {},
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "4_Reset Adhesive Test Station": {
+                "service_client": "/pm_robot_primitive_skills/reset_test_station",
+                "service_type": "pm_msgs/srv/EmptyWithSuccess",
+                "srv_start_time": "2025-04-11_10:39:06.534522",
+                "srv_end_time": "2025-04-11_10:39:06.557857",
+                "execution_time": "0:00:00.023335",
+                "srv_request": {},
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "5_Move to start position": {
+                "service_client": "/pm_moveit_server/move_cam1_to_frame",
+                "service_type": "pm_moveit_interfaces/srv/MoveToFrame",
+                "srv_start_time": "2025-04-11_10:39:07.396793",
+                "srv_end_time": "2025-04-11_10:39:08.582002",
+                "execution_time": "0:00:01.185209",
+                "srv_request": {
+                    "endeffector_frame_override": "use_default_frame",
+                    "target_frame": "Gonio_Right_Part_1_Origin",
+                    "translation": {
+                        "x": -0.1,
+                        "y": 0.0,
+                        "z": 0.03
+                    },
+                    "rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "execute_movement": true
+                },
+                "srv_response": {
+                    "success": true,
+                    "joint_names": [
+                        "X_Axis_Joint",
+                        "Y_Axis_Joint",
+                        "Z_Axis_Joint"
+                    ],
+                    "joint_values": [
+                        -0.057500001043081284,
+                        -0.043172501027584076,
+                        -0.017038706690073013
+                    ],
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "9_Spawn Ideal - mll": {
+                "service_client": "/assembly_manager/create_assembly_instruction_from_description",
+                "service_type": "assembly_manager_interfaces/srv/CreateAssemblyInstructionFromDescription",
+                "srv_start_time": "2025-04-11_10:39:18.587754",
+                "srv_end_time": "2025-04-11_10:39:31.217140",
+                "execution_time": "0:00:12.629386",
+                "srv_request": {
+                    "file_path": "/home/mll/SolidWorks_ASsembly_Instructor/examples/SWASI_6D_Example_Ideal/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_ideal.json",
+                    "spawn_components": true
+                },
+                "srv_response": {
+                    "instruction_id": "Description_Glas_6D_ideal-1_UFC_6D_ideal-1",
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "12_Laser - Correct UFC L_1_T": {
+                "service_client": "/pm_skills/correct_frame_with_laser",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_10:40:04.741417",
+                "srv_end_time": "2025-04-11_10:40:11.700356",
+                "execution_time": "0:00:06.958939",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Laser_1_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0003132322311401367
+                    },
+                    "message": "Measurement: 1.3232231140136719e-05"
+                },
+                "success": true
+            }
+        },
+        {
+            "13_Laser - Correct UFC L_2_T": {
+                "service_client": "/pm_skills/correct_frame_with_laser",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_10:40:18.590899",
+                "srv_end_time": "2025-04-11_10:40:22.500397",
+                "execution_time": "0:00:03.909498",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Laser_2_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0003132322311401367
+                    },
+                    "message": "Measurement: 1.3232231140136719e-05"
+                },
+                "success": true
+            }
+        },
+        {
+            "14_Laser - Correct UFC L_3_T": {
+                "service_client": "/pm_skills/correct_frame_with_laser",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_10:40:25.501004",
+                "srv_end_time": "2025-04-11_10:40:30.619157",
+                "execution_time": "0:00:05.118153",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Laser_3_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": -0.0003154474258422851
+                    },
+                    "message": "Measurement: 0.00028455257415771484"
+                },
+                "success": true
+            }
+        },
+        {
+            "15_Laser - Correct UFC L_4_T": {
+                "service_client": "/pm_skills/correct_frame_with_laser",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_10:40:31.768152",
+                "srv_end_time": "2025-04-11_10:40:36.628657",
+                "execution_time": "0:00:04.860505",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Laser_4_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": -0.0003154474258422851
+                    },
+                    "message": "Measurement: 0.00028455257415771484"
+                },
+                "success": true
+            }
+        },
+        {
+            "16_Align Right Gonio to Plane": {
+                "service_client": "/pm_moveit_server/align_gonio_right",
+                "service_type": "pm_moveit_interfaces/srv/AlignGonio",
+                "srv_start_time": "2025-04-11_10:40:42.877764",
+                "srv_end_time": "2025-04-11_10:40:48.527732",
+                "execution_time": "0:00:05.649968",
+                "srv_request": {
+                    "endeffector_frame_override": "UFC_6D_ideal-1_Vision_Point_1_T",
+                    "target_frame": "Cam1_Toolhead_TCP",
+                    "rotation_offset_deg": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "execute_movement": true
+                },
+                "srv_response": {
+                    "success": true,
+                    "joint_names": [],
+                    "joint_values": [],
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "17_Camera Top - Correct UFC V_1_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:28:00.620837",
+                "srv_end_time": "2025-04-11_11:28:07.638548",
+                "execution_time": "0:00:07.017711",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_1_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": -0.0,
+                        "y": -0.0,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "17_Camera Top - Correct UFC V_1_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:28:00.620837",
+                "srv_end_time": "2025-04-11_11:28:07.638548",
+                "execution_time": "0:00:07.017711",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_1_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": -0.0,
+                        "y": -0.0,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "17_Camera Top - Correct UFC V_1_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:28:00.620837",
+                "srv_end_time": "2025-04-11_11:28:07.638548",
+                "execution_time": "0:00:07.017711",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_1_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": -0.0,
+                        "y": -0.0,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "19_Camera Top - Correct UFC V_3_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:44:05.467659",
+                "srv_end_time": "2025-04-11_11:44:12.636609",
+                "execution_time": "0:00:07.168950",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_3_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": 0.00045320001220703124,
+                        "y": 0.000176,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "19_Camera Top - Correct UFC V_3_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:44:05.467659",
+                "srv_end_time": "2025-04-11_11:44:12.636609",
+                "execution_time": "0:00:07.168950",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_3_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": 0.00045320001220703124,
+                        "y": 0.000176,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "17_Camera Top - Correct UFC V_1_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:28:00.620837",
+                "srv_end_time": "2025-04-11_11:28:07.638548",
+                "execution_time": "0:00:07.017711",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_1_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": -0.0,
+                        "y": -0.0,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "17_Camera Top - Correct UFC V_1_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:28:00.620837",
+                "srv_end_time": "2025-04-11_11:28:07.638548",
+                "execution_time": "0:00:07.017711",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_1_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": -0.0,
+                        "y": -0.0,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "18_Camera Top - Correct UFC V_2_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:41:56.867878",
+                "srv_end_time": "2025-04-11_11:42:02.929784",
+                "execution_time": "0:00:06.061906",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_2_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": -0.0002486000061035156,
+                        "y": 0.00043999999999999996,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "17_Camera Top - Correct UFC V_1_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:28:00.620837",
+                "srv_end_time": "2025-04-11_11:28:07.638548",
+                "execution_time": "0:00:07.017711",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_1_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": -0.0,
+                        "y": -0.0,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "18_Camera Top - Correct UFC V_2_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:41:56.867878",
+                "srv_end_time": "2025-04-11_11:42:02.929784",
+                "execution_time": "0:00:06.061906",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_2_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": -0.0002486000061035156,
+                        "y": 0.00043999999999999996,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "17_Camera Top - Correct UFC V_1_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:28:00.620837",
+                "srv_end_time": "2025-04-11_11:28:07.638548",
+                "execution_time": "0:00:07.017711",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_1_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": -0.0,
+                        "y": -0.0,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "17_Camera Top - Correct UFC V_1_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:28:00.620837",
+                "srv_end_time": "2025-04-11_11:28:07.638548",
+                "execution_time": "0:00:07.017711",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_1_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": -0.0,
+                        "y": -0.0,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "17_Camera Top - Correct UFC V_1_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:28:00.620837",
+                "srv_end_time": "2025-04-11_11:28:07.638548",
+                "execution_time": "0:00:07.017711",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_1_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": -0.0,
+                        "y": -0.0,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "17_Camera Top - Correct UFC V_1_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:28:00.620837",
+                "srv_end_time": "2025-04-11_11:28:07.638548",
+                "execution_time": "0:00:07.017711",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_1_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": -0.0,
+                        "y": -0.0,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "17_Camera Top - Correct UFC V_1_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:28:00.620837",
+                "srv_end_time": "2025-04-11_11:28:07.638548",
+                "execution_time": "0:00:07.017711",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_1_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": -0.0,
+                        "y": -0.0,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "18_Camera Top - Correct UFC V_2_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:41:56.867878",
+                "srv_end_time": "2025-04-11_11:42:02.929784",
+                "execution_time": "0:00:06.061906",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_2_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": -0.0002486000061035156,
+                        "y": 0.00043999999999999996,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "18_Camera Top - Correct UFC V_2_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:41:56.867878",
+                "srv_end_time": "2025-04-11_11:42:02.929784",
+                "execution_time": "0:00:06.061906",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_2_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": -0.0002486000061035156,
+                        "y": 0.00043999999999999996,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "17_Camera Top - Correct UFC V_1_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:28:00.620837",
+                "srv_end_time": "2025-04-11_11:28:07.638548",
+                "execution_time": "0:00:07.017711",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_1_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": -0.0,
+                        "y": -0.0,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "17_Camera Top - Correct UFC V_1_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:28:00.620837",
+                "srv_end_time": "2025-04-11_11:28:07.638548",
+                "execution_time": "0:00:07.017711",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_1_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": -0.0,
+                        "y": -0.0,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "18_Camera Top - Correct UFC V_2_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:41:56.867878",
+                "srv_end_time": "2025-04-11_11:42:02.929784",
+                "execution_time": "0:00:06.061906",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_2_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": -0.0002486000061035156,
+                        "y": 0.00043999999999999996,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "18_Camera Top - Correct UFC V_2_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:41:56.867878",
+                "srv_end_time": "2025-04-11_11:42:02.929784",
+                "execution_time": "0:00:06.061906",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_2_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": -0.0002486000061035156,
+                        "y": 0.00043999999999999996,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "19_Camera Top - Correct UFC V_3_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:44:05.467659",
+                "srv_end_time": "2025-04-11_11:44:12.636609",
+                "execution_time": "0:00:07.168950",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_3_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": 0.00045320001220703124,
+                        "y": 0.000176,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "19_Camera Top - Correct UFC V_3_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:44:05.467659",
+                "srv_end_time": "2025-04-11_11:44:12.636609",
+                "execution_time": "0:00:07.168950",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_3_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": 0.00045320001220703124,
+                        "y": 0.000176,
+                        "z": -0.0
+                    },
+                    "message": ""
+                },
+                "success": true
+            }
+        },
+        {
+            "20_Camera Top - Correct UFC V_4_T": {
+                "service_client": "/pm_skills/vision_correct_frame",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:44:13.451742",
+                "srv_end_time": "2025-04-11_11:44:16.189468",
+                "execution_time": "0:00:02.737726",
+                "srv_request": {
+                    "frame_name": "UFC_6D_ideal-1_Vision_Point_4_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": false,
+                    "correction_values": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                    },
+                    "message": ""
+                },
+                "success": false
+            }
+        },
+        {
+            "21_Laser - Correct Glas L_1_T": {
+                "service_client": "/pm_skills/correct_frame_with_laser",
+                "service_type": "pm_skills_interfaces/srv/CorrectFrame",
+                "srv_start_time": "2025-04-11_11:44:27.076501",
+                "srv_end_time": "2025-04-11_11:44:34.663498",
+                "execution_time": "0:00:07.586997",
+                "srv_request": {
+                    "frame_name": "Glas_6D_ideal-1_Laser_1_T",
+                    "remeasure_after_correction": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "correction_values": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": -0.00015623359680175779
+                    },
+                    "message": "Measurement: 0.0001437664031982422"
+                },
+                "success": true
+            }
+        },
+        {
+            "52_/pm_pneumatic_controller/Camera_Calibration_Platelet_Joint/MoveForward": {
+                "service_client": "/pm_pneumatic_controller/Camera_Calibration_Platelet_Joint/MoveForward",
+                "service_type": "pm_msgs/srv/EmptyWithSuccess",
+                "srv_start_time": "2025-04-11_11:45:25.354358",
+                "srv_end_time": "2025-04-11_11:45:25.563493",
+                "execution_time": "0:00:00.209135",
+                "srv_request": {},
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        }
+    ]
+}

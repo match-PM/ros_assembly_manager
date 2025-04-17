@@ -1,0 +1,99 @@
+{
+    "action_sequence_name": "Assemble_UFC_to_Glas_ideal",
+    "action_log": [
+        {
+            "53_/pm_pneumatic_controller/Camera_Calibration_Platelet_Joint/MoveBackward": {
+                "service_client": "/pm_pneumatic_controller/Camera_Calibration_Platelet_Joint/MoveBackward",
+                "service_type": "pm_msgs/srv/EmptyWithSuccess",
+                "srv_start_time": "2025-04-11_12:07:13.341875",
+                "srv_end_time": "2025-04-11_12:07:13.701629",
+                "execution_time": "0:00:00.359754",
+                "srv_request": {},
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "52_/pm_pneumatic_controller/Camera_Calibration_Platelet_Joint/MoveForward": {
+                "service_client": "/pm_pneumatic_controller/Camera_Calibration_Platelet_Joint/MoveForward",
+                "service_type": "pm_msgs/srv/EmptyWithSuccess",
+                "srv_start_time": "2025-04-11_12:07:17.621630",
+                "srv_end_time": "2025-04-11_12:07:18.023925",
+                "execution_time": "0:00:00.402295",
+                "srv_request": {},
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "53_/pm_pneumatic_controller/Camera_Calibration_Platelet_Joint/MoveBackward": {
+                "service_client": "/pm_pneumatic_controller/Camera_Calibration_Platelet_Joint/MoveBackward",
+                "service_type": "pm_msgs/srv/EmptyWithSuccess",
+                "srv_start_time": "2025-04-11_12:07:13.341875",
+                "srv_end_time": "2025-04-11_12:07:13.701629",
+                "execution_time": "0:00:00.359754",
+                "srv_request": {},
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "52_/pm_pneumatic_controller/Camera_Calibration_Platelet_Joint/MoveForward": {
+                "service_client": "/pm_pneumatic_controller/Camera_Calibration_Platelet_Joint/MoveForward",
+                "service_type": "pm_msgs/srv/EmptyWithSuccess",
+                "srv_start_time": "2025-04-11_12:07:17.621630",
+                "srv_end_time": "2025-04-11_12:07:18.023925",
+                "execution_time": "0:00:00.402295",
+                "srv_request": {},
+                "srv_response": {
+                    "success": true
+                },
+                "success": true
+            }
+        },
+        {
+            "55_/pm_moveit_server/move_cam1_relative": {
+                "service_client": "/pm_moveit_server/move_cam1_relative",
+                "service_type": "pm_moveit_interfaces/srv/MoveRelative",
+                "srv_start_time": "2025-04-11_12:09:41.864494",
+                "srv_end_time": "2025-04-11_12:09:46.079835",
+                "execution_time": "0:00:04.215341",
+                "srv_request": {
+                    "translation": {
+                        "x": 0.0,
+                        "y": -0.001,
+                        "z": 0.0
+                    },
+                    "rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "execute_movement": true
+                },
+                "srv_response": {
+                    "success": true,
+                    "joint_names": [
+                        "X_Axis_Joint",
+                        "Y_Axis_Joint",
+                        "Z_Axis_Joint"
+                    ],
+                    "joint_values": [
+                        -0.2674998939037323,
+                        -0.04681694880127907,
+                        0.005661250092089176
+                    ],
+                    "message": "Movement successfull!"
+                },
+                "success": true
+            }
+        }
+    ]
+}

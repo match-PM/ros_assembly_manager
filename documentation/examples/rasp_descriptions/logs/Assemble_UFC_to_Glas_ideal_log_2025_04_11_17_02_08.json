@@ -1,0 +1,19 @@
+{
+    "action_sequence_name": "Assemble_UFC_to_Glas_ideal",
+    "action_log": [
+        {
+            "53_/pm_robot_calibration/calibrate_calibration_cube_to_cam_top": {
+                "service_client": "/pm_robot_calibration/calibrate_calibration_cube_to_cam_top",
+                "service_type": "pm_msgs/srv/EmptyWithSuccess",
+                "srv_start_time": "2025-04-11_17:02:02.009409",
+                "srv_end_time": "2025-04-11_17:02:08.032196",
+                "execution_time": "0:00:06.022787",
+                "srv_request": {},
+                "srv_response": {
+                    "success": false
+                },
+                "success": false
+            }
+        }
+    ]
+}

@@ -1,0 +1,43 @@
+{
+    "action_sequence_name": "Assemble_UFC_to_Glas_ideal",
+    "action_log": [
+        {
+            "55_/pm_moveit_server/move_cam1_relative": {
+                "service_client": "/pm_moveit_server/move_cam1_relative",
+                "service_type": "pm_moveit_interfaces/srv/MoveRelative",
+                "srv_start_time": "2025-04-11_12:09:54.676322",
+                "srv_end_time": "2025-04-11_12:09:58.085844",
+                "execution_time": "0:00:03.409522",
+                "srv_request": {
+                    "translation": {
+                        "x": 0.0,
+                        "y": -0.004,
+                        "z": 0.0
+                    },
+                    "rotation": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0,
+                        "w": 1.0
+                    },
+                    "execute_movement": true
+                },
+                "srv_response": {
+                    "success": true,
+                    "joint_names": [
+                        "X_Axis_Joint",
+                        "Y_Axis_Joint",
+                        "Z_Axis_Joint"
+                    ],
+                    "joint_values": [
+                        -0.2674998641014099,
+                        -0.0508168488740921,
+                        0.005661250092089176
+                    ],
+                    "message": "Movement successfull!"
+                },
+                "success": true
+            }
+        }
+    ]
+}

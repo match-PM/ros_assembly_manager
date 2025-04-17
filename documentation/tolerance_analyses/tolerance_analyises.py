@@ -12,6 +12,7 @@ from assembly_scene_publisher.py_modules.geometry_type_functions import quaterni
 from ros_sequential_action_programmer.submodules.rsap_modules.RsapConfig import ExecutionLog
 import numpy as np
 import time 
+import datetime
 from assembly_manager_interfaces.msg import ObjectScene
 from geometry_msgs.msg import Pose
 from ros_sequential_action_programmer.submodules.action_classes.ServiceAction import ServiceAction
@@ -19,37 +20,82 @@ from ros_sequential_action_programmer.submodules.action_classes.ServiceAction im
 from assembly_scene_publisher.py_modules.frame_constraints import get_constraint_frames_for_frame, get_identification_order
 from assembly_scene_publisher.py_modules.scene_functions import get_frames_for_planes_of_component, get_ref_frame_by_name
 
-class TolMeasurment():
-    STD_CAMERA= 5 #um
-    STD_LASER = 1 #um
-    NUM_ITERATIONS = 2
+class SimulationParameter():
+    def __init__(self, std_camera:float, 
+                 std_laser:float, 
+                 num_iterations:int, 
+                 approx_time:int,
+                 use_radiant_gauss:bool = True,
+                comments:list[str] = []
+                 ) -> None:
+        
+        self.std_camera = std_camera
+        self.std_laser = std_laser
+        self.num_iterations = num_iterations
+        self.approx_time = approx_time
+        self.use_radiant_gauss = use_radiant_gauss
+        self.total_iterations = 0
+        self.comments = comments
 
+    def to_dict(self)->dict:
+        return {
+            "std_camera": self.std_camera,
+            "std_laser": self.std_laser,
+            "num_iterations": self.num_iterations,
+            "approx_time": self.approx_time,
+            "use_radiant_gauss": self.use_radiant_gauss,
+            "total_iterations": self.total_iterations,
+            "comments": self.comments
+        }
+    
+class TolMeasurment():
+    STD_CAMERA= 1 #um
+    STD_LASER = 0 #um
+    NUM_ITERATIONS = 200
+    DURATION = None
+    USE_RADIANT_GAUSS = True
     SCOPE_FRAME = "assembly_frame_Description_Glas_6D_tol-1_UFC_6D_tol-1"
     TARGET_FRAME = 'target_frame_Description_Glas_6D_tol-1_UFC_6D_tol-1'
     COMPONENT = 'UFC_6D_tol-1'
+    COMMENTS = ["Testing of camera influence without laser influence",
+                "Distribution of camera is according to radius with normal distribution",
+                "Uses the ideal ref_points with laser points at the default position"]
     
     def __init__(self, ros_node:Node) -> None:
         self.ros_node = ros_node
         self.programmer = RosSequentialActionProgrammer(ros_node)
-        self.programmer.load_from_JSON('/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/rsap_description.json')
-        #self.programmer.load_from_JSON('/home/mll/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/rsap_description.json')
 
-        self.instruction_json = '/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_tol.json'
-        #self.instruction_json = '/home/mll/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_tol.json'
-        #self.results_path = '/home/mll/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/logs'
-        self.results_path = '/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/logs'
+        self.sim_parameters = SimulationParameter(std_camera=self.STD_CAMERA,
+                                                  std_laser=self.STD_LASER,
+                                                  num_iterations=self.NUM_ITERATIONS,
+                                                  approx_time=None,
+                                                  use_radiant_gauss=self.USE_RADIANT_GAUSS,
+                                                  comments= self.COMMENTS)
+        
+        use_mll = True
+
+        if use_mll:
+            self.instruction_json = '/home/mll/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_tol.json'
+            self.programmer.load_from_JSON('/home/mll/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/rsap_description.json')
+            self.results_path = '/home/mll/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/logs'
+            approx_time = 20
+        else:
+            self.programmer.load_from_JSON('/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/rsap_description.json')
+            self.instruction_json = '/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_tol.json'
+            self.results_path = '/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/logs'
+            approx_time = 23
 
         self.init_spawning_action()
 
-        #self.programmer.config.execution_log.set_execution_log_mode(1)
-        #self.components_path = '/home/niklas/Documents/SolidWorks_ASsembly_Instructor/examples/SWASI_Paper_Demonstrator_V2/SWASI_Exports/components'
-        #self.results_path = '/home/niklas/Documents/SolidWorks_ASsembly_Instructor/examples/SWASI_Paper_Demonstrator_V2/logs/'
-        #self.results_path = '/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/logs'
         self.scene = None
         self.ros_node.create_subscription(ObjectScene, '/assembly_manager/scene', self.get_scene_callback, 10)
         
         self.results_calculated_poses:list[Pose] = []
         self.recalculation_action = None
+        self.list_of_times = []
+        print(f"Running {self.NUM_ITERATIONS} iterations. The program will take approx {(self.NUM_ITERATIONS*approx_time)/60} min to finish.")
+        approx_finish_time = datetime.datetime.now() + datetime.timedelta(seconds=self.NUM_ITERATIONS*approx_time)
+        print(f"Approx finish time: {approx_finish_time}")
 
     def init_spawning_action(self):
         self.spawning_action = ServiceAction(node = self.ros_node,
@@ -118,6 +164,7 @@ class TolMeasurment():
             #self.assess_results_intersections()
             #self.assess_results()
             print("Calculations done!!!")
+
         self.ros_node.destroy_node()
 
     def execute_sequence(self):
@@ -125,19 +172,40 @@ class TolMeasurment():
     
     def gen_value_gauss(self, std:float):
         value = random.gauss(0, std)
+        print(f"Generated value: {value}")
         return value
+    
+    def gen_gausss_radius(self, std:float):
+        r = np.abs(np.random.normal(0, std)) 
+        theta = np.random.uniform(0, 2 * np.pi)
+
+        x = r * np.cos(theta)
+        y = r * np.sin(theta)
+        print(f"Generated x: {x} y: {y}")
+        return x, y
     
     def modify_relatives(self):
         
         multiplier = 1e-6
         for i in range(0, len(self.programmer.action_list)):
-            x_value = self.gen_value_gauss(self.STD_CAMERA)
-            y_value = self.gen_value_gauss(self.STD_CAMERA)
+
+            if self.USE_RADIANT_GAUSS:
+                x_value, y_value = self.gen_gausss_radius(self.STD_CAMERA)
+            else:
+                x_value = self.gen_value_gauss(self.STD_CAMERA)
+                y_value = self.gen_value_gauss(self.STD_CAMERA)
+
             z_value = self.gen_value_gauss(self.STD_LASER)
+
             action = self.programmer.get_action_at_index(i)
             if action.client == '/assembly_manager/modify_frame_relative':
                 name = action.get_action_name()
                 if 'Vision' in name:
+                    if self.STD_CAMERA == 0:
+                        action.set_active(False)
+                        continue
+                    else:
+                        action.set_active(True)
                     #self.ros_node.get_logger().info(f"Action {name} modified")
                     action.set_srv_req_dict_value_from_key(path_key='rel_position.x', 
                                                            new_value=x_value*multiplier, 
@@ -156,6 +224,12 @@ class TolMeasurment():
                                                         override_to_implicit=False)
                                     
                 elif 'Laser' in name:
+                    if self.STD_LASER == 0:
+                        action.set_active(False)
+                        continue
+                    else:
+                        action.set_active(True)
+
                     action.set_srv_req_dict_value_from_key(path_key='rel_position.x', 
                                                            new_value=0.0, 
                                                            override_to_implicit=False)
@@ -174,15 +248,7 @@ class TolMeasurment():
                     
                 else:
                     self.ros_node.get_logger().info(f"Action {name} not modified")
-
-        # print("TEST")
-        # for i in range(0, len(self.programmer.action_list)-1):
-
-        #     action = self.programmer.get_action_at_index(i)
-        #     if action.client == '/assembly_manager/modify_frame_relative':
-        #         print(action.service_request)
-        # save_success = self.programmer.save_to_JSON()
-        # print(f"Save success: {save_success}")       
+  
     
     def execute_n_iterations(self, iterations:int)->bool:
         
@@ -205,7 +271,11 @@ class TolMeasurment():
             target_frame = get_ref_frame_by_name(self.scene, self.TARGET_FRAME)
             
             if frame is None:
-                self.ros_node.get_logger().info("Frame not found")
+                self.ros_node.get_logger().error(f"Frame {self.SCOPE_FRAME} not found in scene!")
+                return False
+            
+            if target_frame is None:
+                self.ros_node.get_logger().error(f"Frame {self.TARGET_FRAME} not found in scene!")
                 return False
             
             #self.results_calculated_poses.append(frame.pose)
@@ -214,8 +284,12 @@ class TolMeasurment():
             self.save_pose_to_file(frame.pose, f'poses_list.json')
             
             duration = time.time() - start_time
+            self.list_of_times.append(duration)
             self.ros_node.get_logger().info(f"Duration: {duration} s")
         
+        average_time = sum(self.list_of_times)/len(self.list_of_times)
+        print(f"Average time: {average_time} s")
+        self.sim_parameters.approx_time = average_time
         self.save_results_to_file(f'poses_list.json')
         
         return True
@@ -328,6 +402,10 @@ class TolMeasurment():
             pitch_values.append(pitch)
             yaw_values.append(yaw)
 
+        print(f"Total number of poses: {len(poses_dict)}")
+
+        self.sim_parameters.total_iterations = len(poses_dict)
+
         mean_transform_x = sum(transform_x_values)/len(transform_x_values)
         mean_transform_y = sum(transform_y_values)/len(transform_y_values)
         mean_transform_z = sum(transform_z_values)/len(transform_z_values)
@@ -340,9 +418,9 @@ class TolMeasurment():
         transform_y_values_mean_cleaned = [(y - mean_transform_y) for y in transform_y_values]
         transform_z_values_mean_cleaned = [(z - mean_transform_z) for z in transform_z_values]
 
-        print(f"X-Vector: {transform_x_values_mean_cleaned} um")
-        print(f"Y-Vector: {transform_y_values_mean_cleaned} um")
-        print(f"Z-Vector: {transform_z_values_mean_cleaned} um")
+        #print(f"X-Vector: {transform_x_values_mean_cleaned} um")
+        #print(f"Y-Vector: {transform_y_values_mean_cleaned} um")
+        #print(f"Z-Vector: {transform_z_values_mean_cleaned} um")
         
         mean_transform_x_values_mean_cleaned = sum(transform_x_values_mean_cleaned)/len(transform_x_values_mean_cleaned)
         mean_transform_y_values_mean_cleaned = sum(transform_y_values_mean_cleaned)/len(transform_y_values_mean_cleaned)
@@ -367,6 +445,7 @@ class TolMeasurment():
         if len(transform_x_values_mean_cleaned) == 0:
             self.ros_node.get_logger().info("No results calculated")
             return (0,0,0,0,0,0)
+        
         sdt_transform_x = statistics.stdev(transform_x_values_mean_cleaned)
         sdt_transform_y = statistics.stdev(transform_y_values_mean_cleaned)
         sdt_transform_z = statistics.stdev(transform_z_values_mean_cleaned)
@@ -436,11 +515,13 @@ class TolMeasurment():
             "yaw": yaw_sdt
         }
         data = {}
+
         if os.path.exists(f'{self.results_path}/{file_path}'):
             with open(f'{self.results_path}/{file_path}', 'r') as json_file:
                 data = json.load(json_file)
         
         data["sdt"] = sdt_dict
+        data["sim_parameters"] = self.sim_parameters.to_dict()
         
         with open(f'{self.results_path}/{file_path}', 'w') as json_file:
             json.dump(data, json_file, indent=3)
