@@ -51,7 +51,7 @@ class SimulationParameter():
 class TolMeasurment():
     STD_CAMERA= 1 #um
     STD_LASER = 0 #um
-    NUM_ITERATIONS = 200
+    NUM_ITERATIONS = 1
     DURATION = None
     USE_RADIANT_GAUSS = True
     SCOPE_FRAME = "assembly_frame_Description_Glas_6D_tol-1_UFC_6D_tol-1"
@@ -72,7 +72,7 @@ class TolMeasurment():
                                                   use_radiant_gauss=self.USE_RADIANT_GAUSS,
                                                   comments= self.COMMENTS)
         
-        use_mll = True
+        use_mll = False
 
         if use_mll:
             self.instruction_json = '/home/mll/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_tol.json'
@@ -83,7 +83,7 @@ class TolMeasurment():
             self.programmer.load_from_JSON('/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/rsap_description.json')
             self.instruction_json = '/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_tol.json'
             self.results_path = '/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/logs'
-            approx_time = 23
+            approx_time = 15
 
         self.init_spawning_action()
 
@@ -272,11 +272,11 @@ class TolMeasurment():
             
             if frame is None:
                 self.ros_node.get_logger().error(f"Frame {self.SCOPE_FRAME} not found in scene!")
-                return False
+                continue
             
             if target_frame is None:
                 self.ros_node.get_logger().error(f"Frame {self.TARGET_FRAME} not found in scene!")
-                return False
+                continue
             
             #self.results_calculated_poses.append(frame.pose)
             frame.pose.orientation = target_frame.pose.orientation
