@@ -36,6 +36,7 @@ class SimulationParameter():
         self.use_radiant_gauss = use_radiant_gauss
         self.total_iterations = 0
         self.comments = comments
+        self.failure_count = 0
 
     def to_dict(self)->dict:
         return {
@@ -45,20 +46,22 @@ class SimulationParameter():
             "approx_time": self.approx_time,
             "use_radiant_gauss": self.use_radiant_gauss,
             "total_iterations": self.total_iterations,
+            "failure_count": self.failure_count,
             "comments": self.comments
         }
+    def increment_failure_count(self):
+        self.failure_count += 1
     
 class TolMeasurment():
-    STD_CAMERA= 1 #um
-    STD_LASER = 0 #um
-    NUM_ITERATIONS = 1
+    STD_CAMERA= 0 #um
+    STD_LASER = 10 #um
+    NUM_ITERATIONS = 150
     DURATION = None
     USE_RADIANT_GAUSS = True
     SCOPE_FRAME = "assembly_frame_Description_Glas_6D_tol-1_UFC_6D_tol-1"
     TARGET_FRAME = 'target_frame_Description_Glas_6D_tol-1_UFC_6D_tol-1'
     COMPONENT = 'UFC_6D_tol-1'
-    COMMENTS = ["Testing of camera influence without laser influence",
-                "Distribution of camera is according to radius with normal distribution",
+    COMMENTS = ["Testing of laser influence without camera influence",
                 "Uses the ideal ref_points with laser points at the default position"]
     
     def __init__(self, ros_node:Node) -> None:
@@ -72,7 +75,7 @@ class TolMeasurment():
                                                   use_radiant_gauss=self.USE_RADIANT_GAUSS,
                                                   comments= self.COMMENTS)
         
-        use_mll = False
+        use_mll = True
 
         if use_mll:
             self.instruction_json = '/home/mll/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_tol.json'
@@ -142,6 +145,7 @@ class TolMeasurment():
                                             client = '/assembly_manager/calculate_assembly_instructions',
                                             service_type = 'assembly_manager_interfaces/srv/CalculateAssemblyInstructions',
                                             name = 'X_Calculate Assembly Instruction')
+        
         set_success = self.recalculation_action.set_srv_req_dict_value_from_key(path_key='instruction_id',
                                                                            new_value=self.instruction_id, 
                                                                            override_to_implicit=False)
@@ -172,7 +176,7 @@ class TolMeasurment():
     
     def gen_value_gauss(self, std:float):
         value = random.gauss(0, std)
-        print(f"Generated value: {value}")
+        #print(f"Generated value: {value}")
         return value
     
     def gen_gausss_radius(self, std:float):
@@ -181,7 +185,7 @@ class TolMeasurment():
 
         x = r * np.cos(theta)
         y = r * np.sin(theta)
-        print(f"Generated x: {x} y: {y}")
+        #print(f"Generated x: {x} y: {y}")
         return x, y
     
     def modify_relatives(self):
@@ -263,7 +267,11 @@ class TolMeasurment():
             self.modify_relatives()
             
             self.execute_sequence()
-            self.call_recalculation_action()
+            recalculate_success = self.call_recalculation_action()
+
+            if not recalculate_success:
+                self.ros_node.get_logger().error("Recalculation failed")
+                continue
 
             # get the current frame
             frame = get_ref_frame_by_name(self.scene, self.SCOPE_FRAME)
@@ -272,10 +280,12 @@ class TolMeasurment():
             
             if frame is None:
                 self.ros_node.get_logger().error(f"Frame {self.SCOPE_FRAME} not found in scene!")
+                self.sim_parameters.increment_failure_count()
                 continue
             
             if target_frame is None:
                 self.ros_node.get_logger().error(f"Frame {self.TARGET_FRAME} not found in scene!")
+                self.sim_parameters.increment_failure_count()
                 continue
             
             #self.results_calculated_poses.append(frame.pose)

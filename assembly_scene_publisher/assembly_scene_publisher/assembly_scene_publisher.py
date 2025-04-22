@@ -148,7 +148,13 @@ class AssemblyScenePublisherNode(Node):
     
     def calculate_assembly_instructions(self, request: ami_srv.CalculateAssemblyInstructions.Request, response: ami_srv.CalculateAssemblyInstructions.Response):
         
-        transfrom = self.object_scene.get_assembly_transformation_by_id(request.instruction_id)
+        try:
+            transfrom = self.object_scene.get_assembly_transformation_by_id(request.instruction_id)
+        except ValueError as e:
+            self.get_logger().error(f"Error getting the assembly transformation: {e}")
+            response.success = False
+            return response
+        
         if transfrom == None:
             response.success = False
         else:

@@ -808,7 +808,7 @@ class AssemblyManagerScene():
         try:
             transfrom = self.calculate_assembly_transformation(instruction)
         except ValueError as e:
-            self.logger.error(str(e))
+            self.logger.error(f"{str(e)}")
             return False    
         except Exception as e:
             self.logger.error(str(e))
