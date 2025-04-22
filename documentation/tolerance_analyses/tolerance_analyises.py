@@ -21,10 +21,11 @@ from assembly_scene_publisher.py_modules.frame_constraints import get_constraint
 from assembly_scene_publisher.py_modules.scene_functions import get_frames_for_planes_of_component, get_ref_frame_by_name
 
 class SimulationParameter():
-    def __init__(self, std_camera:float, 
-                 std_laser:float, 
+    def __init__(self, std_camera:float,    # um
+                 std_laser:float,           # um
                  num_iterations:int, 
                  approx_time:int,
+                 results_name:str,
                  use_radiant_gauss:bool = True,
                 comments:list[str] = []
                  ) -> None:
@@ -33,6 +34,7 @@ class SimulationParameter():
         self.std_laser = std_laser
         self.num_iterations = num_iterations
         self.approx_time = approx_time
+        self.results_name = results_name
         self.use_radiant_gauss = use_radiant_gauss
         self.total_iterations = 0
         self.comments = comments
@@ -53,40 +55,66 @@ class SimulationParameter():
         self.failure_count += 1
     
 class TolMeasurment():
-    STD_CAMERA= 0 #um
-    STD_LASER = 10 #um
-    NUM_ITERATIONS = 150
-    DURATION = None
-    USE_RADIANT_GAUSS = True
     SCOPE_FRAME = "assembly_frame_Description_Glas_6D_tol-1_UFC_6D_tol-1"
     TARGET_FRAME = 'target_frame_Description_Glas_6D_tol-1_UFC_6D_tol-1'
     COMPONENT = 'UFC_6D_tol-1'
-    COMMENTS = ["Testing of laser influence without camera influence",
-                "Uses the ideal ref_points with laser points at the default position"]
     
     def __init__(self, ros_node:Node) -> None:
         self.ros_node = ros_node
         self.programmer = RosSequentialActionProgrammer(ros_node)
 
-        self.sim_parameters = SimulationParameter(std_camera=self.STD_CAMERA,
-                                                  std_laser=self.STD_LASER,
-                                                  num_iterations=self.NUM_ITERATIONS,
-                                                  approx_time=None,
-                                                  use_radiant_gauss=self.USE_RADIANT_GAUSS,
-                                                  comments= self.COMMENTS)
+        # # Run R01
+        # self.sim_parameters = SimulationParameter(std_camera        =   1,
+        #                                           std_laser         =   0,
+        #                                           num_iterations    =   500,
+        #                                           approx_time       =   None,
+        #                                           results_name      =   'R01',
+        #                                           use_radiant_gauss =   False,
+        #                                           comments          =   ["x und y equal in normal distribution",
+        #                                                                    "cameras: x = 1um y = 1um; laser: z= 1um "
+        #                                                                 ])
         
-        use_mll = True
+        # # Run R02
+        # self.sim_parameters = SimulationParameter(std_camera        =   1,
+        #                                           std_laser         =   0,
+        #                                           num_iterations    =   500,
+        #                                           approx_time       =   None,
+        #                                           results_name      =   'R02',
+        #                                           use_radiant_gauss =   True,
+        #                                           comments          =   ["Testing of camera influence without laser influence",
+        #                                                                     "Distribution of camera is according to radius with normal distribution",
+        #                                                                     "Uses the ideal ref_points with laser points at the default position"])
+        # Run R03
+        self.sim_parameters = SimulationParameter(std_camera        =   0,
+                                                  std_laser         =   10,
+                                                  num_iterations    =   3,
+                                                  approx_time       =   None,
+                                                  results_name      =   'R03',
+                                                  use_radiant_gauss =   True,
+                                                  comments          =   ["Testing of laser influence without camera influence",
+                                                                        "Uses the ideal ref_points with laser points at the default position"])
+
+        use_mll     = True
+        use_niklas  = False
+        use_pm_room = False
 
         if use_mll:
             self.instruction_json = '/home/mll/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_tol.json'
             self.programmer.load_from_JSON('/home/mll/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/rsap_description.json')
             self.results_path = '/home/mll/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/logs'
             approx_time = 20
-        else:
+        elif use_niklas:
             self.programmer.load_from_JSON('/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/rsap_description.json')
             self.instruction_json = '/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_tol.json'
             self.results_path = '/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/logs'
             approx_time = 15
+        elif use_pm_room:
+            self.programmer.load_from_JSON('/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/rsap_description.json')
+            self.instruction_json = '/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_tol.json'
+            self.results_path = '/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/logs'
+            approx_time = 15
+        else:
+            raise ValueError("No valid path for instruction json file")
 
         self.init_spawning_action()
 
@@ -96,9 +124,10 @@ class TolMeasurment():
         self.results_calculated_poses:list[Pose] = []
         self.recalculation_action = None
         self.list_of_times = []
-        print(f"Running {self.NUM_ITERATIONS} iterations. The program will take approx {(self.NUM_ITERATIONS*approx_time)/60} min to finish.")
-        approx_finish_time = datetime.datetime.now() + datetime.timedelta(seconds=self.NUM_ITERATIONS*approx_time)
+        print(f"Running {self.sim_parameters.num_iterations} iterations. The program will take approx {(self.sim_parameters.num_iterations*approx_time)/60} min to finish.")
+        approx_finish_time = datetime.datetime.now() + datetime.timedelta(seconds=self.sim_parameters.num_iterations*approx_time)
         print(f"Approx finish time: {approx_finish_time}")
+        self.file_name = f'poses_list_{self.sim_parameters.results_name}.json'
 
     def init_spawning_action(self):
         self.spawning_action = ServiceAction(node = self.ros_node,
@@ -161,7 +190,7 @@ class TolMeasurment():
         return call_success
     
     def execute_simulation(self):
-        self.iterations = self.NUM_ITERATIONS
+        self.iterations = self.sim_parameters.num_iterations
         success = True
         success = self.execute_n_iterations(self.iterations)
         if success:
@@ -193,19 +222,19 @@ class TolMeasurment():
         multiplier = 1e-6
         for i in range(0, len(self.programmer.action_list)):
 
-            if self.USE_RADIANT_GAUSS:
-                x_value, y_value = self.gen_gausss_radius(self.STD_CAMERA)
+            if self.sim_parameters.use_radiant_gauss:
+                x_value, y_value = self.gen_gausss_radius(self.sim_parameters.std_camera)
             else:
-                x_value = self.gen_value_gauss(self.STD_CAMERA)
-                y_value = self.gen_value_gauss(self.STD_CAMERA)
+                x_value = self.gen_value_gauss(self.sim_parameters.std_camera)
+                y_value = self.gen_value_gauss(self.sim_parameters.std_camera)
 
-            z_value = self.gen_value_gauss(self.STD_LASER)
+            z_value = self.gen_value_gauss(self.sim_parameters.std_laser)
 
             action = self.programmer.get_action_at_index(i)
             if action.client == '/assembly_manager/modify_frame_relative':
                 name = action.get_action_name()
                 if 'Vision' in name:
-                    if self.STD_CAMERA == 0:
+                    if self.sim_parameters.std_camera == 0:
                         action.set_active(False)
                         continue
                     else:
@@ -228,7 +257,7 @@ class TolMeasurment():
                                                         override_to_implicit=False)
                                     
                 elif 'Laser' in name:
-                    if self.STD_LASER == 0:
+                    if self.sim_parameters.std_laser == 0:
                         action.set_active(False)
                         continue
                     else:
@@ -271,6 +300,7 @@ class TolMeasurment():
 
             if not recalculate_success:
                 self.ros_node.get_logger().error("Recalculation failed")
+                self.sim_parameters.increment_failure_count()
                 continue
 
             # get the current frame
@@ -291,7 +321,8 @@ class TolMeasurment():
             #self.results_calculated_poses.append(frame.pose)
             frame.pose.orientation = target_frame.pose.orientation
             
-            self.save_pose_to_file(frame.pose, f'poses_list.json')
+
+            self.save_pose_to_file(frame.pose, self.file_name)
             
             duration = time.time() - start_time
             self.list_of_times.append(duration)
@@ -300,13 +331,13 @@ class TolMeasurment():
         average_time = sum(self.list_of_times)/len(self.list_of_times)
         print(f"Average time: {average_time} s")
         self.sim_parameters.approx_time = average_time
-        self.save_results_to_file(f'poses_list.json')
+        self.save_results_to_file(self.file_name)
         
         return True
             #self.programmer.save_to_JSON()
     
     def plot_distributions(self):
-        poses_dict = self.load_poses_from_file(f'poses_list.json')
+        poses_dict = self.load_poses_from_file(self.file_name)
         transform_x_values = []
         transform_y_values = []
         transform_z_values = []
@@ -379,7 +410,7 @@ class TolMeasurment():
         
         plt.tight_layout()
         # save the figure
-        plt.savefig(f'{self.results_path}/distributions.png')
+        plt.savefig(f'{self.results_path}/distributions_{self.sim_parameters.results_name}.png')
         plt.show()
         
     def assess_results(self,poses_dict:list[dict]=None)->tuple:
