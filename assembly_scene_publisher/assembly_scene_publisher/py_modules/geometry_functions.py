@@ -12,6 +12,88 @@ import math
 
 from scipy.spatial.transform import Rotation as R
 
+class NumPlane():
+    """
+    A class to represent a plane in 3D space using the equation Ax + By + Cz + D = 0.
+    """
+    def __init__(self, A:float, B:float, C:float, D:float):
+        self.A = A
+        self.B = B
+        self.C = C
+        self.D = D
+
+def num_plane_from_points(point_1: Point,
+                          point_2: Point,
+                          point_3: Point) -> NumPlane:
+    """
+    Computes the coefficients of a plane defined by three points in 3D space.
+
+    Args:
+        points (list of Point): List of ROS2 Point objects containing x, y, z coordinates.
+    Returns:
+        NumPlane: Coefficients of the plane in the form Ax + By + Cz + D = 0.
+    """
+    # Extract positions as numpy arrays
+    points = np.array([[point_1.x, point_1.y, point_1.z],
+                       [point_2.x, point_2.y, point_2.z],
+                       [point_3.x, point_3.y, point_3.z]])
+    
+    # Create vectors from the first point to the other two points
+    v1, v2 = points[1] - points[0], points[2] - points[0]
+    
+    # Compute the normal vector using the cross product
+    normal_vector = np.cross(v1, v2)
+    
+    # Coefficients A, B, C
+    A, B, C = normal_vector
+    
+    # Compute D using one of the points
+    D = -np.dot(normal_vector, points[0])
+
+    return NumPlane(A, B, C, D)
+
+def num_plane_from_axis_and_point(axis_point_1: Point, 
+                                  axis_point_2: Point,
+                                  point_on_plane: Point) -> NumPlane:
+    """
+    Computes the coefficients of a plane given a perpendicular axis (normal vector) 
+    defined by two points and a point on the plane.
+
+    Args:
+        axis_point_1 (Point): First point defining the axis (normal vector).
+        axis_point_2 (Point): Second point defining the axis.
+        point_on_plane (Point): Point lying on the plane.
+
+    Returns:
+        NumPlane: Coefficients of the plane in the form Ax + By + Cz + D = 0.
+    """
+    # Convert inputs to numpy arrays
+    normal_vector = np.array([
+        axis_point_2.x - axis_point_1.x,
+        axis_point_2.y - axis_point_1.y,
+        axis_point_2.z - axis_point_1.z
+    ])
+    point = np.array([point_on_plane.x, point_on_plane.y, point_on_plane.z])
+
+    A, B, C = normal_vector
+    D = -np.dot(normal_vector, point)  # correct D for Ax + By + Cz + D = 0
+
+    return NumPlane(A, B, C, D)
+
+
+def get_point_of_plane_intersection_num(plane1:NumPlane, plane2:NumPlane, plane3:NumPlane) -> Vector3:
+    A = np.array([[plane1.A, plane1.B, plane1.C],
+                  [plane2.A, plane2.B, plane2.C],
+                  [plane3.A, plane3.B, plane3.C]])
+    b = np.array([-plane1.D, -plane2.D, -plane3.D])
+    # Solve the system of equations
+    try:
+        point = np.linalg.solve(A, b)
+    except np.linalg.LinAlgError:
+        raise ValueError("The planes do not intersect at a single point.")
+    # Return the point as a sympy Point3D object
+    return Vector3(x=point[0], y=point[1], z=point[2])
+
 def get_point_of_plane_intersection(plane1: sp.Plane, plane2: sp.Plane, plane3: sp.Plane) -> sp.Point3D:
     line = plane1.intersection(plane2)
     # Get the first point of intersection, should also be the only one

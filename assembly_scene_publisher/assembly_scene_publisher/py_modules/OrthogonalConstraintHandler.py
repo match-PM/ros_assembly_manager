@@ -186,7 +186,7 @@ class OrthogonalConstraintHandler(ami_msg.FrConstraintOrthogonal):
             addition = (connection_vector * self.distance_from_f1 / 100)
         else:
             addition = (connection_unit * self.distance_from_f1 / multiplier)
-        self.logger.warn(f'Addition: {addition}')
+        #self.logger.warn(f'Addition: {addition}')
         # Calculate the position of the constrained frame
         # constrained_position = (
         #     p1 +
@@ -217,7 +217,7 @@ class OrthogonalConstraintHandler(ami_msg.FrConstraintOrthogonal):
         # Convert the rotation matrix to a quaternion      
         quat = rotation_matrix_to_quaternion(rotation_matrix)   
     
-        self.logger.warn(f'Constrained position: {constrained_position}')
+        #self.logger.warn(f'Constrained position: {constrained_position}')
         
         initial_frame_pose.position.x = float(constrained_position[0])
         initial_frame_pose.position.y = float(constrained_position[1])

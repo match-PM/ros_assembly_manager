@@ -11,9 +11,37 @@ from geometry_msgs.msg import Point
 import numpy as np
 from typing import Union
 
-from assembly_scene_publisher.py_modules.geometry_type_functions import get_point_from_ros_obj
+from assembly_scene_publisher.py_modules.geometry_type_functions import (get_point_from_ros_obj,
+                                                                     get_rotation_matrix_from_tf,
+                                                                     vector3_to_matrix1x3)  
+
+from assembly_scene_publisher.py_modules.geometry_functions import (matrix_multiply_vector)  
+
 
 ROUND_FACTOR = 9
+
+def substract_vectors(v1:Vector3, v2:Vector3) -> Vector3:
+    result = Vector3()
+    result.x = v1.x - v2.x
+    result.y = v1.y - v2.y
+    result.z = v1.z - v2.z
+    return result
+
+def transform_vector3_to_world(vector:Vector3, tf_buffer: Buffer, original_parent_frame:str ) -> Vector3:
+    # this function adapts the tf for parent_frame changes
+    t_parent_frame:TransformStamped = get_transform_for_frame_in_world(original_parent_frame, tf_buffer)
+
+    result = matrix_multiply_vector(get_rotation_matrix_from_tf(t_parent_frame), vector3_to_matrix1x3(vector))
+
+    t_parent_frame.transform.translation.x += result.x
+    t_parent_frame.transform.translation.y += result.y
+    t_parent_frame.transform.translation.z += result.z
+
+    result_vector = Vector3()   
+    result_vector.x = t_parent_frame.transform.translation.x
+    result_vector.y = t_parent_frame.transform.translation.y
+    result_vector.z = t_parent_frame.transform.translation.z
+    return result_vector
 
 
 def adapt_transform_for_new_parent_frame(child_frame, new_parent_frame, tf_buffer: Buffer):

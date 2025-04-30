@@ -55,7 +55,7 @@
           },
           "planeMatch_2": {
             "planeNameComponent_1": "Axis_T_Plane",
-            "planeNameComponent_2": "Axis_B_Plane2",
+            "planeNameComponent_2": "Axis_B_Plane",
             "planeOffset": 0.0,
             "invertNormalVector": false
           },

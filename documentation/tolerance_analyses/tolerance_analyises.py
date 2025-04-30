@@ -85,15 +85,60 @@ class TolMeasurment():
         #                                                                     "Distribution of camera is according to radius with normal distribution",
         #                                                                     "Uses the ideal ref_points with laser points at the default position"])
         # Run R03
-        self.sim_parameters = SimulationParameter(std_camera        =   0,
-                                                  std_laser         =   10,
-                                                  num_iterations    =   3,
-                                                  approx_time       =   None,
-                                                  results_name      =   'R03',
-                                                  use_radiant_gauss =   True,
-                                                  comments          =   ["Testing of laser influence without camera influence",
-                                                                        "Uses the ideal ref_points with laser points at the default position"])
+        # self.sim_parameters = SimulationParameter(std_camera        =   0,
+        #                                           std_laser         =   10,
+        #                                           num_iterations    =   2000,
+        #                                           approx_time       =   None,
+        #                                           results_name      =   'R03',
+        #                                           use_radiant_gauss =   True,
+        #                                           comments          =   ["Testing of laser influence without camera influence",
+        #                                                                 "Uses the ideal ref_points with laser points at the default position"])
 
+        # # Run R04
+        # self.sim_parameters = SimulationParameter(std_camera        =   1,
+        #                                           std_laser         =   1,
+        #                                           num_iterations    =   2500,
+        #                                           approx_time       =   None,
+        #                                           results_name      =   'R04',
+        #                                           use_radiant_gauss =   True,
+        #                                           comments          =   ["Testing of laser influence with camera influence",
+        #                                                                 "Uses the ideal ref_points with laser points at the default position"])
+        
+        # # Run R05
+        # self.sim_parameters = SimulationParameter(std_camera        =   0,
+        #                                           std_laser         =   10,
+        #                                           num_iterations    =   2700,
+        #                                           approx_time       =   None,
+        #                                           results_name      =   'R05',
+        #                                           use_radiant_gauss =   True,
+        #                                           comments          =   ["Testing of laser influence if the lever is increased",
+        #                                                                 "Uses the ideal ref_points with laser points at a position where the lever is increased",
+        #                                                                 "Distance center vision point x = 15, y = 10, length = 18.03, angle = 32.735",
+        #                                                                 "Distance center laser point original x = 14, y = 9, length = 16.64, in percent = 92.3%",
+        #                                                                 "Distance center laser point new x = 7, y = 4.45, length = 8.32, in percent = 46.15%",])
+        
+        # Run R06
+        # self.sim_parameters = SimulationParameter(std_camera        =   1,
+        #                                           std_laser         =   0,
+        #                                           num_iterations    =   2,
+        #                                           approx_time       =   None,
+        #                                           results_name      =   'R06',
+        #                                           use_radiant_gauss =   True,
+        #                                           comments          =   ["Testing of camera influence without the laser influence",
+        #                                                                 "The plane of the UFC has been changed so that the alignment of the component is different.",
+        #                                                                 "This should result in a higher influence of the camera on the transformation.",
+        #                                                                 ])
+        
+        # Run R07
+        self.sim_parameters = SimulationParameter(std_camera        =   0,
+                                                  std_laser         =   1,
+                                                  num_iterations    =   1,
+                                                  approx_time       =   None,
+                                                  results_name      =   'R07',
+                                                  use_radiant_gauss =   True,
+                                                  comments          =   ["Test of numpy calculation"
+                                                                        ])
+        
         use_mll     = True
         use_niklas  = False
         use_pm_room = False
@@ -102,7 +147,7 @@ class TolMeasurment():
             self.instruction_json = '/home/mll/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_tol.json'
             self.programmer.load_from_JSON('/home/mll/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/rsap_description.json')
             self.results_path = '/home/mll/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/logs'
-            approx_time = 20
+            approx_time = 26
         elif use_niklas:
             self.programmer.load_from_JSON('/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/rsap_description.json')
             self.instruction_json = '/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_tol.json'

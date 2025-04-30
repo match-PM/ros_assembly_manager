@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import json
 import os
 import random
+from scipy import stats
+from fitter import Fitter
 
 def gen_gausss_radius(std:float):
     r = np.abs(np.random.normal(0, std)) 
@@ -55,26 +57,70 @@ def get_x_y_values_from_file(file_name):
                 std_y)
 
 #file_name = "documentation/tolerance_analyses/logs/poses_list.json"
-#file_name = "documentation/tolerance_analyses/logs/poses_list_R01.json"
+file_name = "documentation/tolerance_analyses/logs/poses_list_R06.json"
 
 
 x_list = []
 y_list = []
 
-for i in range(10000):
-    #x, y = gen_value_gauss(1)
-    x, y = gen_gausss_radius(1e-6)
+for i in range(500000):
+    x, y = gen_value_gauss(1e-6)
+    #x, y = gen_gausss_radius(1e-6)
     x_list.append(x)
     y_list.append(y)
 
 sdt_x_list = np.std(x_list)
 sdt_y_list = np.std(y_list)
 
-print(f"std_x: {sdt_x_list} std_y: {sdt_y_list}")
+print(f"Generated std_x: {sdt_x_list*1e6} std_y: {sdt_y_list*1e6}")
 
 x_list_file, y_list_file, sdt_x, sdt_y = get_x_y_values_from_file(file_name)
 
-print(f"std_x: {sdt_x} std_y: {sdt_y}")
+
+# def test_distribution(data):
+#     params_norm = stats.norm.fit(data)
+#     params_rayleigh = stats.rayleigh.fit(data)
+#     params_weibull = stats.weibull_min.fit(data)
+#     # Perform the Kolmogorov-Smirnov test
+#     ks_norm = stats.kstest(data, 'norm', args=params_norm)
+#     ks_rayleigh = stats.kstest(data, 'rayleigh', args=params_rayleigh)
+#     ks_weibull = stats.kstest(data, 'weibull_min', args=params_weibull)
+#     # Print the results
+#     print(f"Normal distribution: statistic={ks_norm.statistic}, p-value={ks_norm.pvalue}")
+#     print(f"Rayleigh distribution: statistic={ks_rayleigh.statistic}, p-value={ks_rayleigh.pvalue}")
+#     print(f"Weibull distribution: statistic={ks_weibull.statistic}, p-value={ks_weibull.pvalue}")
+
+
+# # distribution_testing
+# print("Testing distribution of generated points")
+# test_distribution(x_list)
+# print("Testing distribution of X file points")
+# test_distribution(x_list_file)
+# print("Testing distribution of generated points")
+# test_distribution(y_list)
+# print("Testing distribution of Y file points")
+# test_distribution(y_list_file)
+
+def fit_distribution(data, description):
+    # Fit the data to different distributions
+    f = Fitter(data, distributions=[
+        'norm', 'rayleigh', 'weibull_min', 'expon', 'lognorm', 'gamma', 'beta', 'uniform', 'laplace'
+    ])    
+    f.fit()
+    # Print the best distribution
+    print(f.summary())
+    # Print the parameters of the best distribution
+    # Plot the fitted distributions
+    f.plot_pdf()
+    plt.title(f"Fitted distributions for {description}")
+    plt.show()
+
+fit_distribution(x_list, "Generated X")
+fit_distribution(x_list_file, "File X")
+fit_distribution(y_list, "Generated Y")
+fit_distribution(y_list_file, "File Y")
+
+print(f"File: std_x: {sdt_x*1e6} std_y: {sdt_y*1e6}")
 
 plt.figure(figsize=(10, 10))
 plt.scatter(x_list, y_list, c='blue', alpha=0.5, label='Generated Points')

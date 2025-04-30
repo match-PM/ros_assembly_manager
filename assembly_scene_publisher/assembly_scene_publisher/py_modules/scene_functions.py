@@ -11,6 +11,10 @@ from geometry_msgs.msg import Vector3
 
 from assembly_scene_publisher.py_modules.geometry_type_functions import get_relative_transform_for_transforms
 from assembly_scene_publisher.py_modules.tf_functions import get_transform_for_frame, get_transform_for_frame_in_world
+from assembly_scene_publisher.py_modules.geometry_functions import (get_point_of_plane_intersection_num,
+                                                                    num_plane_from_axis_and_point,
+                                                                    num_plane_from_points,
+                                                                    NumPlane)
 
 class ConstraintRestriction:
     def __init__(self, frame_name: str, constraining_vectors: list[Vector3], vector_directions: list[str]):
@@ -79,7 +83,7 @@ def get_frames_for_planes_of_component(scene: ami_msg.ObjectScene,
 
 def get_frames_for_axis(scene: ami_msg.ObjectScene, 
                             axis_name: str, 
-                            component_name: str,
+                            component_name: str = None,
                             logger: RcutilsLogger = None)-> list[ami_msg.RefFrame]:
 
     axis = get_axis_from_scene(scene, axis_name)
@@ -125,7 +129,7 @@ def get_component_by_name(  scene: ami_msg.ObjectScene,
     
 def get_frames_for_plane(   scene: ami_msg.ObjectScene, 
                             plane_name: str, 
-                            component_name: str,
+                            component_name: str = None,
                             logger: RcutilsLogger = None)-> list[ami_msg.RefFrame]:
 
     plane = get_plane_from_scene(scene, plane_name)
@@ -169,7 +173,80 @@ def get_plane_from_scene(   scene: ami_msg.ObjectScene,
                 break
 
     return plane_msg
+
+def get_num_plane_from_scene(scene: ami_msg.ObjectScene, 
+                             plane_name:str,
+                             logger: RcutilsLogger = None)-> NumPlane:
+        
+        plane_msg = get_plane_from_scene(scene, plane_name)
+
+        if logger is not None:
+            pass
+            #logger.error(f"Plane name: {plane_name}")
+            #logger.error(f"Plane msg: {plane_msg}")
+
+        if plane_msg is None:
+            raise ValueError(f"Plane {plane_name} does not exist in the scene.")
+        
+        if (plane_msg.axis_names[0]=='' and
+            plane_msg.point_names[0]!='' and 
+            plane_msg.point_names[1]!='' and 
+            plane_msg.point_names[2]!=''):
+            
+            frames:list[ami_msg.RefFrame] = get_frames_for_plane(scene = scene, plane_name=plane_name)
+            if len(frames) != 3:
+                raise ValueError(f"Plane {plane_name} does not have 3 points.")
+            
+
+            plane = num_plane_from_points(point_1=frames[0].pose.position,
+                                        point_2=frames[1].pose.position,
+                                        point_3=frames[2].pose.position)
+
+        elif (plane_msg.axis_names[0]!='' and
+            plane_msg.point_names[0]!='' and 
+            plane_msg.point_names[1]=='' and 
+            plane_msg.point_names[2]==''):
+
+            axis_frames: list[ami_msg.RefFrame]  = get_frames_for_axis(scene, 
+                                                                       plane_msg.axis_names[0], 
+                                                                       plane_name)
+            
+            support_frame: ami_msg.RefFrame = get_ref_frame_by_name(scene, 
+                                                                    plane_msg.point_names[0])
+
+            plane = num_plane_from_axis_and_point(  axis_point_1=axis_frames[0].pose.position,
+                                                    axis_point_2=axis_frames[1].pose.position,
+                                                    point_on_plane=support_frame.pose.position)
+            
+        return plane
+
+def get_plane_intersection_from_scene_num(scene: ami_msg.ObjectScene,
+                                        plane_name_1:str,
+                                        plane_name_2:str,
+                                        plane_name_3:str,
+                                        logger: RcutilsLogger = None)-> Vector3:
     
+    if logger is not None:
+        pass
+        # logger.error(f"Plane names: {plane_name_1}, {plane_name_2}, {plane_name_3}")
+        # logger.error(f"Scene: {type(scene)}")
+
+    plane_1 = get_num_plane_from_scene(scene, plane_name_1,logger=logger)
+    plane_2 = get_num_plane_from_scene(scene, plane_name_2,logger=logger)
+    plane_3 = get_num_plane_from_scene(scene, plane_name_3,logger=logger)
+
+    if logger is not None:
+        pass
+        #logger.error(f"Check!!!!")
+
+    if plane_1 is None or plane_2 is None or plane_3 is None:
+        raise ValueError(f"Planes {plane_name_1}, {plane_name_2} or {plane_name_3} do not exist in the scene.")
+    
+    intersection = get_point_of_plane_intersection_num(plane_1, plane_2, plane_3)
+    # exeption of the error in higher function
+
+    return intersection
+
 def get_axis_from_scene(scene: ami_msg.ObjectScene, 
                         axis_name:str,
                         logger: RcutilsLogger = None)-> ami_msg.Axis:

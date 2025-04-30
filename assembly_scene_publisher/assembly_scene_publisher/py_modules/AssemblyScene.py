@@ -31,7 +31,8 @@ from assembly_scene_publisher.py_modules.scene_functions import (get_parent_fram
                                                                  get_frame_names_from_list,
                                                                  get_frames_for_axis,
                                                                  get_frames_for_planes_of_component,
-                                                                 get_component_by_name)
+                                                                 get_component_by_name,
+                                                                 get_plane_intersection_from_scene_num)
 
 
 from assembly_scene_publisher.py_modules.geometry_functions import (get_point_of_plane_intersection, 
@@ -52,7 +53,9 @@ from assembly_scene_publisher.py_modules.tf_functions import (adapt_transform_fo
                                                               get_transform_for_frame,
                                                                 get_plane_from_frame_names,
                                                                 get_line3d_from_frame_names,
-                                                                publish_transform_tf_static)
+                                                                publish_transform_tf_static,
+                                                                transform_vector3_to_world,
+                                                                substract_vectors)
 
 class AssemblyManagerScene():
     UNUSED_FRAME_CONST = 'unused_frame'
@@ -920,9 +923,30 @@ class AssemblyManagerScene():
         return (comp_1_mate_plane_intersection, comp_2_mate_plane_intersection)
     
     def calculate_assembly_transformation(self, instruction:ami_msg.AssemblyInstruction)->Pose:
+        
+        # calculate according to numpy
+        intersection_obj_1 = get_plane_intersection_from_scene_num(self.scene,
+                                                                    instruction.plane_match_1.plane_name_component_1, 
+                                                                    instruction.plane_match_2.plane_name_component_1,
+                                                                    instruction.plane_match_3.plane_name_component_1,
+                                                                    self.logger)
+        
+        intersection_obj_2 = get_plane_intersection_from_scene_num(self.scene,
+                                                                        instruction.plane_match_1.plane_name_component_2, 
+                                                                        instruction.plane_match_2.plane_name_component_2,
+                                                                        instruction.plane_match_3.plane_name_component_2)
+        
+        intersection_obj_1_world = transform_vector3_to_world(intersection_obj_1, self.tf_buffer, original_parent_frame=instruction.component_1)
+        intersection_obj_2_world = transform_vector3_to_world(intersection_obj_2, self.tf_buffer, original_parent_frame=instruction.component_2)
+
+        #self.logger.error(f"Numpy: {str(intersection_obj_1_world)}")
+        #self.logger.error(f"Numpy: {str(intersection_obj_2_world)}")
+
+        # calculate with sympy
         obj_1_plane_1 = self._get_plane_obj_from_scene(instruction.plane_match_1.plane_name_component_1)
         obj_1_plane_2 = self._get_plane_obj_from_scene(instruction.plane_match_2.plane_name_component_1)
         obj_1_plane_3 = self._get_plane_obj_from_scene(instruction.plane_match_3.plane_name_component_1)
+
         obj_1_name = get_parent_frame_for_ref_frame(self.scene,
                                                     get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_1).point_names[0],
                                                     logger=self.logger)
@@ -936,17 +960,27 @@ class AssemblyManagerScene():
         obj_2_plane_2 = self._get_plane_obj_from_scene(instruction.plane_match_2.plane_name_component_2)
         obj_2_plane_3 = self._get_plane_obj_from_scene(instruction.plane_match_3.plane_name_component_2)
 
-        self.logger.debug(f"Glas - Plane 1: {obj_1_plane_1}")
-        self.logger.debug(f"Glas - Plane 2: {obj_1_plane_2}")
-        self.logger.debug(f"Glas - Plane 3: {obj_1_plane_3}")
-
-        self.logger.debug(f"UFC - Plane 1: {obj_2_plane_1}")
-        self.logger.debug(f"UFC - Plane 2: {obj_2_plane_2}")
-        self.logger.debug(f"UFC - Plane 3: {obj_2_plane_3}")
-
         #obj_2_mate_plane_intersection: Vector3 = point3D_to_vector3(get_point_of_plane_intersection(obj_2_plane_1, obj_2_plane_2, obj_2_plane_3))
+        try:
+            obj_1_mate_plane_intersection, obj_2_mate_plane_intersection = self.calculate_plane_intersections(instruction)
+            #comparison of plane intersections
+            #self.logger.error(f"Sympy: {str(obj_1_mate_plane_intersection)}")
+            #self.logger.error(f"Sympy: {str(obj_2_mate_plane_intersection)}")
+            result_diff_1 = substract_vectors(intersection_obj_1_world, obj_1_mate_plane_intersection)
+            result_diff_2 = substract_vectors(intersection_obj_2_world, obj_2_mate_plane_intersection)
 
-        obj_1_mate_plane_intersection, obj_2_mate_plane_intersection = self.calculate_plane_intersections(instruction)
+            if ((abs(result_diff_1.x) > 1e-8 or abs(result_diff_1.y) > 1e-8 or abs(result_diff_1.z) > 1e-8) or 
+                (abs(result_diff_2.x) > 1e-8 or abs(result_diff_2.y) > 1e-8 or abs(result_diff_2.z) > 1e-8)):
+                self.logger.error(f"SEVERE DIFFERENCE IN INTERSECTION CALCULATION!! NOTIFY MAINTAINER.")
+                self.logger.error(f"Difference in intersection calculation: {result_diff_1}, {result_diff_2}")
+
+            obj_1_mate_plane_intersection = intersection_obj_1_world
+            obj_2_mate_plane_intersection = intersection_obj_2_world
+
+        except ValueError as e:
+            self.logger.warn(f"Error in plane intersection calculation with sympy. Using numpy calculation. Error: '{str(e)}'")
+            obj_1_mate_plane_intersection = intersection_obj_1_world
+            obj_2_mate_plane_intersection = intersection_obj_2_world
 
         assembly_transform = Pose()
 
@@ -1009,31 +1043,24 @@ class AssemblyManagerScene():
         self.logger.debug(f"All normal vectors obj2 are: {comp_2_plane_1_ideal_norm_vector}, {comp_2_plane_2_ideal_norm_vector}, {comp_2_plane_3_ideal_norm_vector}")
         
         # get the multiplicator for the normal vectors calculated from the planes and match their direction to the ideal normal vectors
-        self.logger.debug(f"Norm vec obj 1_1: {instruction.plane_match_1.plane_name_component_1}")
-        self.logger.debug(f"Norm vec obj 1_2: {instruction.plane_match_2.plane_name_component_1}")
-        self.logger.debug(f"Norm vec obj 1_3: {instruction.plane_match_3.plane_name_component_1}")
-        self.logger.debug(f"Norm vec obj 2_1: {instruction.plane_match_1.plane_name_component_2}")
-        self.logger.debug(f"Norm vec obj 2_2: {instruction.plane_match_2.plane_name_component_2}")
-        self.logger.debug(f"Norm vec obj 2_3: {instruction.plane_match_3.plane_name_component_2}")
+
         mult_1 = norm_vec_direction(bvec_obj_1_1,comp_1_plane_1_ideal_norm_vector, logger=self.logger)
         mult_2 = norm_vec_direction(bvec_obj_1_2,comp_1_plane_2_ideal_norm_vector, logger=self.logger)
         mult_3 = norm_vec_direction(bvec_obj_1_3,comp_1_plane_3_ideal_norm_vector, logger=self.logger)
         mult_4 = norm_vec_direction(bvec_obj_2_1,comp_2_plane_1_ideal_norm_vector, logger=self.logger)
         mult_5 = norm_vec_direction(bvec_obj_2_2,comp_2_plane_2_ideal_norm_vector, logger=self.logger)
         mult_6 = norm_vec_direction(bvec_obj_2_3,comp_2_plane_3_ideal_norm_vector, logger=self.logger)
-
-        self.logger.debug(f"Mults: {mult_1}, {mult_2}, {mult_3}, {mult_4}, {mult_5}, {mult_6}")
         
         # Check if the normal vectors should be inverted
         if instruction.plane_match_1.inv_normal_vector:
             mult_4 = -mult_4
-            self.logger.debug("Inverted normal vector for plane 1")
+            #self.logger.debug("Inverted normal vector for plane 1")
         if instruction.plane_match_2.inv_normal_vector:
             mult_5 = -mult_5
-            self.logger.debug("Inverted normal vector for plane 2")
+            #self.logger.debug("Inverted normal vector for plane 2")
         if instruction.plane_match_3.inv_normal_vector:
             mult_6 = -mult_6
-            self.logger.debug("Inverted normal vector for plane 3")
+            #self.logger.debug("Inverted normal vector for plane 3")
 
         # Multiply the normal vectors with the multiplicator
         bvec_obj_1_1 : sp.Matrix = bvec_obj_1_1 * mult_1
@@ -1092,8 +1119,12 @@ class AssemblyManagerScene():
             #return False
 
         # Calculate the approx quaternion for rotation in euclidean space
+        # get timestamp
+        timestamp_before = self.node.get_clock().now()
         assembly_transform.orientation = self.calc_approx_quat_from_matrix(rot_matrix)
-
+        # get timestamp
+        timestamp_after = self.node.get_clock().now()
+        time_diff = timestamp_after - timestamp_before
         #self.logger.info(f"Assembly transformation is: {assembly_transform.__str__()}")
         self.logger.info(f"""Assembly transformation is: \n
                          x: {assembly_transform.position.x},\n
@@ -1103,6 +1134,7 @@ class AssemblyManagerScene():
                          x: {assembly_transform.orientation.x},\n
                          y: {assembly_transform.orientation.y},\n
                          z: {assembly_transform.orientation.z}""")
+        self.logger.info(f"Time for quaternion calculation: {time_diff.nanoseconds/1e6} ms")
 
         add_success = self.add_assembly_frames_to_scene(instruction.id,
                                                         moving_component,
@@ -1111,7 +1143,7 @@ class AssemblyManagerScene():
                                                         static_component_plane_intersection,
                                                         assembly_transform)
         if not add_success:
-            raise Exception
+            raise ValueError(f"Could not add assembly frames to scene. Aborting!")
         
         return assembly_transform
     
@@ -1177,7 +1209,7 @@ class AssemblyManagerScene():
 
         #result = minimize(cost_function, initial_guess, args=(rot_obj2_to_obj1),  method='L-BFGS-B', tol = 1e-10, options={'maxiter': 1000})
         result = minimize(cost_function, initial_guess, args=(rot_mat),  method='Nelder-Mead', tol = 1e-20, options={'maxiter': max_iter})
-
+        
         if max_iter == result.nit:
             self.logger.info(f"Max iterations reached ({max_iter}). Measurement inacurate.")
         else:
