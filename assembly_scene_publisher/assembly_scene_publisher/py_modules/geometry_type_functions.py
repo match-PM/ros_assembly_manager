@@ -314,29 +314,28 @@ def euler_to_matrix(angles:list):
     return Rz * Ry * Rx
 
 def get_relative_transform_for_transforms(from_frame: TransformStamped,
-                                        to_frame: TransformStamped,
-                                        logger = None)-> Transform:
+                           to_frame: TransformStamped,
+                           logger=None) -> Transform:
     """
-    Calculate the relative transformation between two frames.
+    Compute the transform that brings coordinates from `from_frame` to `to_frame`.
+    
     Args:
-        from_frame: The first frame (Pose).
-        to_frame: The second frame (Pose).
-        logger: Optional logger for logging messages.
+        from_frame: TransformStamped of the source frame.
+        to_frame: TransformStamped of the target frame.
+        logger: Optional logger for error reporting.
+    
     Returns:
-
-        A Pose object representing the relative transformation.
+        Transform: The relative transform from `from_frame` to `to_frame`, or None on error.
     """
-    # Convert the poses to transformation matrices
-    from_transform_matrix = get_transform_matrix_from_tf(from_frame)
-    to_transform_matrix = get_transform_matrix_from_tf(to_frame)
-    
-    if from_transform_matrix is None or to_transform_matrix is None:
-        if logger is not None:
-            logger.error("Invalid input type in method 'get_relative_transform_for_frames'!")
+    # Convert to transformation matrices
+    from_mat = get_transform_matrix_from_tf(from_frame)
+    to_mat = get_transform_matrix_from_tf(to_frame)
+
+    if from_mat is None or to_mat is None:
+        if logger:
+            logger.error("Invalid input in 'get_relative_transform'.")
         return None
-    # Calculate the relative transformation matrix
-    relative_transform_matrix = to_transform_matrix * from_transform_matrix.inv()
-    # Convert the relative transformation matrix back to a Pose
-    relative_transform = transform_matrix_to_transform(relative_transform_matrix)
-    
-    return relative_transform
+
+    # Compute relative transform: to_mat⁻¹ * from_mat
+    relative_mat = to_mat.inv() * from_mat
+    return transform_matrix_to_transform(relative_mat)
