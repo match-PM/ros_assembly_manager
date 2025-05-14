@@ -324,7 +324,8 @@ def calculate_frame_contrains_for_frame_list(scene: ami_msg.ObjectScene,
             if frame_name not in calculated_frames:
                 
                 if logger is not None:
-                    logger.warn(f"Update ref frame constraints for frame '{frame_name}'")
+                    #logger.warn(f"Update ref frame constraints for frame '{frame_name}'")
+                    pass
 
                 frame = get_ref_frame_by_name(scene, frame_name)
                 update_ref_frame_by_constraint(scene, frame, component_name=component_name, logger=logger)

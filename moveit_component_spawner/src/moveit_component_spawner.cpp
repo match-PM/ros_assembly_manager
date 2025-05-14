@@ -15,7 +15,7 @@
 #include "assembly_manager_interfaces/msg/object.hpp"
 #include "assembly_manager_interfaces/srv/spawn_object.hpp"
 #include "assembly_manager_interfaces/srv/destroy_object.hpp"
-#include "assembly_manager_interfaces/srv/disable_obj_collision.hpp"
+#include "assembly_manager_interfaces/srv/set_collision_checking.hpp"
 #include <iostream>
 #include <fstream>
 #include <moveit/planning_scene_monitor/planning_scene_monitor.h>
@@ -73,7 +73,7 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
     std::vector<geometry_msgs::msg::Pose> component_pose_list;
     rclcpp::Service<assembly_manager_interfaces::srv::SpawnObject>::SharedPtr spawn_object_service;
     rclcpp::Service<assembly_manager_interfaces::srv::DestroyObject>::SharedPtr destroy_object_service;
-    rclcpp::Service<assembly_manager_interfaces::srv::DisableObjCollision>::SharedPtr disable_collision_service;
+    rclcpp::Service<assembly_manager_interfaces::srv::SetCollisionChecking>::SharedPtr disable_collision_service;
     rclcpp::Subscription<moveit_msgs::msg::PlanningScene>::SharedPtr planning_scene_subscriber;
     rclcpp::Subscription<std_msgs::msg::String>::SharedPtr robot_description_subscriber_;
     rclcpp::Subscription<assembly_manager_interfaces::msg::ObjectScene>::SharedPtr assembly_scene_subscriber;
@@ -82,6 +82,7 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
     std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
     std::vector<assembly_manager_interfaces::msg::Object> object_list;
     tf2_msgs::msg::TFMessage::SharedPtr current_tf_msg;
+    std::vector<std::string> disabled_collision_list;
     
     
 
@@ -95,7 +96,7 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
 
       spawn_object_service = this->create_service<assembly_manager_interfaces::srv::SpawnObject>("moveit_component_spawner/spawn_object", std::bind(&MoveitObjectSpawnerNode::spawn_object, this,std::placeholders::_1, std::placeholders::_2));
       destroy_object_service = this->create_service<assembly_manager_interfaces::srv::DestroyObject>("moveit_component_spawner/destroy_object", std::bind(&MoveitObjectSpawnerNode::destroy_object, this,std::placeholders::_1, std::placeholders::_2));
-      disable_collision_service = this->create_service<assembly_manager_interfaces::srv::DisableObjCollision>("moveit_component_spawner/disable_collision_of_object", std::bind(&MoveitObjectSpawnerNode::disable_collision, this,std::placeholders::_1, std::placeholders::_2));
+      disable_collision_service = this->create_service<assembly_manager_interfaces::srv::SetCollisionChecking>("moveit_component_spawner/set_collision_checking", std::bind(&MoveitObjectSpawnerNode::disable_collision, this,std::placeholders::_1, std::placeholders::_2));
 
       //tf_subscriber_ = this->create_subscription<tf2_msgs::msg::TFMessage>("/tf_static", 10, std::bind(&MoveitObjectSpawnerNode::tfCallback, this, _1),options);
       planning_scene_diff_publisher =this->create_publisher<moveit_msgs::msg::PlanningScene>("planning_scene", 1);
@@ -113,9 +114,49 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
 
       tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
       tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
-      
     }
 
+    void test(){
+      // // collision_detection::AllowedCollisionMatrix& acm = planning_scene_monitor_->getPlanningScene()->getAllowedCollisionMatrixNonConst();
+      // // RCLCPP_ERROR(this->get_logger(), "CHECK1");
+
+      // // acm.setEntry("*", "*", true);  // Allow all collisions
+      // // planning_scene_monitor::LockedPlanningSceneRO scene(planning_scene_monitor_);
+      // // const auto& acm = scene->getAllowedCollisionMatrix();
+      
+      // // scene.getAllowedCollisionMatrixNonConst().setEntry("Calibration_Qube", "PM_Robot_Vacuum_Tool", true);
+
+      // // // Publish the changes
+      // // moveit_msgs::msg::PlanningScene ps_msg;
+      // // RCLCPP_ERROR(this->get_logger(), "CHECK2");
+      // // planning_scene_monitor_->getPlanningScene()->getPlanningSceneMsg(ps_msg);
+      // // ps_msg.is_diff = true;
+      // // RCLCPP_ERROR(this->get_logger(), "CHECK3");
+      // // planning_scene_diff_publisher->publish(ps_msg);
+      
+
+      //   auto planning_scene = planning_scene_monitor_->getPlanningScene();
+      // collision_detection::AllowedCollisionMatrix& acm =
+      //     planning_scene->getAllowedCollisionMatrixNonConst();
+
+      // RCLCPP_ERROR(this->get_logger(), "CHECK1");
+
+      // // OR just disable specific ones:
+      // acm.setEntry("Calibration_Qube", "PM_Robot_Vacuum_Tool", false);
+      // acm.setEntry("Calibration_Qube", "PM_Robot_Vacuum_Tool_Tip", true);
+
+      // // Publish the changes to MoveGroup
+      // moveit_msgs::msg::PlanningScene ps_msg;
+      // planning_scene->getPlanningSceneMsg(ps_msg);
+      // ps_msg.is_diff = true;
+
+      // RCLCPP_ERROR(this->get_logger(), "CHECK2");
+
+      // planning_scene_diff_publisher->publish(ps_msg);
+
+      // RCLCPP_ERROR(this->get_logger(), "CHECK3");
+    }
+    
   private:
     //rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_;
     moveit::planning_interface::PlanningSceneInterface planning_scene_interface_;
@@ -181,6 +222,19 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
 
       //object_list = msg->objects_in_scene;
     }
+
+    bool is_object_in_scene(const std::string &object_name)
+    {
+      for (const auto &object : object_list)
+      {
+        if (object.obj_name == object_name)
+        {
+          return true;
+        }
+      }
+      return false;
+    }
+
 
     bool check_scene_has_changed(const std::vector<assembly_manager_interfaces::msg::Object> msg_object_list)
     {
@@ -302,7 +356,7 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
             planning_scene.robot_state.attached_collision_objects.push_back(spawining_object);
 
           }
-
+          
           planning_scene_diff_publisher->publish(planning_scene);
           return true; //returns True/False
         } 
@@ -442,7 +496,102 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
     //   }
     // }
 
-    void disable_collision(const std::shared_ptr<assembly_manager_interfaces::srv::DisableObjCollision::Request> request, std::shared_ptr<assembly_manager_interfaces::srv::DisableObjCollision::Response>response){
+    void disable_collision(const std::shared_ptr<assembly_manager_interfaces::srv::SetCollisionChecking::Request> request, std::shared_ptr<assembly_manager_interfaces::srv::SetCollisionChecking::Response>response){
+      
+      auto planning_scene = planning_scene_monitor_->getPlanningScene();
+
+      collision_detection::AllowedCollisionMatrix& acm = planning_scene->getAllowedCollisionMatrixNonConst();
+
+      // check if links are robot links
+      const moveit::core::RobotModelPtr& kinematic_model = PM_Robot_Model_Loader->getModel();
+      std::vector<std::string> list_of_robot_links=kinematic_model->getLinkModelNames();
+      bool link_1_is_robot_link = false;
+      bool link_2_is_robot_link = false;
+      for (const std::string& link : list_of_robot_links) 
+      {
+        if(request->link_1 == link){
+          link_1_is_robot_link = true;
+        }
+        if(request->link_2 == link){
+          link_2_is_robot_link = true;
+        }
+      }
+
+      // check if links are objects in the scene
+      bool link_1_is_component = is_object_in_scene(request->link_1);
+      bool link_2_is_component = is_object_in_scene(request->link_2);
+      
+      if (link_1_is_robot_link == false && link_1_is_component == false){
+        RCLCPP_ERROR(this->get_logger(), "Link 1: %s, Link 2: %s", request->link_1.c_str(), request->link_2.c_str());
+        RCLCPP_ERROR(this->get_logger(), "Link 1 is component: %s, Link 2 is component: %s", link_1_is_component ? "true" : "false", link_2_is_component ? "true" : "false");
+        RCLCPP_ERROR(this->get_logger(), "Link 1 is robot link: %s, Link 2 is robot link: %s", link_1_is_robot_link ? "true" : "false", link_2_is_robot_link ? "true" : "false");
+        response->success = false;
+        RCLCPP_ERROR(this->get_logger(),"Set collision checking failed!");
+        return;
+      }
+
+      if (link_2_is_robot_link == false && link_2_is_component == false){
+        RCLCPP_ERROR(this->get_logger(), "Link 1: %s, Link 2: %s", request->link_1.c_str(), request->link_2.c_str());
+        RCLCPP_ERROR(this->get_logger(), "Link 1 is component: %s, Link 2 is component: %s", link_1_is_component ? "true" : "false", link_2_is_component ? "true" : "false");
+        RCLCPP_ERROR(this->get_logger(), "Link 1 is robot link: %s, Link 2 is robot link: %s", link_1_is_robot_link ? "true" : "false", link_2_is_robot_link ? "true" : "false");
+        response->success = false;
+        RCLCPP_ERROR(this->get_logger(),"Set collision checking failed!");
+        return;
+      }
+
+      // This is not necessary
+      // if (link_1_is_component == true)
+      // {
+      //   // check if link_1 is already in the disabled collision list
+      //   auto it = std::find(disabled_collision_list.begin(), disabled_collision_list.end(), request->link_1);
+
+      //   if (request->should_check == false)
+      //   {
+      //     if (it == disabled_collision_list.end())
+      //     {
+      //       // add to disabled list
+      //       disabled_collision_list.push_back(request->link_1);
+      //     }
+      //   }
+      //   else
+      //   {
+      //     // remove from disabled list
+      //     auto it = std::remove(disabled_collision_list.begin(), disabled_collision_list.end(), request->link_1);
+      //     disabled_collision_list.erase(it, disabled_collision_list.end());          
+      //   }
+      // }
+
+      // if (link_2_is_component == true)
+      // {
+      //   if (request->should_check == false)
+      //   {
+      //     disabled_collision_list.push_back(request->link_2);
+      //   }
+      //   else
+      //   {
+      //     // remove from disabled list
+      //     auto it = std::remove(disabled_collision_list.begin(), disabled_collision_list.end(), request->link_2);
+      //     disabled_collision_list.erase(it, disabled_collision_list.end());
+      //   }
+      //   response->success = true;
+      //   apply_objects_to_moveit();
+      //   return;
+      // }
+      
+      // OR just disable specific ones:
+      acm.setEntry(request->link_1, request->link_2, !request->should_check);
+
+      // Publish the changes to MoveGroup
+      moveit_msgs::msg::PlanningScene ps_msg;
+      planning_scene->getPlanningSceneMsg(ps_msg);
+      ps_msg.is_diff = true;
+
+      RCLCPP_ERROR(this->get_logger(), "CHECK2");
+
+      planning_scene_diff_publisher->publish(ps_msg);
+
+      RCLCPP_ERROR(this->get_logger(), "CHECK3");
+      response->success = true;
       return;
     }
 
@@ -1092,19 +1241,16 @@ int main(int argc, char **argv)
   planning_scene_monitor_ = std::make_shared<planning_scene_monitor::PlanningSceneMonitor>(node, "robot_description");
   // Update scene from monitored topics
   planning_scene_monitor_->startSceneMonitor();
-  planning_scene_monitor_->startStateMonitor();
+  //planning_scene_monitor_->startStateMonitor();
   planning_scene_monitor_->startWorldGeometryMonitor();
   rclcpp::executors::MultiThreadedExecutor executor;
+  //node->test();
   executor.add_node(node);
 
   // Spin the executor in a separate thread
-  
   executor.spin();
-
   rclcpp::shutdown();
 
-  //rclcpp::spin(node);
-  //rclcpp::shutdown();
   return 0;
 }
 

@@ -227,7 +227,8 @@ class OrthogonalConstraintHandler(ami_msg.FrConstraintOrthogonal):
         #initial_frame_pose.position.x = constrained_position[0]
         
         if frame_name is not None:  
-            self.logger.warn(f'Start calculating constraint for: {frame_name}')
+            #self.logger.warn(f'Start calculating constraint for: {frame_name}')
+            pass
             
         return initial_frame_pose
     

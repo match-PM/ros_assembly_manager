@@ -12,6 +12,11 @@ from scipy.spatial.transform import Rotation as R
 from geometry_msgs.msg import Vector3, Quaternion
 import sympy as sp
 from typing import Union
+from ament_index_python.packages import get_package_share_directory
+
+# import plt
+import matplotlib.pyplot as plt
+
 from scipy.optimize import minimize, least_squares
 from assembly_scene_publisher.py_modules.frame_constraints import (FrameConstraintsHandler, 
                                                                     update_ref_frame_by_constraint, 
@@ -36,7 +41,11 @@ from assembly_scene_publisher.py_modules.scene_functions import (get_parent_fram
 
 
 from assembly_scene_publisher.py_modules.geometry_functions import (get_point_of_plane_intersection, 
-            get_euler_rotation_matrix, quaternion_multiply, matrix_multiply_vector, norm_vec_direction)
+                                                                    get_euler_rotation_matrix, 
+                                                                    quaternion_multiply, 
+                                                                    matrix_multiply_vector, 
+                                                                    norm_vec_direction, 
+                                                                    calc_angle_between_vectors)
 
 from assembly_scene_publisher.py_modules.geometry_type_functions import (vector3_to_matrix1x3,
                                                                             point3D_to_vector3,
@@ -46,6 +55,7 @@ from assembly_scene_publisher.py_modules.geometry_type_functions import (vector3
                                                                             get_rotation_matrix_from_tf,
                                                                             transform_matrix_to_pose,
                                                                             euler_to_quaternion,
+                                                                            get_euler_angles_from_roatation_matrix,
                                                                             SCALE_FACTOR)
 
 from assembly_scene_publisher.py_modules.tf_functions import (adapt_transform_for_new_parent_frame,
@@ -611,7 +621,7 @@ class AssemblyManagerScene():
                               translation: Point, 
                               rotation: Quaternion,
                               not_relativ_to_parent_but_child:bool = False)-> bool:
-        self.logger.warn(f"Pose of frame '{frame_name}' will be updated relative to its parent frame!")
+        #self.logger.warn(f"Pose of frame '{frame_name}' will be updated relative to its parent frame!")
         pose_to_modify: Pose = None
 
         if not self.check_if_frame_exists(frame_name):
@@ -630,7 +640,7 @@ class AssemblyManagerScene():
         
         if not_relativ_to_parent_but_child:
             # Find the parent Frame
-            self.logger.error(f"Pose of frame '{frame_name}' will be updated relative to its child frame!")
+            #self.logger.error(f"Pose of frame '{frame_name}' will be updated relative to its child frame!")
             parent__T__child = get_transform_matrix_from_tf(pose_to_modify)
             transform = Pose()
             transform.position.x = translation.x
@@ -1197,21 +1207,31 @@ class AssemblyManagerScene():
         
     def calc_approx_quat_from_matrix(self, rot_mat: sp.Matrix) -> Quaternion:
         initial_guess = np.array([0, 0, 0])
+        list_of_cost  = []
+        i_roll, i_pith_, i_yaw = get_euler_angles_from_roatation_matrix(rot_mat)
         
         def cost_function(params, target_matrix):
             alpha, beta, gamma = params
             rotation_matrix = get_euler_rotation_matrix(alpha,beta,gamma)
             difference = (rotation_matrix - target_matrix).norm()
+            #self.logger.error(f"Difference: {difference}")
+            list_of_cost.append(difference)
             return difference
         
         self.logger.warn(f"Started to calculate the assembly transformation. This could take a while...")
         max_iter = 1000
 
         #result = minimize(cost_function, initial_guess, args=(rot_obj2_to_obj1),  method='L-BFGS-B', tol = 1e-10, options={'maxiter': 1000})
-        result = minimize(cost_function, initial_guess, args=(rot_mat),  method='Nelder-Mead', tol = 1e-20, options={'maxiter': max_iter})
+        #tolerance = 1e-20
+        tolerance = 1e-10
+        result = minimize(cost_function, initial_guess, 
+                          args=(rot_mat),  
+                          method='Nelder-Mead', 
+                          tol = tolerance, 
+                          options={'maxiter': max_iter})
         
         if max_iter == result.nit:
-            self.logger.info(f"Max iterations reached ({max_iter}). Measurement inacurate.")
+            self.logger.info(f"Max iterations reached ({result.nit}/{max_iter}). Measurement inacurate.")
         else:
             self.logger.info(f"Iterations ran: {result.nit}")
         if result.fun >1.0:
@@ -1223,9 +1243,30 @@ class AssemblyManagerScene():
         
         self.logger.info(f"Result (deg) is: \nalpha: {result.x[0]*(180/np.pi)}, \nbeta: {result.x[1]*(180/np.pi)}, \ngamma:{result.x[2]*(180/np.pi)}")
 
-        quaternion = euler_to_quaternion(   roll   = result.x[2],
-                                            pitch  = result.x[1],
-                                            yaw    = result.x[0])
+        roll   = result.x[2]
+        pitch  = result.x[1]
+        yaw    = result.x[0]
+                                            
+        quaternion = euler_to_quaternion(   roll   = roll,
+                                            pitch  = pitch,
+                                            yaw    = yaw)
+
+        roll_diff = abs(i_roll - roll) * (180/np.pi)
+        pitch_diff = abs(i_pith_ - pitch) * (180/np.pi)
+        yaw_diff = abs(i_yaw - yaw) * (180/np.pi)
+        
+        self.logger.warn(f"Roll diff: {roll_diff}, Pitch diff: {pitch_diff}, Yaw diff: {yaw_diff}")
+        
+        # create a plot of the list of cost
+        fig, ax = plt.subplots()
+        ax.plot(list_of_cost)
+        ax.set(xlabel='iteration', ylabel='cost',
+               title='Cost function over iterations')
+        ax.grid()
+        #increase resolution of the plot
+        fig.set_dpi(300)
+        package_share = get_package_share_directory('assembly_scene_publisher')
+        plt.savefig(f"{package_share}/cost_{self.node.get_clock().now()}.png")
         return quaternion
             
     def log_secene(self):

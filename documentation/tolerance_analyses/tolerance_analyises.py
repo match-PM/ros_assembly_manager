@@ -130,17 +130,18 @@ class TolMeasurment():
         #                                                                 ])
         
         # Run R07
-        self.sim_parameters = SimulationParameter(std_camera        =   0,
-                                                  std_laser         =   1,
-                                                  num_iterations    =   1,
+        self.sim_parameters = SimulationParameter(std_camera        =   20,
+                                                  std_laser         =   20,
+                                                  num_iterations    =   10,
                                                   approx_time       =   None,
-                                                  results_name      =   'R07',
+                                                  results_name      =   'R10',
                                                   use_radiant_gauss =   True,
-                                                  comments          =   ["Test of numpy calculation"
+                                                  comments          =   ["Test of numpy calculation",
+                                                                         "Test of less tolerance with fitting"
                                                                         ])
         
-        use_mll     = True
-        use_niklas  = False
+        use_mll     = False
+        use_niklas  = True
         use_pm_room = False
 
         if use_mll:

@@ -56,6 +56,24 @@ def get_normal_vectors_from_rotation_matrix(rotation_matrix:sp.Matrix)->list[Vec
         
     return normal_vectors
 
+def get_euler_angles_from_roatation_matrix(rotation_matrix:sp.Matrix)->list[float]:
+    """
+    Get the Euler angles from the rotation matrix.
+    
+    Args:
+        rotation_matrix: A 3x3 sympy.Matrix representing the rotation matrix.
+        
+    Returns:
+        A list containing the Euler angles (roll, pitch, yaw).
+    """
+    # Extract the Euler angles from the rotation matrix
+    roll = sp.atan2(rotation_matrix[2, 1], rotation_matrix[2, 2])
+    pitch = sp.atan2(-rotation_matrix[2, 0], sp.sqrt(rotation_matrix[2, 1]**2 + rotation_matrix[2, 2]**2))
+    yaw = sp.atan2(rotation_matrix[1, 0], rotation_matrix[0, 0])
+    
+    return [roll, pitch, yaw]
+
+
 def check_and_return_quaternion(object_to_check,logger=None):
     """This function checks if a given quaternion is valid. This is the case if x=0, y=0, z=0, w=0. 
     In this case the function will set the quaterion to x=0, y=0, z=0, w=1.
