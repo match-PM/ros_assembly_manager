@@ -519,8 +519,9 @@ class AssemblyManagerNode(Node):
                 create_success = self.create_assembly_instructions(create_assembly_instruction_request)
                 if not create_success:
                     self.logger.error(f"Error while creating assembly instruction {create_assembly_instruction_request.assembly_instruction.id}!")
+                    # commented out to make possible that only some of the instructions are created
                     response.success = False
-                    return response
+                    #return response
 
             response.success = True
         except Exception as e:

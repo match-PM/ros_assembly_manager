@@ -354,6 +354,7 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
             spawining_object.object.operation = spawining_object.object.ADD;
             delete m;  // Cleanup the mesh object
             planning_scene.robot_state.attached_collision_objects.push_back(spawining_object);
+            RCLCPP_ERROR(this->get_logger(),"Spawned STL for component %s in parent frame %s", object_id.c_str(), new_parent_frame.c_str());
 
           }
           

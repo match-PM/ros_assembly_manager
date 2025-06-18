@@ -1,0 +1,22 @@
+{
+    "action_sequence_name": "Assemble_UFC_to_Glas_ideal",
+    "action_log": [
+        {
+            "52_/pm_pneumatic_dummy/set_1K_Dispenser_Joint": {
+                "service_client": "/pm_pneumatic_dummy/set_1K_Dispenser_Joint",
+                "service_type": "example_interfaces/srv/SetBool",
+                "srv_start_time": "2025-05-08_16:47:45.932385",
+                "srv_end_time": "2025-05-08_16:47:45.940345",
+                "execution_time": "0:00:00.007960",
+                "srv_request": {
+                    "data": false
+                },
+                "srv_response": {
+                    "success": true,
+                    "message": ""
+                },
+                "success": true
+            }
+        }
+    ]
+}

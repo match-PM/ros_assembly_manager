@@ -54,7 +54,7 @@ class InPlaneConstraintHandler(ami_msg.FrConstraintInPlane):
         else:
             self.is_active = False
             if self.logger is not None:
-                self.logger.error(f'Not enough reference frames provided for centroid constraint{self.ref_frame_names}. ')
+                self.logger.error(f'Not enough reference frames provided for in plane constraint{self.ref_frame_names}. ')
             return
         
         if not self.normal_axis in ['x','y','z']:
