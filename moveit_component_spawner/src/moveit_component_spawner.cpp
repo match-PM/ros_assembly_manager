@@ -305,7 +305,7 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
             std::string object_id = object_list[i].obj_name;
             std::string parent_frame = object_list[i].parent_frame;
             geometry_msgs::msg::Pose object_pose = object_list[i].obj_pose;
-            std::string stl_path = object_list[i].cad_data;
+            std::string stl_path = object_list[i].cad_data_collision;
 
             geometry_msgs::msg::Pose adapted_pose;
 
@@ -314,6 +314,7 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
             
             if (!file.good()){
               RCLCPP_ERROR(this->get_logger(),"CAD-File for component %s not found!", object_id.c_str());
+              RCLCPP_ERROR(this->get_logger(),"Path: '%s'!", stl_path.c_str());
               return false;
             }
 
@@ -587,11 +588,11 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
       planning_scene->getPlanningSceneMsg(ps_msg);
       ps_msg.is_diff = true;
 
-      RCLCPP_ERROR(this->get_logger(), "CHECK2");
+      //RCLCPP_ERROR(this->get_logger(), "CHECK2");
 
       planning_scene_diff_publisher->publish(ps_msg);
 
-      RCLCPP_ERROR(this->get_logger(), "CHECK3");
+      //RCLCPP_ERROR(this->get_logger(), "CHECK3");
       response->success = true;
       return;
     }

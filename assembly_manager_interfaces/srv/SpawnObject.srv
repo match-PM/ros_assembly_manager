@@ -3,5 +3,6 @@ string parent_frame
 geometry_msgs/Vector3 translation
 geometry_msgs/Quaternion rotation
 string cad_data
+string cad_data_collision
 ---
 bool success

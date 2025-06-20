@@ -110,6 +110,7 @@ class AssemblyScenePublisherNode(Node):
         It then publishes the information as topics and also publishes a Frame in TF"""
         new_obj = ami_msg.Object()
         new_obj.cad_data = request.cad_data
+        new_obj.cad_data_collision = request.cad_data_collision
         new_obj.obj_name = request.obj_name
         new_obj.parent_frame = request.parent_frame
         new_obj.obj_pose.orientation = request.rotation

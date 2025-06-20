@@ -1,7 +1,9 @@
 string obj_name
 string parent_frame
+string guid
 geometry_msgs/Pose obj_pose
 string cad_data
+string cad_data_collision
 RefFrame[] ref_frames
 Axis[] ref_axis
 Plane[] ref_planes

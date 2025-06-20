@@ -329,6 +329,12 @@ class AssemblyManagerNode(Node):
             type = file_data.get("type")
             save_date = file_data.get("saveDate")
             cad_path = file_data.get("cadPath")
+            cad_data_collision = file_data.get("cadPathCollision", "")
+
+            if cad_data_collision == "":
+                cad_data_collision = cad_path
+
+            #self.logger.error(f"Collision: {cad_data_collision}")
 
             mounting_references = file_data.get("mountingDescription").get("mountingReferences")
             ref_frames = mounting_references.get("ref_frames")
@@ -348,6 +354,7 @@ class AssemblyManagerNode(Node):
             spawn_request.obj_name = comp_name
             spawn_request.parent_frame = mounting_references.get("spawningOrigin")
             spawn_request.cad_data = f"{os.path.dirname(request.file_path)}/{cad_path}"
+            spawn_request.cad_data_collision = f"{os.path.dirname(request.file_path)}/{cad_data_collision}"
             spawn_request.translation.x = mounting_references.get("spawningTransformation").get("translation").get("X")*multiplier
             spawn_request.translation.y = mounting_references.get("spawningTransformation").get("translation").get("Y")*multiplier
             spawn_request.translation.z = mounting_references.get("spawningTransformation").get("translation").get("Z")*multiplier
