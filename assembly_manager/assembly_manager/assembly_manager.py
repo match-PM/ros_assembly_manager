@@ -256,7 +256,8 @@ class AssemblyManagerNode(Node):
         if object_publish_success and self.is_unity_running():
             SpawnRequestUnity = unity_srv.SpawnObjectUnity.Request()
             for key in SpawnRequest.__slots__:
-                setattr(SpawnRequestUnity, key, getattr(SpawnRequest, key))
+                if hasattr(SpawnRequestUnity, key):
+                    setattr(SpawnRequestUnity, key, getattr(SpawnRequest, key))
             
             if not self.unity_object_spawner_client.wait_for_service(timeout_sec=2.0):
                 self.logger.info('Spawn Service not available')
