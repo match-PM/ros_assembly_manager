@@ -3,13 +3,12 @@
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import TransformStamped
-from std_msgs.msg import String
+from std_msgs.msg import String, ColorRGBA
 from geometry_msgs.msg import Pose
 from tf2_ros import Buffer, TransformListener, TransformBroadcaster, StaticTransformBroadcaster
 import assembly_manager_interfaces.srv as ami_srv
 import assembly_manager_interfaces.msg as ami_msg
 import assembly_scene_publisher.py_modules.frame_constraints as f_constraints
-
 
 import assembly_manager_interfaces_unity.srv as unity_srv
 
@@ -349,9 +348,14 @@ class AssemblyManagerNode(Node):
                 multiplier = 0.000001
             else:
                 multiplier = 1
-
+            
+            color = ColorRGBA()
+            color.r = file_data.get("color",{}).get("R", 0.0)
+            color.g = file_data.get("color",{}).get("G", 0.0)
+            color.b = file_data.get("color",{}).get("B", 0.0)
             spawn_request = ami_srv.SpawnObject.Request()
             spawn_request.obj_name = comp_name
+            spawn_request.apperance_color = color
             spawn_request.parent_frame = mounting_references.get("spawningOrigin")
             spawn_request.cad_data = f"{os.path.dirname(request.file_path)}/{cad_path}"
             spawn_request.cad_data_collision = f"{os.path.dirname(request.file_path)}/{cad_data_collision}"

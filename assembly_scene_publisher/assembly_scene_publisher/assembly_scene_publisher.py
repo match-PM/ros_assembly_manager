@@ -210,8 +210,8 @@ class AssemblyScenePublisherNode(Node):
         response.success = True
         return response
     
-    def clear_scene(self, request: Empty.Request, response: Empty.Response):
-        self.object_scene.clear_scene()
+    def clear_scene(self, request: ami_srv.ClearScene.Response, response: ami_srv.ClearScene.Response):
+        response.success = self.object_scene.clear_scene(request.save_data)
         return response
 
 

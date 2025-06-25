@@ -4,6 +4,8 @@ string guid
 geometry_msgs/Pose obj_pose
 string cad_data
 string cad_data_collision
+string parent_file_path
 RefFrame[] ref_frames
 Axis[] ref_axis
 Plane[] ref_planes
+std_msgs/ColorRGBA apperance_color

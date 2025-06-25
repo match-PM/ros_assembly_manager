@@ -12,6 +12,9 @@
   <test_depend>ament_pep257</test_depend>
   <test_depend>python3-pytest</test_depend>
 
+  <build_depend>std_msgs</build_depend>
+  <exec_depend>std_msgs</exec_depend>
+
   <build_depend>assembly_manager_interfaces</build_depend>
   <exec_depend>assembly_manager_interfaces</exec_depend>
   

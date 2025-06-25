@@ -197,6 +197,7 @@ class AssemblyManagerScene():
 
         list_of_ref_frames = ref_frames_dict.get('frames', [])
         document_units = ref_frames_dict.get('document_units', 'm')
+        unique_identifier = ref_frames_dict.get('unique_identifier', '')
         multiplicator = 1
         if document_units == 'mm':
             multiplicator = 1000
@@ -211,7 +212,7 @@ class AssemblyManagerScene():
         try:
             for index, frame in enumerate(list_of_ref_frames):
                 new_ref_frame = ami_msg.RefFrame()
-                new_ref_frame.frame_name = frame.get('name', "")
+                new_ref_frame.frame_name = f"{unique_identifier}{frame.get('name', 'NO_NAME')}"
                 new_ref_frame.parent_frame = frame.get('parent_frame', "")
                 x = frame["transformation"]["translation"]["X"]/multiplicator
                 y = frame["transformation"]["translation"]["Y"]/multiplicator
@@ -1320,7 +1321,7 @@ class AssemblyManagerScene():
 
         self.publish_to_tf()
             
-    def clear_scene(self):
+    def clear_scene(self, save_data:bool = False):
         self.destroy_all_ref_frames()
         self.scene = ami_msg.ObjectScene()
         self.publish_information()
