@@ -13,7 +13,7 @@ from geometry_msgs.msg import Vector3, Quaternion
 import sympy as sp
 from typing import Union
 from ament_index_python.packages import get_package_share_directory
-
+import os
 # import plt
 import matplotlib.pyplot as plt
 
@@ -1321,10 +1321,17 @@ class AssemblyManagerScene():
 
         self.publish_to_tf()
             
-    def clear_scene(self, save_data:bool = False):
+    def clear_scene(self, save_data:bool = False)->bool:
+        
+        if save_data:
+            self.logger.info("Saving scene data before clearing...")
+            self.save_scene_to_files()
+        
         self.destroy_all_ref_frames()
         self.scene = ami_msg.ObjectScene()
         self.publish_information()
+        
+        return True
         
     def get_core_frames_for_component(self, component_name:str)->list[str]:
         if not self.check_object_exists(component_name):
@@ -1375,3 +1382,36 @@ class AssemblyManagerScene():
         
         return final_list
 
+    def save_scene_to_files(self):
+        for obj in self.scene.objects_in_scene:
+            obj: ami_msg.Object
+            self.logger.info(f"Saving object {obj.obj_name} to file...")
+            self.save_object_to_file(obj)
+        
+    def save_object_to_file(self, obj:ami_msg.Object):
+        filename = f"{obj.guid}"
+        folder_name = f"{obj.obj_name}"
+        
+        if filename is None or filename == "":
+            filename = obj.obj_name + ".json"
+        else:
+            filename = filename + ".json"
+        
+        # strip '-X' endings from folder name
+        folder_name = folder_name.rstrip('-0123456789')
+        
+        file_dir = obj.cad_data
+        #strip everything after the last '/'
+        file_dir = os.path.dirname(file_dir)
+        file_path = os.path.join(file_dir, f"logs_{folder_name}", filename)
+        
+        obj_dict = {}
+        
+        # create folder if it does not exist
+        if not os.path.exists(os.path.dirname(file_path)):
+            os.makedirs(os.path.dirname(file_path))
+        
+        # save to json file
+        with open(file_path, 'w') as file:
+            json.dump(obj_dict, file, indent=4)
+            

@@ -130,9 +130,9 @@ class TolMeasurment():
         #                                                                 ])
         
         # Run R07
-        self.sim_parameters = SimulationParameter(std_camera        =   20,
-                                                  std_laser         =   20,
-                                                  num_iterations    =   10,
+        self.sim_parameters = SimulationParameter(std_camera        =   1,
+                                                  std_laser         =   0,
+                                                  num_iterations    =   200,
                                                   approx_time       =   None,
                                                   results_name      =   'R10',
                                                   use_radiant_gauss =   True,
@@ -263,13 +263,18 @@ class TolMeasurment():
         #print(f"Generated x: {x} y: {y}")
         return x, y
     
+    def gen_gaussian_2d(self, std: float):
+        x, y = np.random.normal(0, std, size=2)
+        return x, y
+
     def modify_relatives(self):
         
         multiplier = 1e-6
         for i in range(0, len(self.programmer.action_list)):
 
             if self.sim_parameters.use_radiant_gauss:
-                x_value, y_value = self.gen_gausss_radius(self.sim_parameters.std_camera)
+                #x_value, y_value = self.gen_gausss_radius(self.sim_parameters.std_camera)
+                x_value, y_value = self.gen_gaussian_2d(self.sim_parameters.std_camera)
             else:
                 x_value = self.gen_value_gauss(self.sim_parameters.std_camera)
                 y_value = self.gen_value_gauss(self.sim_parameters.std_camera)

@@ -14,12 +14,30 @@ def gen_gausss_radius(std:float):
     y = r * np.sin(theta)
     return x, y
 
+def gen_gaussian_2d(std: float):
+    x, y = np.random.normal(0, std, size=2)
+    return x, y
+
 def gen_value_gauss(std:float):
     #x = random.gauss(0, std)
     #y = random.gauss(0, std)
     x = np.random.normal(0, std)
     y = np.random.normal(0, std)
     return x, y
+
+def fit_distribution(data, description):
+    # Fit the data to different distributions
+    f = Fitter(data, distributions=[
+        'norm', 'rayleigh', 'weibull_min', 'expon', 'lognorm', 'gamma', 'beta', 'uniform', 'laplace'
+    ])    
+    f.fit()
+    # Print the best distribution
+    print(f.summary())
+    # Print the parameters of the best distribution
+    # Plot the fitted distributions
+    f.plot_pdf()
+    plt.title(f"Fitted distributions for {description}")
+    plt.show()
 
 def get_x_y_values_from_file(file_name):
     with open(file_name, 'r') as f:
@@ -59,13 +77,13 @@ def get_x_y_values_from_file(file_name):
 #file_name = "documentation/tolerance_analyses/logs/poses_list.json"
 file_name = "documentation/tolerance_analyses/logs/poses_list_R06.json"
 
-
 x_list = []
 y_list = []
 
 for i in range(500000):
-    x, y = gen_value_gauss(1e-6)
+    #x, y = gen_value_gauss(1e-6)
     #x, y = gen_gausss_radius(1e-6)
+    x, y = gen_gaussian_2d(1e-6)
     x_list.append(x)
     y_list.append(y)
 
@@ -101,24 +119,10 @@ x_list_file, y_list_file, sdt_x, sdt_y = get_x_y_values_from_file(file_name)
 # print("Testing distribution of Y file points")
 # test_distribution(y_list_file)
 
-def fit_distribution(data, description):
-    # Fit the data to different distributions
-    f = Fitter(data, distributions=[
-        'norm', 'rayleigh', 'weibull_min', 'expon', 'lognorm', 'gamma', 'beta', 'uniform', 'laplace'
-    ])    
-    f.fit()
-    # Print the best distribution
-    print(f.summary())
-    # Print the parameters of the best distribution
-    # Plot the fitted distributions
-    f.plot_pdf()
-    plt.title(f"Fitted distributions for {description}")
-    plt.show()
-
 fit_distribution(x_list, "Generated X")
-fit_distribution(x_list_file, "File X")
+#fit_distribution(x_list_file, "File X")
 fit_distribution(y_list, "Generated Y")
-fit_distribution(y_list_file, "File Y")
+#fit_distribution(y_list_file, "File Y")
 
 print(f"File: std_x: {sdt_x*1e6} std_y: {sdt_y*1e6}")
 

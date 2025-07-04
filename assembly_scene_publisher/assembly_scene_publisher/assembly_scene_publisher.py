@@ -54,7 +54,7 @@ class AssemblyScenePublisherNode(Node):
 
         self.modify_frame_from_frame_srv = self.create_service(ami_srv.ModifyPoseFromFrame,f'assembly_manager/modify_frame_from_frame',self.modify_frame_from_frame,callback_group=self.callback_group)
 
-        self.clear_scene_srv = self.create_service(Empty,f'assembly_manager/clear_scene', self.clear_scene,callback_group=self.callback_group)
+        self.clear_scene_srv = self.create_service(ami_srv.ClearScene,f'assembly_manager/clear_scene', self.clear_scene,callback_group=self.callback_group)
 
         #self.timer = self.create_timer(5.0, self.object_scene.publish_information,callback_group=self.callback_group)
         
@@ -210,7 +210,7 @@ class AssemblyScenePublisherNode(Node):
         response.success = True
         return response
     
-    def clear_scene(self, request: ami_srv.ClearScene.Response, response: ami_srv.ClearScene.Response):
+    def clear_scene(self, request: ami_srv.ClearScene.Request, response: ami_srv.ClearScene.Response):
         response.success = self.object_scene.clear_scene(request.save_data)
         return response
 
