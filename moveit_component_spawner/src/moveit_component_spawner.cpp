@@ -29,39 +29,16 @@
 // #include "spawn_object_interfaces/srv/destroy_object.hpp"
 // #include "spawn_object_interfaces/srv/disable_obj_collision.hpp"
 
-// geometry_msgs::msg::Quaternion quaternion_multiply(geometry_msgs::msg::Quaternion q0, geometry_msgs::msg::Quaternion q1)
-// {
-//   // Extract the values from q0
-//   auto w0 = q0.w;
-//   auto x0 = q0.x;
-//   auto y0 = q0.y;
-//   auto z0 = q0.z;
-
-//   // Extract the values from q1
-//   auto w1 = q1.w;
-//   auto x1 = q1.x;
-//   auto y1 = q1.y;
-//   auto z1 = q1.z;
-
-//   // Computer the product of the two quaternions, term by term
-//   auto q0q1_w = w0 * w1 - x0 * x1 - y0 * y1 - z0 * z1;
-//   auto q0q1_x = w0 * x1 + x0 * w1 + y0 * z1 - z0 * y1;
-//   auto q0q1_y = w0 * y1 - x0 * z1 + y0 * w1 + z0 * x1;
-//   auto q0q1_z = w0 * z1 + x0 * y1 - y0 * x1 + z0 * w1;
-
-//   auto result = geometry_msgs::msg::Quaternion();
-//   result.x = q0q1_x;
-//   result.y = q0q1_y;
-//   result.z = q0q1_z;
-//   result.w = q0q1_w;
-
-//   return result;
-// }
-
 using std::placeholders::_1;
 
 std::shared_ptr<robot_model_loader::RobotModelLoader> PM_Robot_Model_Loader;
 std::shared_ptr<planning_scene_monitor::PlanningSceneMonitor> planning_scene_monitor_;
+
+struct CollisionRule {
+  std::string link_1;
+  std::string link_2;
+  bool should_check;
+};
 
 class MoveitObjectSpawnerNode : public rclcpp::Node
   {
@@ -83,7 +60,7 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
     std::vector<assembly_manager_interfaces::msg::Object> object_list;
     tf2_msgs::msg::TFMessage::SharedPtr current_tf_msg;
     std::vector<std::string> disabled_collision_list;
-    
+    std::vector<CollisionRule> saved_collision_rules;
     
 
     MoveitObjectSpawnerNode() : Node("my_node")
@@ -356,10 +333,12 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
             delete m;  // Cleanup the mesh object
             planning_scene.robot_state.attached_collision_objects.push_back(spawining_object);
             RCLCPP_ERROR(this->get_logger(),"Spawned STL for component %s in parent frame %s", object_id.c_str(), new_parent_frame.c_str());
-
           }
           
           planning_scene_diff_publisher->publish(planning_scene);
+          // sleep_for(std::chrono::milliseconds(1000));
+          rclcpp::sleep_for(std::chrono::milliseconds(200));
+          apply_all_saved_collisions();
           return true; //returns True/False
         } 
 
@@ -498,50 +477,47 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
     //   }
     // }
 
-    void disable_collision(const std::shared_ptr<assembly_manager_interfaces::srv::SetCollisionChecking::Request> request, std::shared_ptr<assembly_manager_interfaces::srv::SetCollisionChecking::Response>response){
-      
-      auto planning_scene = planning_scene_monitor_->getPlanningScene();
-
-      collision_detection::AllowedCollisionMatrix& acm = planning_scene->getAllowedCollisionMatrixNonConst();
-
-      // check if links are robot links
+    bool collision_pair_valid(CollisionRule rule)
+    {
+      // check if link_1 and link_2 are not empty
+      if (rule.link_1.empty() || rule.link_2.empty())
+      {
+        RCLCPP_ERROR(this->get_logger(), "Collision pair is invalid: %s, %s", rule.link_1.c_str(), rule.link_2.c_str());
+        return false;
+      }
+       // check if links are robot links
       const moveit::core::RobotModelPtr& kinematic_model = PM_Robot_Model_Loader->getModel();
       std::vector<std::string> list_of_robot_links=kinematic_model->getLinkModelNames();
       bool link_1_is_robot_link = false;
       bool link_2_is_robot_link = false;
       for (const std::string& link : list_of_robot_links) 
       {
-        if(request->link_1 == link){
+        if(rule.link_1 == link){
           link_1_is_robot_link = true;
         }
-        if(request->link_2 == link){
+        if(rule.link_2 == link){
           link_2_is_robot_link = true;
         }
       }
-
       // check if links are objects in the scene
-      bool link_1_is_component = is_object_in_scene(request->link_1);
-      bool link_2_is_component = is_object_in_scene(request->link_2);
-      
+      bool link_1_is_component = is_object_in_scene(rule.link_1);
+      bool link_2_is_component = is_object_in_scene(rule.link_2);
+
       if (link_1_is_robot_link == false && link_1_is_component == false){
-        RCLCPP_ERROR(this->get_logger(), "Link 1: %s, Link 2: %s", request->link_1.c_str(), request->link_2.c_str());
+        RCLCPP_ERROR(this->get_logger(), "Link 1: %s, Link 2: %s", rule.link_1.c_str(), rule.link_2.c_str());
         RCLCPP_ERROR(this->get_logger(), "Link 1 is component: %s, Link 2 is component: %s", link_1_is_component ? "true" : "false", link_2_is_component ? "true" : "false");
         RCLCPP_ERROR(this->get_logger(), "Link 1 is robot link: %s, Link 2 is robot link: %s", link_1_is_robot_link ? "true" : "false", link_2_is_robot_link ? "true" : "false");
-        response->success = false;
-        RCLCPP_ERROR(this->get_logger(),"Set collision checking failed!");
-        return;
+        return false;
       }
 
       if (link_2_is_robot_link == false && link_2_is_component == false){
-        RCLCPP_ERROR(this->get_logger(), "Link 1: %s, Link 2: %s", request->link_1.c_str(), request->link_2.c_str());
+        RCLCPP_ERROR(this->get_logger(), "Link 1: %s, Link 2: %s", rule.link_1.c_str(), rule.link_2.c_str());
         RCLCPP_ERROR(this->get_logger(), "Link 1 is component: %s, Link 2 is component: %s", link_1_is_component ? "true" : "false", link_2_is_component ? "true" : "false");
         RCLCPP_ERROR(this->get_logger(), "Link 1 is robot link: %s, Link 2 is robot link: %s", link_1_is_robot_link ? "true" : "false", link_2_is_robot_link ? "true" : "false");
-        response->success = false;
-        RCLCPP_ERROR(this->get_logger(),"Set collision checking failed!");
-        return;
+        return false;
       }
 
-      // This is not necessary
+            // This is not necessary
       // if (link_1_is_component == true)
       // {
       //   // check if link_1 is already in the disabled collision list
@@ -579,24 +555,56 @@ class MoveitObjectSpawnerNode : public rclcpp::Node
       //   apply_objects_to_moveit();
       //   return;
       // }
-      
-      // OR just disable specific ones:
-      acm.setEntry(request->link_1, request->link_2, !request->should_check);
 
-      // Publish the changes to MoveGroup
+
+      // If both links are valid, return true
+      RCLCPP_INFO(this->get_logger(), "Collision pair is valid: %s, %s", rule.link_1.c_str(), rule.link_2.c_str());
+
+      return true;
+    }
+
+    void disable_collision(const std::shared_ptr<assembly_manager_interfaces::srv::SetCollisionChecking::Request> request, std::shared_ptr<assembly_manager_interfaces::srv::SetCollisionChecking::Response>response){
+      
+      // create rule
+      CollisionRule rule;
+      rule.link_1 = request->link_1;
+      rule.link_2 = request->link_2;
+      rule.should_check = request->should_check;
+
+      bool check_valid = collision_pair_valid(rule);
+      if (!check_valid)
+      {
+        response->success = false;
+        return;
+      }
+      else
+      {
+        // add to the saved collision rules
+        saved_collision_rules.push_back(rule);
+        apply_all_saved_collisions();
+        response->success = true;
+        return;
+      }
+
+    }
+
+    void apply_all_saved_collisions()
+    {
+      auto planning_scene = planning_scene_monitor_->getPlanningScene();
+      collision_detection::AllowedCollisionMatrix& acm = planning_scene->getAllowedCollisionMatrixNonConst();
+
+      for (const auto& rule : saved_collision_rules)
+      {
+        acm.setEntry(rule.link_1, rule.link_2, !rule.should_check);
+      }
+
       moveit_msgs::msg::PlanningScene ps_msg;
       planning_scene->getPlanningSceneMsg(ps_msg);
       ps_msg.is_diff = true;
-
-      //RCLCPP_ERROR(this->get_logger(), "CHECK2");
-
       planning_scene_diff_publisher->publish(ps_msg);
 
-      //RCLCPP_ERROR(this->get_logger(), "CHECK3");
-      response->success = true;
-      return;
+      RCLCPP_INFO(this->get_logger(), "Applied %lu saved collision rules", saved_collision_rules.size());
     }
-
     // geometry_msgs::msg::Pose translation_rotation_to_pose(geometry_msgs::msg::Vector3 translation, geometry_msgs::msg::Quaternion rotation){
     //   geometry_msgs::msg::Pose pose;
     //   pose.position.x = translation.x;
