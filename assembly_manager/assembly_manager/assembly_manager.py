@@ -462,12 +462,19 @@ class AssemblyManagerNode(Node):
 
         except FileNotFoundError:
             self.logger.error(f"Error: File not found at path '{request.file_path}'.")
+            response.success = False
+            return response
 
         except json.JSONDecodeError as e:
             self.logger.error(f"Error decoding JSON: {e}")
+            response.success = False
+            return response
 
         except Exception as e:
             self.logger.error(f"An unexpected error occurred: {e}")
+            response.success = False
+            return response
+        
         try:
             type = file_data.get("type")
             mounting_description = file_data.get("mountingDescription")
