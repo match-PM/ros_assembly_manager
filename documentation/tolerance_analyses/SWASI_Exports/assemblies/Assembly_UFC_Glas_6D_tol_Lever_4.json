@@ -2,7 +2,7 @@
   "mountingDescription": {
     "components": [
       {
-        "name": "UFC_6D_tol-1",
+        "name": "UFC_6D_tol_Lever_3-1",
         "type": "component",
         "transformation": {
           "translation": {
@@ -44,7 +44,7 @@
       {
         "name": "Description_Glas_6D_tol-1_UFC_6D_tol-1",
         "component_1": "Glas_6D_tol-1",
-        "component_2": "UFC_6D_tol-1",
+        "component_2": "UFC_6D_tol_Lever_3-1",
         "moveComponent_1": false,
         "description": {
           "planeMatch_1": {
@@ -55,7 +55,7 @@
           },
           "planeMatch_2": {
             "planeNameComponent_1": "Axis_T_Plane",
-            "planeNameComponent_2": "Axis_B_Plane",
+            "planeNameComponent_2": "Axis_B_Plane2",
             "planeOffset": 0.0,
             "invertNormalVector": false
           },

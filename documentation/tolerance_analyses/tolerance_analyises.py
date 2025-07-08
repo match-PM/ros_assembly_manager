@@ -26,6 +26,7 @@ class SimulationParameter():
                  num_iterations:int, 
                  approx_time:int,
                  results_name:str,
+                 instruction_name :str = '',
                  use_radiant_gauss:bool = True,
                 comments:list[str] = []
                  ) -> None:
@@ -36,6 +37,7 @@ class SimulationParameter():
         self.approx_time = approx_time
         self.results_name = results_name
         self.use_radiant_gauss = use_radiant_gauss
+        self.instruction_name = instruction_name
         self.total_iterations = 0
         self.comments = comments
         self.failure_count = 0
@@ -48,6 +50,7 @@ class SimulationParameter():
             "approx_time": self.approx_time,
             "use_radiant_gauss": self.use_radiant_gauss,
             "total_iterations": self.total_iterations,
+            "instruction_name": self.instruction_name,
             "failure_count": self.failure_count,
             "comments": self.comments
         }
@@ -70,40 +73,87 @@ class TolMeasurment():
         #                                           approx_time       =   None,
         #                                           results_name      =   'R01',
         #                                           use_radiant_gauss =   False,
+        #                                           instruction_name = "Assembly_UFC_Glas_6D_tol.json",
+
         #                                           comments          =   ["x und y equal in normal distribution",
         #                                                                    "cameras: x = 1um y = 1um; laser: z= 1um "
         #                                                                 ])
         
-        # # Run R02
+        # # Run R02 - camera influence
         # self.sim_parameters = SimulationParameter(std_camera        =   1,
         #                                           std_laser         =   0,
         #                                           num_iterations    =   500,
         #                                           approx_time       =   None,
         #                                           results_name      =   'R02',
         #                                           use_radiant_gauss =   True,
+        #                                           instruction_name = "Assembly_UFC_Glas_6D_tol.json",
+
         #                                           comments          =   ["Testing of camera influence without laser influence",
         #                                                                     "Distribution of camera is according to radius with normal distribution",
         #                                                                     "Uses the ideal ref_points with laser points at the default position"])
-        # Run R03
-        # self.sim_parameters = SimulationParameter(std_camera        =   0,
-        #                                           std_laser         =   10,
-        #                                           num_iterations    =   2000,
-        #                                           approx_time       =   None,
-        #                                           results_name      =   'R03',
-        #                                           use_radiant_gauss =   True,
-        #                                           comments          =   ["Testing of laser influence without camera influence",
-        #                                                                 "Uses the ideal ref_points with laser points at the default position"])
 
-        # # Run R04
-        # self.sim_parameters = SimulationParameter(std_camera        =   1,
+        # # Run laser lever 1
+        # self.sim_parameters = SimulationParameter(std_camera        =   0,
         #                                           std_laser         =   1,
         #                                           num_iterations    =   2500,
         #                                           approx_time       =   None,
         #                                           results_name      =   'R04',
         #                                           use_radiant_gauss =   True,
-        #                                           comments          =   ["Testing of laser influence with camera influence",
-        #                                                                 "Uses the ideal ref_points with laser points at the default position"])
-        
+        #                                           instruction_name = "Assembly_UFC_Glas_6D_tol_Lever_1.json",
+        #                                           comments          =   ["Testing of laser influence. Lever is at 1",
+        #                                                                 "Alignment at default"
+        #                                                                  ])
+        # # Run laser lever 2
+        # self.sim_parameters = SimulationParameter(std_camera        =   0,
+        #                                           std_laser         =   1,
+        #                                           num_iterations    =   2500,
+        #                                           approx_time       =   None,
+        #                                           results_name      =   'R04',
+        #                                           use_radiant_gauss =   True,
+        #                                           instruction_name = "Assembly_UFC_Glas_6D_tol_Lever_2.json",
+
+        #                                           comments          =   ["Testing of laser influence. Lever is at 2",
+        #                                                                 "Alignment at default"
+        #                                                                  ])
+
+        # Run laser lever 3
+        # self.sim_parameters = SimulationParameter(std_camera        =   0,
+        #                                           std_laser         =   1,
+        #                                           num_iterations    =   2500,
+        #                                           approx_time       =   None,
+        #                                           results_name      =   'R04',
+        #                                           use_radiant_gauss =   True,
+        #                                           instruction_name = "Assembly_UFC_Glas_6D_tol_Lever_3.json",
+
+        #                                           comments          =   ["Testing of laser influence. Lever is at 3",
+        #                                                                 "Alignment at default"
+        #                                                                  ])
+
+        # # # Run laser lever 4
+        # # self.sim_parameters = SimulationParameter(std_camera        =   0,
+        # #                                           std_laser         =   1,
+        # #                                           num_iterations    =   2500,
+        # #                                           approx_time       =   None,
+        # #                                           results_name      =   'R11',
+        # #                                           use_radiant_gauss =   True,
+        # #                                           instruction_name =  "Assembly_UFC_Glas_6D_tol_Lever_4.json",
+
+        #                                           comments          =   ["Testing of laser influence. Lever is at 4",
+        #                                                                 "Alignment at default"
+        #                                                                  ])
+
+        # # # Run - camera + laser
+        # # self.sim_parameters = SimulationParameter(std_camera        =   1,
+        # #                                           std_laser         =   1,
+        # #                                           num_iterations    =   2500,
+        # #                                           approx_time       =   None,
+        # #                                           results_name      =   'R11',
+        # #                                           use_radiant_gauss =   True,
+        # #                                           instruction_name =  "Assembly_UFC_Glas_6D_tol_Lever_4.json",
+
+        #                                           comments          =   ["Testing of laser influence + camera influence",
+        #                                                                 "Alignment at default"
+        #                                                                  ])
         # # Run R05
         # self.sim_parameters = SimulationParameter(std_camera        =   0,
         #                                           std_laser         =   10,
@@ -111,55 +161,53 @@ class TolMeasurment():
         #                                           approx_time       =   None,
         #                                           results_name      =   'R05',
         #                                           use_radiant_gauss =   True,
+        #                                           instruction_name = "Assembly_UFC_Glas_6D_tol.json",
+
         #                                           comments          =   ["Testing of laser influence if the lever is increased",
         #                                                                 "Uses the ideal ref_points with laser points at a position where the lever is increased",
         #                                                                 "Distance center vision point x = 15, y = 10, length = 18.03, angle = 32.735",
         #                                                                 "Distance center laser point original x = 14, y = 9, length = 16.64, in percent = 92.3%",
         #                                                                 "Distance center laser point new x = 7, y = 4.45, length = 8.32, in percent = 46.15%",])
         
-        # Run R06
-        # self.sim_parameters = SimulationParameter(std_camera        =   1,
-        #                                           std_laser         =   0,
-        #                                           num_iterations    =   2,
-        #                                           approx_time       =   None,
-        #                                           results_name      =   'R06',
-        #                                           use_radiant_gauss =   True,
-        #                                           comments          =   ["Testing of camera influence without the laser influence",
-        #                                                                 "The plane of the UFC has been changed so that the alignment of the component is different.",
-        #                                                                 "This should result in a higher influence of the camera on the transformation.",
-        #                                                                 ])
-        
-        # Run R07
+        # Change of plane alignment
         self.sim_parameters = SimulationParameter(std_camera        =   1,
                                                   std_laser         =   0,
-                                                  num_iterations    =   200,
+                                                  num_iterations    =   2500,
                                                   approx_time       =   None,
-                                                  results_name      =   'R10',
+                                                  results_name      =   'R11',
+                                                  instruction_name = "Assembly_UFC_Glas_6D_tol_alingment_changed.json",
                                                   use_radiant_gauss =   True,
-                                                  comments          =   ["Test of numpy calculation",
-                                                                         "Test of less tolerance with fitting"
+                                                  comments          =   ["Testing of camera influence without the laser influence",
+                                                                        "The plane of the UFC has been changed so that the alignment of the component is different.",
+                                                                        "This should result in a higher influence of the camera on the transformation.",
+                                                                       "Alignment at changed"
                                                                         ])
         
-        use_mll     = False
-        use_niklas  = True
-        use_pm_room = False
+        # Run R07
+        # self.sim_parameters = SimulationParameter(std_camera        =   1,
+        #                                           std_laser         =   0,
+        #                                           num_iterations    =   10,
+        #                                           approx_time       =   None,
+        #                                           results_name      =   'R10',
+        #                                           use_radiant_gauss =   True,
+        #                                           instruction_name = "Assembly_UFC_Glas_6D_tol.json",
+        #                                           comments          =   ["Test of numpy calculation",
+        #                                                                  "Test of less tolerance with fitting"
+        #                                                                 ])
+        
+        # get username
+        user_name = os.getlogin()
+        self.instruction_json = f'/home/{user_name}/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/SWASI_Exports/assemblies/{self.sim_parameters.instruction_name}'
+        self.programmer.load_from_JSON(f'/home/{user_name}/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/rsap_description.json')
+        self.results_path = f'/home/{user_name}/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/logs'
+        
+        if user_name == 'mll':
+            approx_time = 15
+        elif user_name == 'niklas':
+            approx_time = 10
 
-        if use_mll:
-            self.instruction_json = '/home/mll/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_tol.json'
-            self.programmer.load_from_JSON('/home/mll/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/rsap_description.json')
-            self.results_path = '/home/mll/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/logs'
-            approx_time = 26
-        elif use_niklas:
-            self.programmer.load_from_JSON('/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/rsap_description.json')
-            self.instruction_json = '/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_tol.json'
-            self.results_path = '/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/logs'
-            approx_time = 15
-        elif use_pm_room:
-            self.programmer.load_from_JSON('/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/rsap_description.json')
-            self.instruction_json = '/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/SWASI_Exports/assemblies/Assembly_UFC_Glas_6D_tol.json'
-            self.results_path = '/home/niklas/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/logs'
-            approx_time = 15
         else:
+            approx_time = 30
             raise ValueError("No valid path for instruction json file")
 
         self.init_spawning_action()
@@ -180,6 +228,7 @@ class TolMeasurment():
                                             client = '/assembly_manager/create_assembly_instruction_from_description',
                                             service_type = 'assembly_manager_interfaces/srv/CreateAssemblyInstructionFromDescription',
                                             name = '1_Create Assembly Instruction')
+        
         set_success = self.spawning_action.set_srv_req_dict_value_from_key(path_key='file_path', 
                                                                            new_value=self.instruction_json, 
                                                                            override_to_implicit=False)

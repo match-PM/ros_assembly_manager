@@ -75,7 +75,7 @@ def get_x_y_values_from_file(file_name):
                 std_y)
 
 #file_name = "documentation/tolerance_analyses/logs/poses_list.json"
-file_name = "documentation/tolerance_analyses/logs/poses_list_R06.json"
+file_name = "documentation/tolerance_analyses/logs/poses_list_R11.json"
 
 x_list = []
 y_list = []
@@ -95,29 +95,29 @@ print(f"Generated std_x: {sdt_x_list*1e6} std_y: {sdt_y_list*1e6}")
 x_list_file, y_list_file, sdt_x, sdt_y = get_x_y_values_from_file(file_name)
 
 
-# def test_distribution(data):
-#     params_norm = stats.norm.fit(data)
-#     params_rayleigh = stats.rayleigh.fit(data)
-#     params_weibull = stats.weibull_min.fit(data)
-#     # Perform the Kolmogorov-Smirnov test
-#     ks_norm = stats.kstest(data, 'norm', args=params_norm)
-#     ks_rayleigh = stats.kstest(data, 'rayleigh', args=params_rayleigh)
-#     ks_weibull = stats.kstest(data, 'weibull_min', args=params_weibull)
-#     # Print the results
-#     print(f"Normal distribution: statistic={ks_norm.statistic}, p-value={ks_norm.pvalue}")
-#     print(f"Rayleigh distribution: statistic={ks_rayleigh.statistic}, p-value={ks_rayleigh.pvalue}")
-#     print(f"Weibull distribution: statistic={ks_weibull.statistic}, p-value={ks_weibull.pvalue}")
+def test_distribution(data):
+    params_norm = stats.norm.fit(data)
+    params_rayleigh = stats.rayleigh.fit(data)
+    params_weibull = stats.weibull_min.fit(data)
+    # Perform the Kolmogorov-Smirnov test
+    ks_norm = stats.kstest(data, 'norm', args=params_norm)
+    ks_rayleigh = stats.kstest(data, 'rayleigh', args=params_rayleigh)
+    ks_weibull = stats.kstest(data, 'weibull_min', args=params_weibull)
+    # Print the results
+    print(f"Normal distribution: statistic={ks_norm.statistic}, p-value={ks_norm.pvalue}")
+    print(f"Rayleigh distribution: statistic={ks_rayleigh.statistic}, p-value={ks_rayleigh.pvalue}")
+    print(f"Weibull distribution: statistic={ks_weibull.statistic}, p-value={ks_weibull.pvalue}")
 
 
 # # distribution_testing
-# print("Testing distribution of generated points")
-# test_distribution(x_list)
-# print("Testing distribution of X file points")
-# test_distribution(x_list_file)
-# print("Testing distribution of generated points")
-# test_distribution(y_list)
-# print("Testing distribution of Y file points")
-# test_distribution(y_list_file)
+print("Testing distribution of generated points")
+test_distribution(x_list)
+print("Testing distribution of X file points")
+test_distribution(x_list_file)
+print("Testing distribution of generated points")
+test_distribution(y_list)
+print("Testing distribution of Y file points")
+test_distribution(y_list_file)
 
 fit_distribution(x_list, "Generated X")
 #fit_distribution(x_list_file, "File X")

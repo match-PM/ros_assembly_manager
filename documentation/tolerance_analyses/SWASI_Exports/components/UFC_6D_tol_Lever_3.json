@@ -387,8 +387,8 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -31.0,
-              "Y": -3.0,
+              "X": -24.0,
+              "Y": -7.55,
               "Z": 0.0
           },
             "rotation": {
@@ -475,8 +475,8 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -3.0,
-              "Y": -3.0,
+              "X": -10.0,
+              "Y": -7.55,
               "Z": 0.0
           },
             "rotation": {
@@ -563,8 +563,8 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -3.0,
-              "Y": -21.0,
+              "X": -10.0,
+              "Y": -16.45,
               "Z": 0.0
           },
             "rotation": {
@@ -651,8 +651,8 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -31.0,
-              "Y": -21.0,
+              "X": -24.0,
+              "Y": -16.45,
               "Z": 0.0
           },
             "rotation": {
@@ -1115,7 +1115,7 @@
   },
   "documentUnits": "mm",
   "cadPath": "UFC_6D_tol.STL",
-  "name": "UFC_6D_tol",
+  "name": "UFC_6D_tol_Lever_3",
   "description": "",
   "guid": "69035936-e30c-4a5f-90ca-740963742de3",
   "type": "Component",

@@ -88,6 +88,23 @@
           }
         },
         {
+          "name": "Axis_B_Plane2",
+          "refPointNames": [
+            "Vision_Point_4_B",
+            "",
+            ""
+          ],
+          "refAxisNames": [
+            "Bottom_Axis",
+            ""
+          ],
+          "normalVector": {
+            "X": -0.9999774,
+            "Y": -0.00672280462,
+            "Z": 0.0
+          }
+        },
+        {
           "name": "Front_Plane_B",
           "refPointNames": [
             "Front_Bottom_Reference",
@@ -370,10 +387,10 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -30.8994923,
-              "Y": -2.99974632,
+              "X": -24.0,
+              "Y": -7.55,
               "Z": 0.0
-            },
+          },
             "rotation": {
               "X": 0.0,
               "Y": 0.0,
@@ -414,10 +431,10 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -30.8994923,
-              "Y": -2.93542957,
-              "Z": 1.68468618
-            },
+              "X": -31.0,
+              "Y": -3.0,
+              "Z": 2.0
+          },
             "rotation": {
               "X": 0.0,
               "Y": 0.0,
@@ -458,10 +475,10 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -2.89949226,
-              "Y": -2.99974632,
+              "X": -10.0,
+              "Y": -7.55,
               "Z": 0.0
-            },
+          },
             "rotation": {
               "X": 0.0,
               "Y": 0.0,
@@ -502,10 +519,10 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -2.89949226,
-              "Y": -2.93542957,
-              "Z": 1.68468618
-            },
+              "X": -3.0,
+              "Y": -3.0,
+              "Z": 2.0
+          },
             "rotation": {
               "X": 0.0,
               "Y": 0.0,
@@ -546,10 +563,10 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -2.89949226,
-              "Y": -20.9997463,
+              "X": -10.0,
+              "Y": -16.45,
               "Z": 0.0
-            },
+          },
             "rotation": {
               "X": 0.0,
               "Y": 0.0,
@@ -590,10 +607,10 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -2.89949226,
-              "Y": -20.9244652,
-              "Z": 2.31287718
-            },
+              "X": -3.0,
+              "Y": -21.0,
+              "Z": 2.0
+          },
             "rotation": {
               "X": 0.0,
               "Y": 0.0,
@@ -634,10 +651,10 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -30.8994923,
-              "Y": -20.9997463,
+              "X": -24.0,
+              "Y": -16.45,
               "Z": 0.0
-            },
+          },
             "rotation": {
               "X": 0.0,
               "Y": 0.0,
@@ -678,10 +695,10 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -30.8994923,
-              "Y": -20.9244652,
-              "Z": 2.31287718
-            },
+              "X": -31.0,
+              "Y": -21.0,
+              "Z": 2.0
+          },
             "rotation": {
               "X": 0.0,
               "Y": 0.0,
@@ -722,10 +739,10 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -31.8993225,
-              "Y": -1.999999,
+              "X": -32.0,
+              "Y": -2.0,
               "Z": 0.0
-            },
+          },
             "rotation": {
               "X": 0.0,
               "Y": 0.0,
@@ -769,10 +786,10 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -32.1483078,
-              "Y": -2.31629467,
-              "Z": 1.66306555
-            },
+              "X": -32.0,
+              "Y": -2.0,
+              "Z": 2.0
+          },
             "rotation": {
               "X": 0.0,
               "Y": 0.0,
@@ -816,10 +833,10 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -1.79932308,
-              "Y": -1.999999,
+              "X": -2.0,
+              "Y": -2.0,
               "Z": 0.0
-            },
+          },
             "rotation": {
               "X": 0.0,
               "Y": 0.0,
@@ -863,10 +880,10 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -2.24831,
-              "Y": -1.56493282,
-              "Z": 1.63682735
-            },
+              "X": -2.0,
+              "Y": -2.0,
+              "Z": 2.0
+          },
             "rotation": {
               "X": 0.0,
               "Y": 0.0,
@@ -910,10 +927,10 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -1.999999,
-              "Y": -21.8989868,
+              "X": -2.0,
+              "Y": -22.0,
               "Z": 0.0
-            },
+          },
             "rotation": {
               "X": 0.0,
               "Y": 0.0,
@@ -957,10 +974,10 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -1.553257,
-              "Y": -21.6406746,
-              "Z": 2.33788776
-            },
+              "X": -2.0,
+              "Y": -22.0,
+              "Z": 2.0
+          },
             "rotation": {
               "X": 0.0,
               "Y": 0.0,
@@ -1004,10 +1021,10 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -31.8993225,
-              "Y": -22.0999985,
+              "X": -32.0,
+              "Y": -22.0,
               "Z": 0.0
-            },
+          },
             "rotation": {
               "X": 0.0,
               "Y": 0.0,
@@ -1051,10 +1068,10 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -31.6480923,
-              "Y": -22.1978874,
-              "Z": 2.357346
-            },
+              "X": -32.0,
+              "Y": -22.0,
+              "Z": 2.0
+          },
             "rotation": {
               "X": 0.0,
               "Y": 0.0,
@@ -1098,7 +1115,7 @@
   },
   "documentUnits": "mm",
   "cadPath": "UFC_6D_tol.STL",
-  "name": "UFC_6D_tol",
+  "name": "UFC_6D_tol_Lever_1",
   "description": "",
   "guid": "69035936-e30c-4a5f-90ca-740963742de3",
   "type": "Component",
