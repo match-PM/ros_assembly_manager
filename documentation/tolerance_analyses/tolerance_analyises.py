@@ -80,17 +80,15 @@ class TolMeasurment():
         #                                                                 ])
         
         # # Run R02 - camera influence
-        # self.sim_parameters = SimulationParameter(std_camera        =   1,
-        #                                           std_laser         =   0,
-        #                                           num_iterations    =   500,
-        #                                           approx_time       =   None,
-        #                                           results_name      =   'R02',
-        #                                           use_radiant_gauss =   True,
-        #                                           instruction_name = "Assembly_UFC_Glas_6D_tol.json",
-
-        #                                           comments          =   ["Testing of camera influence without laser influence",
-        #                                                                     "Distribution of camera is according to radius with normal distribution",
-        #                                                                     "Uses the ideal ref_points with laser points at the default position"])
+        self.sim_parameters = SimulationParameter(std_camera        =   1,
+                                                  std_laser         =   0,
+                                                  num_iterations    =   2500,
+                                                  approx_time       =   None,
+                                                  results_name      =   'R12',
+                                                  use_radiant_gauss =   True,
+                                                  instruction_name    = "Assembly_UFC_Glas_6D_tol.json",
+                                                  comments          =   ["Testing of camera influence without laser influence",
+                                                                            "Uses the ideal ref_points with laser points at the default position"])
 
         # # Run laser lever 1
         # self.sim_parameters = SimulationParameter(std_camera        =   0,
@@ -170,18 +168,18 @@ class TolMeasurment():
         #                                                                 "Distance center laser point new x = 7, y = 4.45, length = 8.32, in percent = 46.15%",])
         
         # Change of plane alignment
-        self.sim_parameters = SimulationParameter(std_camera        =   1,
-                                                  std_laser         =   0,
-                                                  num_iterations    =   2500,
-                                                  approx_time       =   None,
-                                                  results_name      =   'R11',
-                                                  instruction_name = "Assembly_UFC_Glas_6D_tol_alingment_changed.json",
-                                                  use_radiant_gauss =   True,
-                                                  comments          =   ["Testing of camera influence without the laser influence",
-                                                                        "The plane of the UFC has been changed so that the alignment of the component is different.",
-                                                                        "This should result in a higher influence of the camera on the transformation.",
-                                                                       "Alignment at changed"
-                                                                        ])
+        # self.sim_parameters = SimulationParameter(std_camera        =   1,
+        #                                           std_laser         =   0,
+        #                                           num_iterations    =   2500,
+        #                                           approx_time       =   None,
+        #                                           results_name      =   'R11',
+        #                                           instruction_name = "Assembly_UFC_Glas_6D_tol_alingment_changed.json",
+        #                                           use_radiant_gauss =   True,
+        #                                           comments          =   ["Testing of camera influence without the laser influence",
+        #                                                                 "The plane of the UFC has been changed so that the alignment of the component is different.",
+        #                                                                 "This should result in a higher influence of the camera on the transformation.",
+        #                                                                "Alignment at changed"
+        #                                                                 ])
         
         # Run R07
         # self.sim_parameters = SimulationParameter(std_camera        =   1,
