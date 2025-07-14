@@ -388,7 +388,7 @@
           "transformation": {
             "translation": {
               "X": -24.0,
-              "Y": -7.55,
+              "Y": -7.5,
               "Z": 0.0
           },
             "rotation": {
@@ -431,8 +431,8 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -31.0,
-              "Y": -3.0,
+              "X": -24.0,
+              "Y": -7.5,
               "Z": 2.0
           },
             "rotation": {
@@ -476,7 +476,7 @@
           "transformation": {
             "translation": {
               "X": -10.0,
-              "Y": -7.55,
+              "Y": -7.5,
               "Z": 0.0
           },
             "rotation": {
@@ -519,8 +519,8 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -3.0,
-              "Y": -3.0,
+              "X": -10.0,
+              "Y": -7.5,
               "Z": 2.0
           },
             "rotation": {
@@ -564,7 +564,7 @@
           "transformation": {
             "translation": {
               "X": -10.0,
-              "Y": -16.45,
+              "Y": -16.5,
               "Z": 0.0
           },
             "rotation": {
@@ -607,8 +607,8 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -3.0,
-              "Y": -21.0,
+              "X": -10.0,
+              "Y": -16.5,
               "Z": 2.0
           },
             "rotation": {
@@ -652,7 +652,7 @@
           "transformation": {
             "translation": {
               "X": -24.0,
-              "Y": -16.45,
+              "Y": -16.5,
               "Z": 0.0
           },
             "rotation": {
@@ -695,8 +695,8 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -31.0,
-              "Y": -21.0,
+              "X": -24.0,
+              "Y": -16.5,
               "Z": 2.0
           },
             "rotation": {

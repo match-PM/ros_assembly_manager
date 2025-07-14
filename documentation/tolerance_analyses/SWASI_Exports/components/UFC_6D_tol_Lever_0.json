@@ -387,8 +387,8 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -24.0,
-              "Y": -7.55,
+              "X": -31.0,
+              "Y": -3.00,
               "Z": 0.0
           },
             "rotation": {
@@ -475,8 +475,8 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -10.0,
-              "Y": -7.55,
+              "X": -3.0,
+              "Y": -3.0,
               "Z": 0.0
           },
             "rotation": {
@@ -563,8 +563,8 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -10.0,
-              "Y": -16.45,
+              "X": -3.0,
+              "Y": -21.0,
               "Z": 0.0
           },
             "rotation": {
@@ -651,8 +651,8 @@
           "type": "point",
           "transformation": {
             "translation": {
-              "X": -24.0,
-              "Y": -16.45,
+              "X": -31.0,
+              "Y": -21.0,
               "Z": 0.0
           },
             "rotation": {
