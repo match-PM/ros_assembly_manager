@@ -1115,7 +1115,7 @@
   },
   "documentUnits": "mm",
   "cadPath": "UFC_6D_tol.STL",
-  "name": "UFC_6D_tol_Lever_2",
+  "name": "UFC_6D_tol",
   "description": "",
   "guid": "69035936-e30c-4a5f-90ca-740963742de3",
   "type": "Component",

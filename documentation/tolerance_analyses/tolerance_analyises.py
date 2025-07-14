@@ -26,6 +26,7 @@ class SimulationParameter():
                  num_iterations:int, 
                  approx_time:int,
                  results_name:str,
+                 rsap_description:str,
                  instruction_name :str = '',
                  use_radiant_gauss:bool = True,
                 comments:list[str] = []
@@ -41,6 +42,7 @@ class SimulationParameter():
         self.total_iterations = 0
         self.comments = comments
         self.failure_count = 0
+        self.rsap_description = rsap_description
 
     def to_dict(self)->dict:
         return {
@@ -51,6 +53,7 @@ class SimulationParameter():
             "use_radiant_gauss": self.use_radiant_gauss,
             "total_iterations": self.total_iterations,
             "instruction_name": self.instruction_name,
+            "rsap_description": self.rsap_description,
             "failure_count": self.failure_count,
             "comments": self.comments
         }
@@ -74,18 +77,21 @@ class TolMeasurment():
         #                                           approx_time       =   None,
         #                                           results_name      =   'R12',
         #                                           use_radiant_gauss =   True,
+        #                                            rsap_description  =   "rsap_description.json",
+
         #                                           instruction_name    = "Assembly_UFC_Glas_6D_tol.json",
         #                                           comments          =   ["Testing of camera influence without laser influence",
         #                                                                     "Uses the ideal ref_points with laser points at the default position"])
-        
+
         # # Run laser lever 1
         self.sim_parameters = SimulationParameter(std_camera        =   0,
                                                   std_laser         =   1,
-                                                  num_iterations    =   5000,
+                                                  num_iterations    =   10,
                                                   approx_time       =   None,
                                                   results_name      =   'R13',
                                                   use_radiant_gauss =   True,
-                                                  instruction_name = "Assembly_UFC_Glas_6D_tol_Lever_1.json",
+                                                  rsap_description  =   "rsap_description_lever_0.json",
+                                                  instruction_name  =    "Assembly_UFC_Glas_6D_tol_Lever_1.json",
                                                   comments          =   ["Testing of laser influence. Lever is at 1 (4/4)",
                                                                         "This is the default lever position",
                                                                         "Alignment at default"
@@ -97,6 +103,8 @@ class TolMeasurment():
         #                                           approx_time       =   None,
         #                                           results_name      =   'R14',
         #                                           use_radiant_gauss =   True,
+        #                                           rsap_description  =   "rsap_description_lever_1.json",
+
         #                                           instruction_name = "Assembly_UFC_Glas_6D_tol_Lever_2.json",
                                                 #   comments          =   ["Testing of laser influence. Lever is at 1 (3/4)",
                                                 #                         "Alignment at default"
@@ -109,6 +117,8 @@ class TolMeasurment():
         #                                           approx_time       =   None,
         #                                           results_name      =   'R15',
         #                                           use_radiant_gauss =   True,
+        #                                           rsap_description  =   "rsap_description_lever_2.json",
+
         #                                           instruction_name = "Assembly_UFC_Glas_6D_tol_Lever_3.json",
                                                 #   comments          =   ["Testing of laser influence. Lever is at 1 (2/4)",
                                                 #                         "Alignment at default"
@@ -121,6 +131,8 @@ class TolMeasurment():
         # #                                           approx_time       =   None,
         # #                                           results_name      =   'R16',
         # #                                           use_radiant_gauss =   True,
+        #                                           rsap_description  =   "rsap_description_lever_3.json",
+
         # #                                           instruction_name =  "Assembly_UFC_Glas_6D_tol_Lever_4.json",
                                                 #   comments          =   ["Testing of laser influence. Lever is at 1 (1/4)",
                                                 #                         "Alignment at default"
@@ -133,6 +145,8 @@ class TolMeasurment():
         # #                                           approx_time       =   None,
         # #                                           results_name      =   'R17',
         # #                                           use_radiant_gauss =   True,
+                #                                            rsap_description  =   "rsap_description.json",
+
         # #                                           instruction_name =  "Assembly_UFC_Glas_6D_tol_Lever_4.json",
 
         #                                           comments          =   ["Testing of laser influence + camera influence",
@@ -146,6 +160,8 @@ class TolMeasurment():
         #                                           num_iterations    =   2500,
         #                                           approx_time       =   None,
         #                                           results_name      =   'R11',
+        #                                            rsap_description  =   "rsap_description.json",
+
         #                                           instruction_name = "Assembly_UFC_Glas_6D_tol_alingment_changed.json",
         #                                           use_radiant_gauss =   True,
         #                                           comments          =   ["Testing of camera influence without the laser influence",
@@ -157,7 +173,7 @@ class TolMeasurment():
         # get username
         user_name = os.getlogin()
         self.instruction_json = f'/home/{user_name}/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/SWASI_Exports/assemblies/{self.sim_parameters.instruction_name}'
-        self.programmer.load_from_JSON(f'/home/{user_name}/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/rsap_description.json')
+        self.programmer.load_from_JSON(f'/home/{user_name}/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/{self.sim_parameters.rsap_description}')
         self.results_path = f'/home/{user_name}/ros2_ws/src/ros_assembly_manager/documentation/tolerance_analyses/logs'
         
         if user_name == 'mll':
@@ -270,7 +286,7 @@ class TolMeasurment():
         y = r * np.sin(theta)
         #print(f"Generated x: {x} y: {y}")
         return x, y
-    
+
     def gen_gaussian_2d(self, std: float):
         x, y = np.random.normal(0, std, size=2)
         return x, y
@@ -355,6 +371,7 @@ class TolMeasurment():
             self.modify_relatives()
             
             self.execute_sequence()
+
             recalculate_success = self.call_recalculation_action()
 
             if not recalculate_success:

@@ -626,7 +626,7 @@ class AssemblyManagerScene():
         pose_to_modify: Pose = None
 
         if not self.check_if_frame_exists(frame_name):
-            self.logger.error("Frame does not exist")
+            self.logger.error(f"Error modifing frame position. Frame '{frame_name}' does not exist")
             return False
         
         # Find the parent Frame
@@ -677,7 +677,7 @@ class AssemblyManagerScene():
         # Give pose in world coordinates
         pose_to_modify: Pose = Pose()
         if not self.check_if_frame_exists(frame_name):
-            self.logger.error("Frame does not exist")
+            self.logger.error(f"Error modifing frame position. Frame '{frame_name}' does not exist")
             return False
         
         # Find the parent Frame
