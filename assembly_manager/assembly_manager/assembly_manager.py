@@ -10,8 +10,6 @@ import assembly_manager_interfaces.srv as ami_srv
 import assembly_manager_interfaces.msg as ami_msg
 import assembly_scene_publisher.py_modules.frame_constraints as f_constraints
 
-import assembly_manager_interfaces_unity.srv as unity_srv
-
 from rclpy.time import Duration
 from threading import Event
 from rclpy.callback_groups import ReentrantCallbackGroup, MutuallyExclusiveCallbackGroup
