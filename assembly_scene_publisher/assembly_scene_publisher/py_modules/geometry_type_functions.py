@@ -357,3 +357,30 @@ def get_relative_transform_for_transforms(from_frame: TransformStamped,
     # Compute relative transform: to_mat⁻¹ * from_mat
     relative_mat = to_mat.inv() * from_mat
     return transform_matrix_to_transform(relative_mat)
+
+def get_relative_transform_for_transforms_calibration(base_transform: TransformStamped,
+                                                    additional_transform: TransformStamped,
+                                                    logger=None) -> Transform:
+    """
+    Compute the transform that brings coordinates from `from_frame` to `to_frame`.
+    
+    Args:
+        from_frame: TransformStamped of the source frame.
+        to_frame: TransformStamped of the target frame.
+        logger: Optional logger for error reporting.
+    
+    Returns:
+        Transform: The relative transform from `from_frame` to `to_frame`, or None on error.
+    """
+    # Convert to transformation matrices
+    base_mat = get_transform_matrix_from_tf(base_transform)
+    additional_mat = get_transform_matrix_from_tf(additional_transform)
+
+    if base_mat is None or additional_mat is None:
+        if logger:
+            logger.error("Invalid input in 'get_relative_transform'.")
+        return None
+
+    # Compute relative transform: to_mat⁻¹ * from_mat
+    relative_mat = base_mat * additional_mat
+    return transform_matrix_to_transform(relative_mat)

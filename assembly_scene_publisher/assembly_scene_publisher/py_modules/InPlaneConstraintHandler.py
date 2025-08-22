@@ -180,6 +180,7 @@ class InPlaneConstraintHandler(ami_msg.FrConstraintInPlane):
     @staticmethod
     def return_handler_from_dict(dictionary: dict, 
                                  component_name: str = None, 
+                                unique_identifier = '',
                                  logger: RcutilsLogger = None):
 
         if dictionary == {}:
@@ -189,6 +190,9 @@ class InPlaneConstraintHandler(ami_msg.FrConstraintInPlane):
         constraint_handler.plane_offset = dictionary.get('planeOffset',0.0)
         constraint_handler.normal_axis = dictionary.get('normalAxis','z')
         constraint_handler.ref_frame_names = dictionary.get('refFrameNames',[])
+
+        for index, frame_name in enumerate(constraint_handler.ref_frame_names):
+                constraint_handler.ref_frame_names[index] = unique_identifier + frame_name
     
         if component_name is not None:
             for index, frame_name in enumerate(constraint_handler.ref_frame_names):

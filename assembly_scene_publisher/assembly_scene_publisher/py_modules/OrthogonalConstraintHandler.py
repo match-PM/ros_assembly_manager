@@ -250,15 +250,16 @@ class OrthogonalConstraintHandler(ami_msg.FrConstraintOrthogonal):
     @staticmethod
     def return_handler_from_dict(dictionary: dict, 
                                  component_name: str = None, 
+                                unique_identifier = '',
                                  logger: RcutilsLogger = None):
 
         if dictionary == {}:
             return OrthogonalConstraintHandler(logger)
 
         constraint_handler = OrthogonalConstraintHandler(logger)
-        constraint_handler.frame_1 = dictionary.get('frame_1','')
-        constraint_handler.frame_2 = dictionary.get('frame_2','')
-        constraint_handler.frame_3 = dictionary.get('frame_3','')
+        constraint_handler.frame_1 = f"{unique_identifier}{dictionary.get('frame_1','')}"
+        constraint_handler.frame_2 = f"{unique_identifier}{dictionary.get('frame_2','')}"
+        constraint_handler.frame_3 = f"{unique_identifier}{dictionary.get('frame_3','')}"
         constraint_handler.distance_from_f1 = dictionary.get('distance_from_f1',0.0)
         constraint_handler.distance_from_f1_f2_connection = dictionary.get('distance_from_f1_f2_connection',0.0)
         constraint_handler.unit_distance_from_f1 = dictionary.get('unit_distance_from_f1','%')

@@ -136,6 +136,10 @@ class AssemblyManagerScene():
 
     def add_ref_frame_to_scene(self, new_ref_frame:ami_msg.RefFrame)-> bool:
 
+        if new_ref_frame is None:
+            self.node.get_logger().warn(f"Frame is None.")
+            return False
+        
         # checks if ref frame frame exists
         ref_frame_existend, parent_frame = self.check_ref_frame_exists(new_ref_frame.frame_name)
 
@@ -198,6 +202,7 @@ class AssemblyManagerScene():
         list_of_ref_frames = ref_frames_dict.get('frames', [])
         document_units = ref_frames_dict.get('document_units', 'm')
         unique_identifier = ref_frames_dict.get('unique_identifier', '')
+        
         multiplicator = 1
         if document_units == 'mm':
             multiplicator = 1000
@@ -236,17 +241,19 @@ class AssemblyManagerScene():
                 constraints_dict = frame.get('constraints', {})
                 
                 frame_constraint_handler = FrameConstraintsHandler.return_handler_from_dict(dictionary=constraints_dict,
-                                                                                                logger = self.logger)
+                                                                                            unique_identifier = unique_identifier,
+                                                                                            logger = self.logger)
                 
                 frame_constraint_handler.unit = document_units
                 msg = frame_constraint_handler.return_as_msg()
                 new_ref_frame.constraints = msg
-        
+
                 add_success = self.add_ref_frame_to_scene(new_ref_frame)
+
                 if not add_success:
-                    self.logger.error(f"Ref frame {new_ref_frame.frame_name} could not be created!")
+                    self.logger.error(f"Ref frame {new_ref_frame} could not be created!")
                     return False
-                
+            
             self.update_scene_with_constraints()
             return True 
         

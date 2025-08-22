@@ -305,6 +305,7 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
     @staticmethod
     def return_handler_from_dict(dictionary: dict, 
                                  component_name: str = None, 
+                                 unique_identifier = '',
                                  logger: RcutilsLogger = None):
 
         if dictionary == {}:
@@ -314,6 +315,9 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
         constraint_handler.dim = dictionary.get('dim','xyz')
         constraint_handler.ref_frame_names = dictionary.get('refFrameNames',[])
         
+        for index, frame_name in enumerate(constraint_handler.ref_frame_names):
+                constraint_handler.ref_frame_names[index] = unique_identifier + frame_name
+
         if component_name is not None:
             for index, frame_name in enumerate(constraint_handler.ref_frame_names):
                 constraint_handler.ref_frame_names[index] = component_name + '_' + frame_name

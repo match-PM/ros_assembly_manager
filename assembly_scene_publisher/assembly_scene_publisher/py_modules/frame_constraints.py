@@ -37,39 +37,40 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
     @staticmethod
     def return_handler_from_dict(dictionary: dict, 
                                     component_name: str = None,
+                                    unique_identifier = '',
                                     scene: ami_msg.ObjectScene = None, 
                                     logger: RcutilsLogger = None):
             
         frame_constraints = FrameConstraintsHandler(logger=logger)
         # init centroid constraint handler
         centroid_handler = CentroidConstraintHandler.return_handler_from_dict(dictionary.get('centroid',{}), 
+                                                                                unique_identifier = unique_identifier,
                                                                                 component_name=component_name,
                                                                                 logger=logger)
         centroid_handler.set_is_active(scene=scene,
                                        component_name=component_name)
         
         frame_constraints.centroid = centroid_handler.return_as_msg()
-        frame_constraints.centroid_handler = centroid_handler
-
-        
+        frame_constraints.centroid_handler = centroid_handler    
         
         
         # init orthogonal constraint handler
         orthogonal_handler = OrthogonalConstraintHandler.return_handler_from_dict(dictionary.get('orthogonal',{}),
-                                                                                  component_name=component_name,
-                                                                                  logger=logger)
+                                                                                unique_identifier = unique_identifier,
+                                                                                component_name=component_name,
+                                                                                logger=logger)
         
         orthogonal_handler.set_is_active(scene=scene,
                                             component_name=component_name)
         
         frame_constraints.orthogonal = orthogonal_handler.return_as_msg()
         frame_constraints.orthogonal_handler = orthogonal_handler
-
         
         
         in_plane_handler = InPlaneConstraintHandler.return_handler_from_dict(dictionary.get('inPlane',{}),
-                                                                             component_name=component_name,
-                                                                                logger=logger)
+                                                                            unique_identifier = unique_identifier,
+                                                                            component_name=component_name,
+                                                                            logger=logger)
         
         in_plane_handler.set_is_active(scene=scene,
                                        component_name=component_name)
@@ -125,6 +126,7 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
         self.in_plane_handler = InPlaneConstraintHandler.return_handler_from_msg(msg_copy.in_plane, self.logger)
     
     def get_frame_references(self)->list[str]:
+        # get all the frames used in the constraints for this frame
         frame_references = []
         
         if self.centroid.is_active:
@@ -261,6 +263,10 @@ def get_constraint_frames_for_frame(scene: ami_msg.ObjectScene,
     if len(ref_frame_names) > 0:
         for ref_frame_name in ref_frame_names:
             ref_frame = get_ref_frame_by_name(scene, ref_frame_name)
+            
+            if ref_frame is None:
+                raise ValueError(f"Error. There is no '{ref_frame_name}' in the assembly scene. However it is used in a constraint definition!")
+            
             final_list.append(ref_frame)
     
     return final_list
@@ -270,15 +276,19 @@ def build_frame_reference_tree(scene: ami_msg.ObjectScene,
                                logger: RcutilsLogger) -> dict:
     
     tree = {}  # Stores the final tree structure
-    #logger.warn(f"List : {str(frames)}")
+
     def iterate_frames(frames: list[ami_msg.RefFrame], frame_dict: dict, ancestry: set):
+
         for frame in frames:
+
+            #logger.warn(f"HERE List : {str(frame)}")
+
             if frame.frame_name in ancestry:
                 raise ValueError(f"Cycle detected involving frame {frame.frame_name}")
 
-            frame_references = get_constraint_frames_for_frame(scene, frame)
+            frame_references = get_constraint_frames_for_frame(scene, frame, logger=logger)
+
             frame_dict[frame.frame_name] = {}
-            #logger.warn(f"TTTTTTTEEEEEESTTT{frame.frame_name}")
             # Recurse with an updated ancestry (specific to this path)
             iterate_frames(frame_references, frame_dict[frame.frame_name], ancestry | {frame.frame_name})
 
@@ -345,6 +355,11 @@ def calculate_constraints_for_component(scene: ami_msg.ObjectScene,
         comp = get_component_by_name(scene, component_name, logger=logger)
         if comp is not None:
             frame_list = comp.ref_frames
+
+    if logger is not None:
+        #logger.warn(f"list:{frame_list}")
+        pass
+
     return calculate_frame_contrains_for_frame_list(scene, frame_list, component_name=component_name, logger=logger)
 
 
