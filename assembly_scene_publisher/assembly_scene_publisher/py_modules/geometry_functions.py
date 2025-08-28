@@ -176,76 +176,155 @@ def compute_eigenvectors_and_centroid_old(poses: list[Pose],
     
     return quat, centroid_vector
 
-def compute_eigenvectors_and_centroid(poses: list[Pose], 
-                                      logger: RcutilsLogger = None) -> tuple:
+# def compute_eigenvectors_and_centroid(poses: list[Pose], 
+#                                       logger: RcutilsLogger = None) -> tuple:
+#     """
+#     Computes the eigenvectors of the given poses and the centroid of the positions.
+
+#     Args:
+#         poses (list of Pose): List of ROS2 Pose objects containing position and orientation.
+
+#     Returns:
+#         tuple: (quaternion, centroid)
+#     """
+#     positions = []
+#     rotation_matrices = []
+    
+#     if len(poses) < 2:
+#         raise ValueError("At least 2 poses are required to compute eigenvectors and centroid.")
+    
+#     # Extract positions and rotation matrices
+#     for pose in poses:
+#         positions.append([pose.position.x, pose.position.y, pose.position.z])
+#         quaternion = [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
+#         rotation_matrices.append(Rotation.from_quat(quaternion).as_matrix())
+    
+#     positions = np.array(positions)
+    
+#     centroid = np.mean(positions, axis=0)  # Compute centroid
+    
+#     positions_centered = positions - centroid  # Shift points to mean
+    
+#     centroid_vector = Vector3()
+#     centroid_vector.x = centroid[0]
+#     centroid_vector.y = centroid[1]
+#     centroid_vector.z = centroid[2]
+    
+#     # Compute covariance matrix from positions
+#     covariance_matrix = np.cov(positions_centered.T)
+    
+#     # Compute eigenvalues and eigenvectors
+#     eigenvalues, eigenvectors = np.linalg.eig(covariance_matrix)
+    
+#      # Sort eigenvectors by ascending eigenvalues (smallest eigenvalue first)
+#     sorted_indices = np.argsort(eigenvalues)  # Smallest eigenvalue first
+#     eigenvectors = eigenvectors[:, sorted_indices]
+#     eigenvalues = eigenvalues[sorted_indices]
+
+#     biggest_vector = eigenvectors[:, 2]
+#     medium_vector = eigenvectors[:, 1]
+#     smallest_vector = eigenvectors[:, 0]
+
+#     if biggest_vector[0]<0:
+#         biggest_vector = -biggest_vector
+
+#     if smallest_vector[2]<0:
+#         smallest_vector = -smallest_vector
+    
+#     # Ensure the smallest eigenvector (now in first column) is the Z-axis
+#     rotation_matrix = np.zeros((3, 3))
+#     rotation_matrix[:, 2] = smallest_vector  # Smallest eigenvector → Z-axis
+
+#     # Use the other two eigenvectors for X and Y axes
+#     rotation_matrix[:, 0] = biggest_vector  # Largest eigenvector → X-axis
+#     rotation_matrix[:, 1] = medium_vector  # Medium eigenvector → Y-axis
+
+#     logger.warn(f"X-axis: {biggest_vector}")
+#     logger.warn(f"Y-axis: {medium_vector}")
+#     logger.warn(f"Z-axis: {smallest_vector}")
+
+#     # Ensure a right-handed coordinate system
+#     if np.linalg.det(rotation_matrix) < 0:
+#         rotation_matrix[:, 0] *= -1  # Flip the X-axis to maintain right-handedness
+    
+#     quat = rotation_matrix_to_quaternion(rotation_matrix)
+#     #get rotation_matrix as quaternion 
+    
+#     return quat, centroid_vector
+
+
+def compute_eigenvectors_and_centroid(poses: list[Pose], logger=None) -> tuple[Quaternion, Vector3]:
     """
-    Computes the eigenvectors of the given poses and the centroid of the positions.
+    Computes the orientation (as a quaternion) and the centroid (as a Vector3) from a list of poses,
+    ensuring Z-axis points upwards and X-axis points forward.
 
     Args:
-        poses (list of Pose): List of ROS2 Pose objects containing position and orientation.
+        poses (list of Pose): List of ROS2 Pose objects.
+        logger (optional): ROS2 logger.
 
     Returns:
-        tuple: (quaternion, centroid)
+        tuple:
+            - Quaternion: Orientation based on eigenvectors.
+            - Vector3: Centroid of the pose positions.
     """
-    positions = []
-    rotation_matrices = []
-    
     if len(poses) < 2:
-        raise ValueError("At least 2 poses are required to compute eigenvectors and centroid.")
-    
-    # Extract positions and rotation matrices
-    for pose in poses:
-        positions.append([pose.position.x, pose.position.y, pose.position.z])
-        quaternion = [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
-        rotation_matrices.append(Rotation.from_quat(quaternion).as_matrix())
-    
-    positions = np.array(positions)
-    
-    centroid = np.mean(positions, axis=0)  # Compute centroid
-    
-    positions_centered = positions - centroid  # Shift points to mean
-    
+        raise ValueError("At least 2 poses are required.")
+
+    # Step 1: Extract positions
+    positions = np.array([[p.position.x, p.position.y, p.position.z] for p in poses])
+    centroid = np.mean(positions, axis=0)
+    positions_centered = positions - centroid
+
+    # Step 2: Prepare Vector3 centroid
     centroid_vector = Vector3()
-    centroid_vector.x = centroid[0]
-    centroid_vector.y = centroid[1]
-    centroid_vector.z = centroid[2]
-    
-    # Compute covariance matrix from positions
-    covariance_matrix = np.cov(positions_centered.T)
-    
-    # Compute eigenvalues and eigenvectors
-    eigenvalues, eigenvectors = np.linalg.eig(covariance_matrix)
-    
-     # Sort eigenvectors by ascending eigenvalues (smallest eigenvalue first)
-    sorted_indices = np.argsort(eigenvalues)  # Smallest eigenvalue first
+    centroid_vector.x, centroid_vector.y, centroid_vector.z = centroid
+
+    # Step 3: PCA - compute covariance and eigenvectors
+    cov_matrix = np.cov(positions_centered.T)
+    eigenvalues, eigenvectors = np.linalg.eig(cov_matrix)
+
+    # Sort by ascending eigenvalue
+    sorted_indices = np.argsort(eigenvalues)
     eigenvectors = eigenvectors[:, sorted_indices]
-    eigenvalues = eigenvalues[sorted_indices]
 
-    biggest_vector = eigenvectors[:, 2]
-    medium_vector = eigenvectors[:, 1]
-    smallest_vector = eigenvectors[:, 0]
+    # Step 4: Construct axes
+    smallest_vector = eigenvectors[:, 0]  # Z-axis
+    biggest_vector = eigenvectors[:, 2]   # X candidate
 
-    if biggest_vector[0]<0:
-        biggest_vector = -biggest_vector
-    if smallest_vector[2]<0:
-        smallest_vector = -smallest_vector
-    
-    # Ensure the smallest eigenvector (now in first column) is the Z-axis
-    rotation_matrix = np.zeros((3, 3))
-    rotation_matrix[:, 2] = smallest_vector  # Smallest eigenvector → Z-axis
+    # Normalize Z and ensure it points up
+    z_axis = smallest_vector / np.linalg.norm(smallest_vector)
+    if z_axis[2] < 0:
+        z_axis = -z_axis
 
-    # Use the other two eigenvectors for X and Y axes
-    rotation_matrix[:, 0] = biggest_vector  # Second smallest eigenvector → X-axis
-    rotation_matrix[:, 1] = medium_vector  # Largest eigenvector → Y-axis
+    # Orthogonalize X-axis to Z
+    x_candidate = biggest_vector / np.linalg.norm(biggest_vector)
+    x_axis = x_candidate - np.dot(x_candidate, z_axis) * z_axis
+    x_axis = x_axis / np.linalg.norm(x_axis)
 
-    # Ensure a right-handed coordinate system
-    if np.linalg.det(rotation_matrix) < 0:
-        rotation_matrix[:, 0] *= -1  # Flip the X-axis to maintain right-handedness
-    
-    quat = rotation_matrix_to_quaternion(rotation_matrix)
-    #get rotation_matrix as quaternion 
-    
-    return quat, centroid_vector
+    # Ensure X points forward
+    if x_axis[0] < 0:
+        x_axis = -x_axis
+
+    # Compute Y-axis via cross product
+    y_axis = np.cross(z_axis, x_axis)
+
+    # Build rotation matrix
+    rotation_matrix = np.column_stack((x_axis, y_axis, z_axis))
+
+    # Optional: check determinant
+    # if logger:
+    #     logger.warning(f"X-axis: {x_axis}")
+    #     logger.warning(f"Y-axis: {y_axis}")
+    #     logger.warning(f"Z-axis: {z_axis}")
+    #     logger.warning(f"Rotation matrix determinant: {np.linalg.det(rotation_matrix):.6f}")
+
+    # Convert to quaternion
+    quat_array = Rotation.from_matrix(rotation_matrix).as_quat()
+    quat_msg = Quaternion()
+    quat_msg.x, quat_msg.y, quat_msg.z, quat_msg.w = quat_array
+
+    return quat_msg, centroid_vector
+
 
 def get_transformed_pose(initial_pose:Pose, offset:Vector3)->Pose:
     """
@@ -591,7 +670,7 @@ def create_3D_plane_2(frames: list[Pose],
 
     return ref_plane
 
-def rotate_point(frame, plane, target_axis, logger):
+def rotate_point(frame, plane, target_axis, logger: RcutilsLogger = None) -> Pose:
     """
     Rotates a given point so that its target axis aligns with the normal of a plane.
 
@@ -605,10 +684,16 @@ def rotate_point(frame, plane, target_axis, logger):
     # Convert plane normal vector to float (ensuring no symbolic values)
     normal_vector = np.array([float(sp.N(coord)) for coord in plane.normal_vector], dtype=float)
 
-    if normal_vector[2]<0:
-        normal_vector = -normal_vector
+    logger.warn(f"Normal Vector: {normal_vector}")
 
+    # Set direction of normal vector to point upwards. 
+    if normal_vector[2] < 0:
+        normal_vector = -normal_vector
+    
+    # calculate the angle between all of the coordianate axis of the frame and the normal vector
     angles = angles_to_normal_vector(normal_vector, frame.orientation)
+
+    logger.warn(f"Angles to Normal Vector: {angles}")
 
     target_axis = target_axis.upper()
     if target_axis not in ["X", "Y", "Z"]:
@@ -627,9 +712,11 @@ def rotate_point(frame, plane, target_axis, logger):
                            float(frame.orientation.z), float(frame.orientation.w)], dtype=float)
 
     rotation_matrix = R.from_quat(quaternion).as_matrix()
+
+    # Get the local axis corresponding to the target axis
     local_axis = rotation_matrix[:, axis_index]
 
-    # Compute rotation axis
+    # Compute rotation axis, this vector is orthogonal to both local_axis and normal_vector
     rotation_axis = np.cross(local_axis, normal_vector)
 
     # Handle degenerate cases where local_axis is parallel to normal_vector
@@ -640,7 +727,7 @@ def rotate_point(frame, plane, target_axis, logger):
     # Normalize rotation axis
     rotation_axis /= np.linalg.norm(rotation_axis)
 
-    # Create rotation quaternion
+    # Create rotation quaternion - create a rotation matrix
     rotation_quaternion = R.from_rotvec(angle_rad * rotation_axis).as_quat()
 
     # Normalize quaternion
@@ -654,6 +741,28 @@ def rotate_point(frame, plane, target_axis, logger):
     frame.orientation.x, frame.orientation.y, frame.orientation.z, frame.orientation.w = new_quat_values
 
     return frame
+
+def signed_angle_between(a, b, ref_axis):
+    """
+    Compute the signed angle (in radians) between two vectors a and b,
+    using ref_axis to define the sign direction (right-hand rule).
+
+    :param a: First vector (unit or raw)
+    :param b: Second vector (unit or raw)
+    :param ref_axis: Axis to define positive rotation direction (unit or raw)
+    :return: Signed angle in radians
+    """
+    a = a / np.linalg.norm(a)
+    b = b / np.linalg.norm(b)
+    ref_axis = ref_axis / np.linalg.norm(ref_axis)
+
+    dot = np.clip(np.dot(a, b), -1.0, 1.0)
+    angle = np.arccos(dot)
+
+    cross = np.cross(a, b)
+    sign = np.sign(np.dot(cross, ref_axis))
+
+    return angle * sign
 
 def angles_to_normal_vector(normal_vector, quaternion):
     """

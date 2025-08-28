@@ -698,23 +698,25 @@ class AssemblyManagerScene():
             
             parent_frame = get_transform_for_frame_in_world(parent_frame, self.tf_buffer, logger=self.logger)
             
-            self.logger.warn(f"Parent frame: {parent_frame}")
+            #self.logger.warn(f"Parent frame: {parent_frame}")
 
-            self.logger.warn(f"New pose: {new_world_pose}")
+            #self.logger.warn(f"New pose: {new_world_pose}")
             
             new_pose_frame:sp.Matrix = get_transform_matrix_from_tf(new_world_pose)
 
+            # Compute the new transform
             new_transform:sp.Matrix = transform_global_parent.inv()*new_pose_frame
 
-            self.logger.warn(f"New transform: {new_transform}")
+            #self.logger.warn(f"New transform: {new_transform}")
 
             pose_to_modify = transform_matrix_to_pose(new_transform)
 
-            self.logger.warn(f"Pose to modify: {pose_to_modify}")
+            #self.logger.warn(f"Pose to modify: {pose_to_modify}")
 
-            self.logger.info(f'Frame {frame_name} updated!') 
+            #self.logger.info(f'Frame {frame_name} updated!') 
             
             frame = get_ref_frame_by_name(self.scene, frame_name, logger=self.logger)
+
             # only modify the position !!!!
             frame.pose.position = pose_to_modify.position
 
