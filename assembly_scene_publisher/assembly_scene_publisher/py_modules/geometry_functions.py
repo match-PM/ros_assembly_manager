@@ -1,3 +1,4 @@
+from copy import deepcopy
 import sympy as sp
 from geometry_msgs.msg import Vector3, Quaternion
 from geometry_msgs.msg import TransformStamped
@@ -528,6 +529,9 @@ def project_pose_on_plane(frame: Pose,
     :param plane: A sympy Plane object.
     :return: A new Pose object with projected coordinates.
     """
+    # make copy
+    frame = deepcopy(frame)
+    
     # Extract normal vector from the plane
     normal_vector = np.array([float(coord.evalf()) for coord in plane.normal_vector])
 
@@ -670,10 +674,10 @@ def create_3D_plane_2(frames: list[Pose],
 
     return ref_plane
 
-def rotate_point(frame, plane, target_axis, logger: RcutilsLogger = None) -> Pose:
+def rotate_point(frame:Pose, plane, target_axis, logger: RcutilsLogger = None) -> Pose:
     """
     Rotates a given point so that its target axis aligns with the normal of a plane.
-
+    
     :param frame: Pose object containing position and orientation.
     :param plane: Plane object with a normal vector.
     :param target_axis: Axis to align ("X", "Y", or "Z").
@@ -681,10 +685,13 @@ def rotate_point(frame, plane, target_axis, logger: RcutilsLogger = None) -> Pos
     :return: Updated Pose object with new orientation.
     """
     
+    frame = deepcopy(frame)
+    
     # Convert plane normal vector to float (ensuring no symbolic values)
     normal_vector = np.array([float(sp.N(coord)) for coord in plane.normal_vector], dtype=float)
 
-    logger.warn(f"Normal Vector: {normal_vector}")
+    if logger is not None:
+        logger.warn(f"Normal Vector: {normal_vector}")
 
     # Set direction of normal vector to point upwards. 
     if normal_vector[2] < 0:
@@ -693,7 +700,8 @@ def rotate_point(frame, plane, target_axis, logger: RcutilsLogger = None) -> Pos
     # calculate the angle between all of the coordianate axis of the frame and the normal vector
     angles = angles_to_normal_vector(normal_vector, frame.orientation)
 
-    logger.warn(f"Angles to Normal Vector: {angles}")
+    if logger is not None:
+        logger.warn(f"Angles to Normal Vector: {angles}")
 
     target_axis = target_axis.upper()
     if target_axis not in ["X", "Y", "Z"]:
