@@ -3,9 +3,11 @@ import assembly_manager_interfaces.msg as ami_msg
 # import ros logger type
 # RUtilsLogger
 from rclpy.impl.rcutils_logger import RcutilsLogger
-from geometry_msgs.msg import Pose
+from geometry_msgs.msg import Pose, Quaternion
 from copy import deepcopy, copy
 import sympy as sp
+import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 from assembly_scene_publisher.py_modules.geometry_type_functions import (rotation_matrix_to_quaternion, 
                                                                          get_normal_vectors_from_quaternion)
@@ -128,111 +130,218 @@ class OrthogonalConstraintHandler(ami_msg.FrConstraintOrthogonal):
         return restriction_collection
     
     
+    # def calculate_constraint(self,
+    #                         initial_frame_pose:Pose,
+    #                         scene: ami_msg.ObjectScene,
+    #                         unit: str = 'mm',
+    #                         frame_name: str = None,
+    #                         component_name: str = None) -> Pose:
+    #     """_summary_
+
+    #     Args:
+    #         initial_frame_pose (Pose): _description_
+    #         scene (ami_msg.ObjectScene): _description_
+    #         component_name (str, optional): _description_. Defaults to None.
+    #         logger (RcutilsLogger, optional): _description_. Defaults to None.
+
+    #     Returns:
+    #         Pose: _description_
+    #     """
+    #     if self.is_active == False:
+    #         self.logger.debug('Orthogonal constraint is not active')
+    #         return initial_frame_pose
+        
+    #     pose_frame_1 = get_ref_frame_by_name(frame_name=self.frame_1,
+    #                                          scene=scene).pose
+        
+    #     pose_frame_2 = get_ref_frame_by_name(frame_name=self.frame_2,
+    #                                             scene=scene).pose
+        
+    #     pose_frame_3 = get_ref_frame_by_name(frame_name=self.frame_3,
+    #                                             scene=scene).pose
+        
+    #     p1 = sp.Matrix([pose_frame_1.position.x, pose_frame_1.position.y, pose_frame_1.position.z])
+    #     p2 = sp.Matrix([pose_frame_2.position.x, pose_frame_2.position.y, pose_frame_2.position.z])
+    #     p3 = sp.Matrix([pose_frame_3.position.x, pose_frame_3.position.y, pose_frame_3.position.z])
+        
+    #     multiplier = 1
+    #     if unit == 'mm':
+    #         multiplier = 1000
+    #     if unit == 'um':
+    #         multiplier = 1000000
+    #     if unit == 'm':
+    #         multiplier = 1
+        
+    #     connection_vector = p2 - p1
+    #     connection_unit = connection_vector / connection_vector.norm()
+        
+    #         # Calculate the normal to the plane formed by frame_1, frame_2, and frame_3
+    #     normal_vector = (p2 - p1).cross(p3 - p1)
+    #     normal_unit = normal_vector / normal_vector.norm()
+    
+    #     # Determine the third orthogonal vector
+    #     orthogonal_vector = connection_unit.cross(normal_unit)
+    #     orthogonal_unit = orthogonal_vector / orthogonal_vector.norm()
+        
+    #     addition = 0
+    #     if self.unit_distance_from_f1 == '%':
+    #         addition = (connection_vector * self.distance_from_f1 / 100)
+    #     else:
+    #         addition = (connection_unit * self.distance_from_f1 / multiplier)
+    #     #self.logger.warn(f'Addition: {addition}')
+    #     # Calculate the position of the constrained frame
+    #     # constrained_position = (
+    #     #     p1 +
+    #     #     connection_unit * self.distance_from_f1 / multiplier +
+    #     #     orthogonal_vector * self._distance_from_f1_f2_connection / multiplier
+    #     # )     
+    #     constrained_position = p1 + addition + orthogonal_unit * self.distance_from_f1_f2_connection / multiplier
+        
+    #     # Define axes of the constrained frame
+    #     axes = {
+    #         self.frame_orthogonal_connection_axis: orthogonal_unit,
+    #         self.frame_normal_plane_axis: normal_unit,
+    #         "remaining_axis": connection_unit,
+    #     }
+        
+    #     # Ensure the axes are properly assigned
+    #     remaining_axes = {"x", "y", "z"} - {self.frame_orthogonal_connection_axis, self.frame_normal_plane_axis}
+    #     remaining_axis = remaining_axes.pop()
+    #     axes[remaining_axis] = connection_unit
+        
+    #     # Construct the rotation matrix for the constrained frame
+    #     rotation_matrix = sp.Matrix.hstack(
+    #         sp.Matrix(axes["x"]),
+    #         sp.Matrix(axes["y"]),
+    #         sp.Matrix(axes["z"]),
+    #     )
+        
+    #     # Convert the rotation matrix to a quaternion      
+    #     quat = rotation_matrix_to_quaternion(rotation_matrix)   
+    
+    #     #self.logger.warn(f'Constrained position: {constrained_position}')
+        
+    #     initial_frame_pose.position.x = float(constrained_position[0])
+    #     initial_frame_pose.position.y = float(constrained_position[1])
+    #     initial_frame_pose.position.z = float(constrained_position[2])
+    #     initial_frame_pose.orientation = quat
+        
+    #     #initial_frame_pose.position.x = constrained_position[0]
+        
+    #     if frame_name is not None:  
+    #         #self.logger.warn(f'Start calculating constraint for: {frame_name}')
+    #         pass
+            
+    #     return initial_frame_pose
+    
     def calculate_constraint(self,
-                            initial_frame_pose:Pose,
-                            scene: ami_msg.ObjectScene,
+                            initial_frame_pose: Pose,
+                            scene,
                             unit: str = 'mm',
                             frame_name: str = None,
                             component_name: str = None) -> Pose:
-        """_summary_
+        """
+        Calculate constrained pose based on three reference frames.
 
         Args:
-            initial_frame_pose (Pose): _description_
-            scene (ami_msg.ObjectScene): _description_
-            component_name (str, optional): _description_. Defaults to None.
-            logger (RcutilsLogger, optional): _description_. Defaults to None.
+            initial_frame_pose (Pose): Initial pose to modify.
+            scene (ami_msg.ObjectScene): Scene containing reference frames.
+            unit (str): Unit for distances ('mm', 'um', 'm').
+            frame_name (str): Frame name for logging/debug.
+            component_name (str): Not used here.
 
         Returns:
-            Pose: _description_
+            Pose: Updated pose.
         """
-        if self.is_active == False:
+        if not self.is_active:
             self.logger.debug('Orthogonal constraint is not active')
             return initial_frame_pose
-        
-        pose_frame_1 = get_ref_frame_by_name(frame_name=self.frame_1,
-                                             scene=scene).pose
-        
-        pose_frame_2 = get_ref_frame_by_name(frame_name=self.frame_2,
-                                                scene=scene).pose
-        
-        pose_frame_3 = get_ref_frame_by_name(frame_name=self.frame_3,
-                                                scene=scene).pose
-        
-        p1 = sp.Matrix([pose_frame_1.position.x, pose_frame_1.position.y, pose_frame_1.position.z])
-        p2 = sp.Matrix([pose_frame_2.position.x, pose_frame_2.position.y, pose_frame_2.position.z])
-        p3 = sp.Matrix([pose_frame_3.position.x, pose_frame_3.position.y, pose_frame_3.position.z])
-        
-        multiplier = 1
-        if unit == 'mm':
-            multiplier = 1000
-        if unit == 'um':
-            multiplier = 1000000
-        if unit == 'm':
-            multiplier = 1
-        
+
+        # Get reference frame poses
+        pose_frame_1 = get_ref_frame_by_name(frame_name=self.frame_1, scene=scene).pose
+        pose_frame_2 = get_ref_frame_by_name(frame_name=self.frame_2, scene=scene).pose
+        pose_frame_3 = get_ref_frame_by_name(frame_name=self.frame_3, scene=scene).pose
+
+        # Convert positions to numpy arrays
+        p1 = np.array([pose_frame_1.position.x, pose_frame_1.position.y, pose_frame_1.position.z])
+        p2 = np.array([pose_frame_2.position.x, pose_frame_2.position.y, pose_frame_2.position.z])
+        p3 = np.array([pose_frame_3.position.x, pose_frame_3.position.y, pose_frame_3.position.z])
+
+        # Unit conversion multiplier
+        unit_multipliers = {'mm': 1000, 'um': 1000000, 'm': 1}
+        multiplier = unit_multipliers.get(unit, 1)
+
+        # Define axes from reference frames
         connection_vector = p2 - p1
-        connection_unit = connection_vector / connection_vector.norm()
-        
-            # Calculate the normal to the plane formed by frame_1, frame_2, and frame_3
-        normal_vector = (p2 - p1).cross(p3 - p1)
-        normal_unit = normal_vector / normal_vector.norm()
-    
-        # Determine the third orthogonal vector
-        orthogonal_vector = connection_unit.cross(normal_unit)
-        orthogonal_unit = orthogonal_vector / orthogonal_vector.norm()
-        
-        addition = 0
+        connection_unit = connection_vector / np.linalg.norm(connection_vector)
+
+        normal_vector = np.cross(p2 - p1, p3 - p1)
+        norm_normal = np.linalg.norm(normal_vector)
+        if norm_normal == 0:
+            raise ValueError("Reference frames are colinear; normal vector is undefined.")
+        normal_unit = normal_vector / norm_normal
+
+        # get max direction
+        index = np.argmax(np.abs(normal_unit))      # Index of the max value
+        value = normal_unit[index]          # Max value
+
+        self.logger.error(f'{normal_unit}')
+
+        if value < 0:
+            normal_unit = -normal_unit
+            self.logger.error('Flippping')
+
+        orthogonal_vector = np.cross(connection_unit, normal_unit)
+        orthogonal_unit = orthogonal_vector / np.linalg.norm(orthogonal_vector)
+
+        # Compute position offset
         if self.unit_distance_from_f1 == '%':
-            addition = (connection_vector * self.distance_from_f1 / 100)
+            addition = connection_vector * (self.distance_from_f1 / 100)
         else:
-            addition = (connection_unit * self.distance_from_f1 / multiplier)
-        #self.logger.warn(f'Addition: {addition}')
-        # Calculate the position of the constrained frame
-        # constrained_position = (
-        #     p1 +
-        #     connection_unit * self.distance_from_f1 / multiplier +
-        #     orthogonal_vector * self._distance_from_f1_f2_connection / multiplier
-        # )     
-        constrained_position = p1 + addition + orthogonal_unit * self.distance_from_f1_f2_connection / multiplier
-        
-        # Define axes of the constrained frame
+            addition = connection_unit * (self.distance_from_f1 / multiplier)
+
+        constrained_position = p1 + addition + orthogonal_unit * (self.distance_from_f1_f2_connection / multiplier)
+
+        # Assign axes
         axes = {
             self.frame_orthogonal_connection_axis: orthogonal_unit,
-            self.frame_normal_plane_axis: normal_unit,
-            "remaining_axis": connection_unit,
+            self.frame_normal_plane_axis: normal_unit
         }
-        
-        # Ensure the axes are properly assigned
+
         remaining_axes = {"x", "y", "z"} - {self.frame_orthogonal_connection_axis, self.frame_normal_plane_axis}
+
+        if self.frame_orthogonal_connection_axis == "x":
+            index_axis = 0
+        elif self.frame_orthogonal_connection_axis == "y":
+            index_axis = 1
+        elif self.frame_orthogonal_connection_axis == "z":
+            index_axis = 2
+        else:
+            raise ValueError(f"Invalid remaining axes: {remaining_axes}")
+
         remaining_axis = remaining_axes.pop()
         axes[remaining_axis] = connection_unit
-        
-        # Construct the rotation matrix for the constrained frame
-        rotation_matrix = sp.Matrix.hstack(
-            sp.Matrix(axes["x"]),
-            sp.Matrix(axes["y"]),
-            sp.Matrix(axes["z"]),
-        )
-        
-        # Convert the rotation matrix to a quaternion      
-        quat = rotation_matrix_to_quaternion(rotation_matrix)   
-    
-        #self.logger.warn(f'Constrained position: {constrained_position}')
-        
-        initial_frame_pose.position.x = float(constrained_position[0])
-        initial_frame_pose.position.y = float(constrained_position[1])
-        initial_frame_pose.position.z = float(constrained_position[2])
-        initial_frame_pose.orientation = quat
-        
-        #initial_frame_pose.position.x = constrained_position[0]
-        
-        if frame_name is not None:  
-            #self.logger.warn(f'Start calculating constraint for: {frame_name}')
-            pass
-            
-        return initial_frame_pose
-    
-    @staticmethod  
+
+        # Build rotation matrix with correct axis order
+        rotation_matrix = np.column_stack((axes["x"], axes["y"], axes["z"]))
+
+        if np.linalg.det(rotation_matrix) < 0:
+            rotation_matrix[:, index_axis] *= -1 
+
+        # Convert to quaternion [x, y, z, w] using scipy
+        quat_np = R.from_matrix(rotation_matrix).as_quat()
+        quat = Quaternion(x=quat_np[0], y=quat_np[1], z=quat_np[2], w=quat_np[3])
+
+        # Update pose
+        result_pose = Pose()
+        result_pose.position.x = float(constrained_position[0])
+        result_pose.position.y = float(constrained_position[1])
+        result_pose.position.z = float(constrained_position[2])
+        result_pose.orientation = quat
+
+        return result_pose
+
+    @staticmethod
     def return_handler_from_msg( msg: ami_msg.FrConstraintOrthogonal, logger: RcutilsLogger = None):
         handler = OrthogonalConstraintHandler(logger)
         msg_copy = deepcopy(msg)

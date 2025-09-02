@@ -644,7 +644,7 @@ def create_3D_plane_2(frames: list[Pose],
         return None, None, None
 
     # Step 1: Extract points and compute centroid
-    points_positions = np.array([(pose.position.x, pose.position.y, pose.position.z) for pose in frames])
+    points_positions = np.array([(pose.position.x*1000, pose.position.y*1000, pose.position.z*1000) for pose in frames])
     center_coordinates = np.mean(points_positions, axis=0)
     center_of_mass = sp.Point3D(*center_coordinates)
 
@@ -667,6 +667,8 @@ def create_3D_plane_2(frames: list[Pose],
     # Step 3: Apply the plane offset
     offset_vector = norm_vector_dir * plane_offset
     offset_center_coordinates = center_coordinates + offset_vector
+    # devide by 1000
+    offset_center_coordinates /= 1000
     offset_center_of_mass = sp.Point3D(*offset_center_coordinates)
 
     # Step 4: Define the plane using SymPy
@@ -674,7 +676,10 @@ def create_3D_plane_2(frames: list[Pose],
 
     return ref_plane
 
-def rotate_point(frame:Pose, plane, target_axis, logger: RcutilsLogger = None) -> Pose:
+def rotate_point(frame:Pose, 
+                 plane:sp.Plane, 
+                 target_axis:str, 
+                 logger: RcutilsLogger = None) -> Pose:
     """
     Rotates a given point so that its target axis aligns with the normal of a plane.
     

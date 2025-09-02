@@ -346,6 +346,7 @@ class AssemblyManagerNode(Node):
                 # after the last frame, recalculate the constraints
                 if ind == num_of_ref_frames - 1:
                     create_ref_frame_request.recalculate_constraints = True
+                    self.logger.error(f" !!!!!!!!!!!!!!!!!!!!   Recalculation of constraints triggered for {create_ref_frame_request.ref_frame.frame_name}!")
 
                 spawn_ref_frame_success = self.create_ref_frame(create_ref_frame_request)
 
