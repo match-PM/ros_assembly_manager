@@ -84,11 +84,78 @@ class TolMeasurment():
         #                                                                     "Uses the ideal ref_points with laser points at the default position"])
 
         # # Run laser lever 1
-        self.sim_parameters = SimulationParameter(std_camera        =   0,
-                                                  std_laser         =   1,
-                                                  num_iterations    =   10,
+        # self.sim_parameters = SimulationParameter(std_camera        =   0,
+        #                                           std_laser         =   1,
+        #                                           num_iterations    =   5000,
+        #                                           approx_time       =   None,
+        #                                           results_name      =   'R13',
+        #                                           use_radiant_gauss =   True,
+        #                                           rsap_description  =   "rsap_description_lever_0.json",
+        #                                           instruction_name  =    "Assembly_UFC_Glas_6D_tol_Lever_1.json",
+        #                                           comments          =   ["Testing of laser influence. Lever is at 1 (4/4)",
+        #                                                                 "This is the default lever position",
+        #                                                                 "Alignment at default"
+        #                                                                  ])
+        # Run laser lever 2
+        # self.sim_parameters = SimulationParameter(std_camera        =   0,
+        #                                           std_laser         =   1,
+        #                                           num_iterations    =   5000,
+        #                                           approx_time       =   None,
+        #                                           results_name      =   'R14',
+        #                                           use_radiant_gauss =   True,
+        #                                           rsap_description  =   "rsap_description_lever_1.json",
+
+        #                                           instruction_name = "Assembly_UFC_Glas_6D_tol_Lever_2.json",
+        #                                           comments          =   ["Testing of laser influence. Lever is at 1 (3/4)",
+        #                                                                 "Alignment at default"
+        #                                                                  ])
+
+        # Run laser lever 3
+        # self.sim_parameters = SimulationParameter(std_camera        =   0,
+        #                                           std_laser         =   1,
+        #                                           num_iterations    =   int(5000-480),
+        #                                           approx_time       =   None,
+        #                                           results_name      =   'R15',
+        #                                           use_radiant_gauss =   True,
+        #                                           rsap_description  =   "rsap_description_lever_2.json",
+
+        #                                           instruction_name = "Assembly_UFC_Glas_6D_tol_Lever_3.json",
+        #                                           comments          =   ["Testing of laser influence. Lever is at 1 (2/4)",
+        #                                                                 "Alignment at default"
+        #                                                                  ])
+
+        # # # Run laser lever 4
+        # self.sim_parameters = SimulationParameter(std_camera        =   0,
+        #                                           std_laser         =   1,
+        #                                           num_iterations    =   5000,
+        #                                           approx_time       =   None,
+        #                                           results_name      =   'R16',
+        #                                           use_radiant_gauss =   True,
+        #                                           rsap_description  =   "rsap_description_lever_3.json",
+        #                                           instruction_name =  "Assembly_UFC_Glas_6D_tol_Lever_4.json",
+        #                                           comments          =   ["Testing of laser influence. Lever is at 1 (1/4)",
+        #                                                                 "Alignment at default"
+        #                                                                  ])
+
+        # # Run - camera + laser
+        # self.sim_parameters = SimulationParameter(std_camera        =   1,
+        #                                           std_laser         =   1,
+        #                                           num_iterations    =   5000,
+        #                                           approx_time       =   None,
+        #                                           results_name      =   'R17',
+        #                                           use_radiant_gauss =   True,
+        #                                         rsap_description  =   "rsap_description_lever_0.json",
+        #                                       instruction_name  =    "Assembly_UFC_Glas_6D_tol_Lever_1.json",
+        #                                           comments          =   ["Testing of laser influence + camera influence",
+        #                                                                 "Alignment at default"
+        #                                                                  ])
+
+        #Run laser lever 1
+        self.sim_parameters = SimulationParameter(std_camera        =   1,
+                                                  std_laser         =   0,
+                                                  num_iterations    =   30000,
                                                   approx_time       =   None,
-                                                  results_name      =   'R13',
+                                                  results_name      =   'R18',
                                                   use_radiant_gauss =   True,
                                                   rsap_description  =   "rsap_description_lever_0.json",
                                                   instruction_name  =    "Assembly_UFC_Glas_6D_tol_Lever_1.json",
@@ -96,63 +163,6 @@ class TolMeasurment():
                                                                         "This is the default lever position",
                                                                         "Alignment at default"
                                                                          ])
-        # # Run laser lever 2
-        # self.sim_parameters = SimulationParameter(std_camera        =   0,
-        #                                           std_laser         =   1,
-        #                                           num_iterations    =   2500,
-        #                                           approx_time       =   None,
-        #                                           results_name      =   'R14',
-        #                                           use_radiant_gauss =   True,
-        #                                           rsap_description  =   "rsap_description_lever_1.json",
-
-        #                                           instruction_name = "Assembly_UFC_Glas_6D_tol_Lever_2.json",
-                                                #   comments          =   ["Testing of laser influence. Lever is at 1 (3/4)",
-                                                #                         "Alignment at default"
-                                                #                          ])
-
-        # Run laser lever 3
-        # self.sim_parameters = SimulationParameter(std_camera        =   0,
-        #                                           std_laser         =   1,
-        #                                           num_iterations    =   2500,
-        #                                           approx_time       =   None,
-        #                                           results_name      =   'R15',
-        #                                           use_radiant_gauss =   True,
-        #                                           rsap_description  =   "rsap_description_lever_2.json",
-
-        #                                           instruction_name = "Assembly_UFC_Glas_6D_tol_Lever_3.json",
-                                                #   comments          =   ["Testing of laser influence. Lever is at 1 (2/4)",
-                                                #                         "Alignment at default"
-                                                #                          ])
-
-        # # # Run laser lever 4
-        # # self.sim_parameters = SimulationParameter(std_camera        =   0,
-        # #                                           std_laser         =   1,
-        # #                                           num_iterations    =   2500,
-        # #                                           approx_time       =   None,
-        # #                                           results_name      =   'R16',
-        # #                                           use_radiant_gauss =   True,
-        #                                           rsap_description  =   "rsap_description_lever_3.json",
-
-        # #                                           instruction_name =  "Assembly_UFC_Glas_6D_tol_Lever_4.json",
-                                                #   comments          =   ["Testing of laser influence. Lever is at 1 (1/4)",
-                                                #                         "Alignment at default"
-                                                #                          ])
-
-        # # # Run - camera + laser
-        # # self.sim_parameters = SimulationParameter(std_camera        =   1,
-        # #                                           std_laser         =   1,
-        # #                                           num_iterations    =   2500,
-        # #                                           approx_time       =   None,
-        # #                                           results_name      =   'R17',
-        # #                                           use_radiant_gauss =   True,
-                #                                            rsap_description  =   "rsap_description.json",
-
-        # #                                           instruction_name =  "Assembly_UFC_Glas_6D_tol_Lever_4.json",
-
-        #                                           comments          =   ["Testing of laser influence + camera influence",
-        #                                                                 "Alignment at default"
-        #                                                                  ])
-
         
         # Change of plane alignment
         # self.sim_parameters = SimulationParameter(std_camera        =   1,
