@@ -16,7 +16,7 @@ from ament_index_python.packages import get_package_share_directory
 import os
 # import plt
 import matplotlib.pyplot as plt
-
+from assembly_scene_publisher.py_modules.AssemblySceneAnalyzer import AssemblySceneAnalyzer
 from scipy.optimize import minimize, least_squares
 from assembly_scene_publisher.py_modules.frame_constraints import (FrameConstraintsHandler, 
                                                                     update_ref_frame_by_constraint, 
@@ -71,6 +71,7 @@ class AssemblyManagerScene():
     UNUSED_FRAME_CONST = 'unused_frame'
     def __init__(self, node: Node):
         self.scene:ami_msg.ObjectScene = ami_msg.ObjectScene()
+        self.assembly_scene_analyzer = AssemblySceneAnalyzer(self.scene, node.get_logger())
         self.node = node
         self.callback_group_pub = ReentrantCallbackGroup()
         self._scene_publisher = node.create_publisher(ami_msg.ObjectScene,'/assembly_manager/scene',10,callback_group=self.callback_group_pub)

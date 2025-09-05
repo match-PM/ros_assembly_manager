@@ -139,5 +139,6 @@
         "print": "cpp",
         "queue": "cpp",
         "stack": "cpp"
-    }
+    },
+    "cmake.sourceDirectory": "/home/mll/ros2_ws/src/ros_assembly_manager/assembly_manager_interfaces"
 }
