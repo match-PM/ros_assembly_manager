@@ -42,13 +42,15 @@ class AssemblySceneAnalyzerAdv(AssemblySceneAnalyzer):
         """
         gripped_component = self.get_gripped_component()
         
-        frames = self.get_assembly_and_target_frames_for_component(gripped_component)
+        frames = self.get_all_assembly_and_target_frames_for_component(gripped_component)
 
         return frames
 
     def is_gripper_empty(self)-> bool:
-
+        
         for obj in self._get_scene().objects_in_scene:
+            if self.logger is not None:
+                self.logger.warn(f"Object: {obj.obj_name}, Parent Frame: {obj.parent_frame}")
             obj:ami_msg.Object
             if obj.parent_frame == PM_ROBOT_GRIPPER_FRAME:
                 return False

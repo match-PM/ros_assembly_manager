@@ -31,16 +31,16 @@ class AssemblySceneAnalyzer():
     def __init__(self,  scene: Union[ami_msg.ObjectScene, UnInitializedScene], 
                         logger: RcutilsLogger = None):
         
-        if isinstance(scene, UnInitializedScene):
-            self._scene = scene
+        self._scene = scene
 
         self.logger = logger
 
     def _get_scene(self)-> ObjectScene:
         """Returns the current scene, initializing it if necessary."""
         if isinstance(self._scene, UnInitializedScene):
-            self._scene = self._scene.scene
-        return self._scene
+            return self._scene.scene
+        else:
+            return self._scene
 
     # def _check_scene(self):
     #     """Checks if the scene is set, raises an error otherwise."""
