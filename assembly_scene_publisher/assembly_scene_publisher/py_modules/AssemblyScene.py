@@ -1425,19 +1425,22 @@ class AssemblyManagerScene():
             file_dict = json.load(file)
         
         if "scene" not in file_dict:
-            self.logger.error(f"File does not contain scene data!")
+            self.logger.error("File does not contain scene data!")
             return False
         
         scene_dict = file_dict["scene"]
-        
-        self.logger.info(f"Scene{scene_dict} successfully!")
+        self.logger.info(f"Scene data: {scene_dict}")
 
-        new_scene = ami_msg.ObjectScene()
-        scene_msg = set_message_fields(new_scene, scene_dict)
-        self.scene = scene_msg
-        self.publish_information()
-        self.logger.info(f"Loaded scene from file {file_path} successfully!")
-        return True
+        try:
+            new_scene = ami_msg.ObjectScene()
+            set_message_fields(new_scene, scene_dict)  # modifies in place
+            self.scene = new_scene
+            self.publish_information()
+            self.logger.info(f"Loaded scene from file {file_path} successfully!")
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to load scene: {e}")
+            return False
 
 
     def save_scene_to_files(self):
