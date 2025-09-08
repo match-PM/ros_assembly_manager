@@ -56,6 +56,10 @@ class AssemblyScenePublisherNode(Node):
 
         self.clear_scene_srv = self.create_service(ami_srv.ClearScene,f'assembly_manager/clear_scene', self.clear_scene,callback_group=self.callback_group)
 
+        self.save_scene_to_file_srv = self.create_service(ami_srv.SaveSceneToFile,f'assembly_manager/save_scene_to_file', self.save_scene_to_file,callback_group=self.callback_group)
+
+        self.load_scene_from_file_srv = self.create_service(ami_srv.LoadSceneFromFile,f'assembly_manager/load_scene_from_file', self.load_scene_from_file,callback_group=self.callback_group)
+
         #self.timer = self.create_timer(5.0, self.object_scene.publish_information,callback_group=self.callback_group)
         
         self.get_logger().info("Assembly scene publisher started!")
@@ -212,6 +216,23 @@ class AssemblyScenePublisherNode(Node):
     
     def clear_scene(self, request: ami_srv.ClearScene.Request, response: ami_srv.ClearScene.Response):
         response.success = self.object_scene.clear_scene(request.save_data)
+        return response
+    
+    def save_scene_to_file(self, request: ami_srv.SaveSceneToFile.Request, response: ami_srv.SaveSceneToFile.Response):
+        try:
+            response.success = self.object_scene.save_scene_to_file(request.file_path)
+        except Exception as e:
+            self.get_logger().error(f"Error saving scene to file: {e}")
+            response.success = False    
+        return response
+
+    def load_scene_from_file(self, request: ami_srv.LoadSceneFromFile.Request, response: ami_srv.LoadSceneFromFile.Response):
+        try:
+
+            response.success = self.object_scene.load_scene_from_file(request.file_path)
+        except Exception as e:
+            self.get_logger().error(f"Error loading scene from file: {e}")
+            response.success = False
         return response
 
 

@@ -67,6 +67,12 @@ from assembly_scene_publisher.py_modules.tf_functions import (adapt_transform_fo
                                                                 transform_vector3_to_world,
                                                                 substract_vectors)
 
+import datetime
+from rosidl_runtime_py.convert import message_to_ordereddict
+from rosidl_runtime_py.set_message import set_message_fields
+import json
+import os
+
 class AssemblyManagerScene():
     UNUSED_FRAME_CONST = 'unused_frame'
     def __init__(self, node: Node):
@@ -1391,6 +1397,48 @@ class AssemblyManagerScene():
 
         
         return final_list
+
+    def save_scene_to_file(self, file_path: str) -> bool:
+        file_dict = {}
+        # ensure file path exists
+
+        if not os.path.exists(os.path.dirname(file_path)):
+            return False
+
+        file_name = f"Scene_Save_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        ordered_dict = message_to_ordereddict(self.scene)
+        file_dict["scene"] = json.loads(json.dumps(ordered_dict))
+        file_dict["save_time"] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        self.logger.info(f"Saving scene to file {file_path}...")
+        with open(os.path.join(file_path, file_name), 'w') as file:
+            json.dump(file_dict, file, indent=4)
+
+        return True
+    
+    def load_scene_from_file(self, file_path: str) -> bool:
+        if not os.path.exists(file_path):
+            self.logger.error(f"File path {file_path} does not exist!")
+            return False
+        
+        with open(file_path, 'r') as file:
+            file_dict = json.load(file)
+        
+        if "scene" not in file_dict:
+            self.logger.error(f"File does not contain scene data!")
+            return False
+        
+        scene_dict = file_dict["scene"]
+        
+        self.logger.info(f"Scene{scene_dict} successfully!")
+
+        new_scene = ami_msg.ObjectScene()
+        scene_msg = set_message_fields(new_scene, scene_dict)
+        self.scene = scene_msg
+        self.publish_information()
+        self.logger.info(f"Loaded scene from file {file_path} successfully!")
+        return True
+
 
     def save_scene_to_files(self):
         for obj in self.scene.objects_in_scene:

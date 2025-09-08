@@ -34,6 +34,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/SpawnFramesFromDescription.srv"
   "srv/FramesForComponent.srv"
   "srv/ClearScene.srv"
+  "srv/SaveSceneToFile.srv"
+  "srv/LoadSceneFromFile.srv"
 
   "msg/AssemblyInstruction.msg"
   "msg/Object.msg"
