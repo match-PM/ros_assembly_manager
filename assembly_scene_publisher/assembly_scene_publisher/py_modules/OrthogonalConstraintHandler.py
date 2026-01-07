@@ -285,11 +285,11 @@ class OrthogonalConstraintHandler(ami_msg.FrConstraintOrthogonal):
         index = np.argmax(np.abs(normal_unit))      # Index of the max value
         value = normal_unit[index]          # Max value
 
-        self.logger.error(f'{normal_unit}')
+        #self.logger.error(f'{normal_unit}')
 
         if value < 0:
             normal_unit = -normal_unit
-            self.logger.error('Flippping')
+            #self.logger.error('Flippping')
 
         orthogonal_vector = np.cross(connection_unit, normal_unit)
         orthogonal_unit = orthogonal_vector / np.linalg.norm(orthogonal_vector)

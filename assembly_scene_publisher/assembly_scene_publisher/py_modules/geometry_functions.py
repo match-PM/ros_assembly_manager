@@ -559,7 +559,8 @@ def project_pose_on_plane(frame: Pose,
     
     if logger is not None:
         if abs(t)>0.000001:
-            logger.error(f"DEBUG: POINT MOVED: Distance point moved: {(t):.6f}")
+            #logger.error(f"DEBUG: POINT MOVED: Distance point moved: {(t):.6f}")
+            pass
 
     return projected_pose
 
