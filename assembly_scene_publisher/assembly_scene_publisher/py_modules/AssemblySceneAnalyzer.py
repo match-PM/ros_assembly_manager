@@ -42,6 +42,10 @@ class AssemblySceneAnalyzer():
         else:
             return self._scene
 
+    def set_scene(self, scene: ObjectScene):
+        """Sets the current scene."""
+        self._scene = scene
+
     # def _check_scene(self):
     #     """Checks if the scene is set, raises an error otherwise."""
     #     counter = 10
@@ -914,4 +918,21 @@ class AssemblySceneAnalyzer():
 
         raise AssemblyInstructionNotFoundError(assembly_component, target_component)
         
-        
+    def get_assembly_instruction_by_name(self, instruction_name: str) -> ami_msg.AssemblyInstruction:
+        """
+        Returns the assembly instruction for the given instruction name.
+        parameters:
+            - instruction_name: name of the assembly instruction
+        raises:
+            - AssemblyInstructionNotFoundError: if no assembly instruction is found for the given name
+        returns:
+            - assembly instruction for the given name
+        """
+
+        for instruction in self._get_scene().assembly_instructions:
+            instruction:ami_msg.AssemblyInstruction
+
+            if instruction.id == instruction_name:
+                return instruction
+
+        raise AssemblyInstructionNotFoundError(instruction_name)
