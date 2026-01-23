@@ -40,3 +40,9 @@ class AssemblyInstructionNotFoundError(Exception):
     def __init__(self, assembly_component:str, target_component:str):
         self.message = f"Assembly instruction for components '{assembly_component}' and '{target_component}' not found in the scene."
         super().__init__(self.message)
+
+class AssemblyInstructionCalculationError(Exception):
+    def __init__(self, assembly_component:str, target_component:str):
+        self.message = f"Assembly instruction calculation error for components '{assembly_component}' and '{target_component}'."
+        super().__init__(self.message)
+

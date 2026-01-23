@@ -73,6 +73,9 @@ from rosidl_runtime_py.set_message import set_message_fields
 import json
 import os
 
+def vec_to_um(v)-> str:
+    return f"(x={v.x * 1e6:.3f}, y={v.y * 1e6:.3f}, z={v.z * 1e6:.3f}) µm"
+
 class AssemblyManagerScene():
     UNUSED_FRAME_CONST = 'unused_frame'
     def __init__(self, node: Node):
@@ -982,7 +985,7 @@ class AssemblyManagerScene():
                                                     logger=self.logger)
         
         #obj_1_mate_plane_intersection: Vector3 = point3D_to_vector3(get_point_of_plane_intersection(obj_1_plane_1, obj_1_plane_2, obj_1_plane_3))
-
+        
         obj_2_plane_1 = self._get_plane_obj_from_scene(instruction.plane_match_1.plane_name_component_2)
         obj_2_plane_2 = self._get_plane_obj_from_scene(instruction.plane_match_2.plane_name_component_2)
         obj_2_plane_3 = self._get_plane_obj_from_scene(instruction.plane_match_3.plane_name_component_2)
@@ -995,11 +998,12 @@ class AssemblyManagerScene():
             #self.logger.error(f"Sympy: {str(obj_2_mate_plane_intersection)}")
             result_diff_1 = substract_vectors(intersection_obj_1_world, obj_1_mate_plane_intersection)
             result_diff_2 = substract_vectors(intersection_obj_2_world, obj_2_mate_plane_intersection)
-
-            if ((abs(result_diff_1.x) > 1e-8 or abs(result_diff_1.y) > 1e-8 or abs(result_diff_1.z) > 1e-8) or 
-                (abs(result_diff_2.x) > 1e-8 or abs(result_diff_2.y) > 1e-8 or abs(result_diff_2.z) > 1e-8)):
+            
+            threshold = 1e-8  # Define a small threshold value
+            if ((abs(result_diff_1.x) > threshold or abs(result_diff_1.y) > threshold or abs(result_diff_1.z) > threshold) or 
+                (abs(result_diff_2.x) > threshold or abs(result_diff_2.y) > threshold or abs(result_diff_2.z) > threshold)):
                 self.logger.error(f"SEVERE DIFFERENCE IN INTERSECTION CALCULATION!! NOTIFY MAINTAINER.")
-                self.logger.error(f"Difference in intersection calculation: {result_diff_1}, {result_diff_2}")
+                self.logger.error(f"Difference in intersection calculation: {vec_to_um(result_diff_1)}, {vec_to_um(result_diff_2)}")
 
             obj_1_mate_plane_intersection = intersection_obj_1_world
             obj_2_mate_plane_intersection = intersection_obj_2_world
