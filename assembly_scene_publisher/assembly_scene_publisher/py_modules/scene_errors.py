@@ -21,8 +21,23 @@ class ComponentNotFoundError(Exception):
         super().__init__(self.message)
 
 class GrippingFrameNotFoundError(Exception):
-    def __init__(self, obj_name:str):
-        self.message = f"Gripping frame for object '{obj_name}' not found in the scene."
+    def __init__(self, message:str):
+        self.message = message
+        super().__init__(self.message)
+
+class GluePointFrameNotFoundError(Exception):
+    def __init__(self, message:str):
+        self.message = message
+        super().__init__(self.message)
+
+class VisionFrameNotFoundError(Exception):
+    def __init__(self, message:str):
+        self.message = message
+        super().__init__(self.message)
+
+class LaserFrameNotFoundError(Exception):
+    def __init__(self, message:str):
+        self.message = message
         super().__init__(self.message)
 
 class AssemblyFrameNotFoundError(Exception):

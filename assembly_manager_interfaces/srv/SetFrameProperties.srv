@@ -1,0 +1,4 @@
+string frame_name
+RefFrameProperties properties
+---
+bool success

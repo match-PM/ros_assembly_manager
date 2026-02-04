@@ -3,13 +3,7 @@ from rclpy.impl.rcutils_logger import RcutilsLogger
 import assembly_manager_interfaces.msg as ami_msg
 from geometry_msgs.msg import Pose, Transform
 
-from assembly_scene_publisher.py_modules.scene_errors import (RefAxisNotFoundError, 
-                                                              RefFrameNotFoundError, 
-                                                              RefPlaneNotFoundError, 
-                                                              ComponentNotFoundError,
-                                                              AssemblyFrameNotFoundError,
-                                                              TargetFrameNotFoundError,
-                                                              AssemblyInstructionNotFoundError)
+from assembly_scene_publisher.py_modules.scene_errors import *
 
 from copy import copy
 from typing import Union
@@ -398,7 +392,7 @@ class AssemblySceneAnalyzer():
             return False
                 
 
-    def get_frame_from_scene(self, frame_name:str)->tuple[Union[str], Union[str]]:
+    def get_frame_from_scene(self, frame_name:str)->tuple[Union[str], ami_msg.RefFrame]:
         """
         If associated with an object returns
         (object_name, frame_name)
@@ -418,12 +412,12 @@ class AssemblySceneAnalyzer():
             for ref_frame in obj.ref_frames:
                 ref_frame:ami_msg.RefFrame
                 if ref_frame.frame_name == frame_name:
-                    return (obj.obj_name, ref_frame.frame_name)
+                    return (obj.obj_name, ref_frame)
 
         for ref_frame in self._get_scene().ref_frames_in_scene:
             ref_frame:ami_msg.RefFrame
             if ref_frame.frame_name == frame_name:
-                return None, ref_frame.frame_name
+                return None, ref_frame
             
         raise RefFrameNotFoundError(frame_name) 
 
@@ -936,3 +930,121 @@ class AssemblySceneAnalyzer():
                 return instruction
 
         raise AssemblyInstructionNotFoundError(instruction_name)
+
+    def get_gripping_frame_of_component(self, component_name:str)-> str:
+        """
+        Get the gripping frame of a component by searching for known identifiers in its reference frames.
+        :param component_name: Name of the component to search for.
+        :return: Name of the gripping frame.
+        :raises ComponentNotFoundError: If the component is not found in the scene.
+        :raises GrippingFrameNotFoundError: If no gripping frame or multiple gripping frames are found.
+        """
+        grip_frames = []
+        component = self.get_component_by_name(component_name)
+        
+        for frame in component.ref_frames:
+            frame:ami_msg.RefFrame
+
+            if frame.properties.gripping_frame_properties.is_gripping_frame:
+                grip_frames.append(frame.frame_name)
+                  
+        if len(grip_frames) == 0:
+            raise GrippingFrameNotFoundError(f"No gripping frame found for component: {component_name}")
+        
+        if len(grip_frames) > 1:
+            raise GrippingFrameNotFoundError(f"Multiple gripping frames found for component: {component_name}")
+
+        return grip_frames[0]
+
+    def get_glue_pt_frames_of_component(self, component_name:str)-> list[ami_msg.RefFrame]:
+        """
+        Get the glue point frames of a component by searching for known identifiers in its reference frames.
+        :param component_name: Name of the component to search for.
+        :return: List of names of the glue point frames.
+        :raises ComponentNotFoundError: If the component is not found in the scene.
+        :raises GluePointFrameNotFoundError: If no glue point frames are found.
+        """
+        glue_pt_frames: list[ami_msg.RefFrame] = []
+        component = self.get_component_by_name(component_name)
+        
+        for frame in component.ref_frames:
+            frame:ami_msg.RefFrame
+
+            if frame.properties.glue_point_frame_properties.is_glue_point_frame:
+                glue_pt_frames.append(frame)
+                  
+        if len(glue_pt_frames) == 0:
+            raise GluePointFrameNotFoundError(f"No glue point frames found for component: {component_name}")
+
+        return glue_pt_frames
+
+    def get_vision_frames_of_component(self, component_name:str)-> list[ami_msg.RefFrame]:
+        """
+        Get the vision frames of a component by searching for known identifiers in its reference frames.
+        :param component_name: Name of the component to search for.
+        :return: List of names of the vision frames.
+        :raises ComponentNotFoundError: If the component is not found in the scene.
+        :raises VisionFrameNotFoundError: If no vision frames are found.
+        """
+        vision_frames: list[ami_msg.RefFrame] = []
+        component = self.get_component_by_name(component_name)
+        
+        for frame in component.ref_frames:
+            frame:ami_msg.RefFrame
+
+            if frame.properties.vision_frame_properties.is_vision_frame:
+                vision_frames.append(frame)
+                  
+        if len(vision_frames) == 0:
+            raise VisionFrameNotFoundError(f"No vision frames found for component: {component_name}")
+
+        return vision_frames
+    
+
+    def get_laser_frames_of_component(self, component_name:str)-> list[ami_msg.RefFrame]:
+        """
+        Get the laser frames of a component by searching for known identifiers in its reference frames.
+        :param component_name: Name of the component to search for.
+        :return: List of names of the laser frames.
+        :raises ComponentNotFoundError: If the component is not found in the scene.
+        :raises LaserFrameNotFoundError: If no laser frames are found.
+        """
+        laser_frames: list[ami_msg.RefFrame] = []
+        component = self.get_component_by_name(component_name)
+        
+        for frame in component.ref_frames:
+            frame:ami_msg.RefFrame
+
+            if frame.properties.laser_frame_properties.is_laser_frame:
+                laser_frames.append(frame)
+                  
+        if len(laser_frames) == 0:
+            raise LaserFrameNotFoundError(f"No laser frames found for component: {component_name}")
+
+        return laser_frames
+    
+    def get_frame_properties(self, frame_name:str)-> ami_msg.RefFrameProperties:
+        """
+        Returns the properties of the given ref frame name.
+        parameters:
+        - frame_name: name of the ref frame to get the properties for
+        raises:
+        - RefFrameNotFoundError: if the ref frame is not found in the scene
+        returns:
+        - properties of the ref frame
+        """
+        frame = self.get_ref_frame_by_name(frame_name)
+        return frame.properties
+    
+    def get_frame_properties_copy(self, frame_name:str)-> ami_msg.RefFrameProperties:
+        """
+        Returns a copy of the properties of the given ref frame name.
+        parameters:
+        - frame_name: name of the ref frame to get the properties for
+        raises:
+        - RefFrameNotFoundError: if the ref frame is not found in the scene
+        returns:
+        - copy of the properties of the ref frame
+        """
+        frame = self.get_ref_frame_by_name(frame_name)
+        return copy(frame.properties)

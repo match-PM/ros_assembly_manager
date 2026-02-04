@@ -1,0 +1,4 @@
+VisionFrameProperties vision_frame_properties
+GluePtFrameProperties glue_pt_frame_properties
+LaserFrameProperties laser_frame_properties
+GrippingFrameProperties gripping_frame_properties

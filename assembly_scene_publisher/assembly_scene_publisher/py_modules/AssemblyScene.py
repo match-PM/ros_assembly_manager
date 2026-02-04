@@ -8,10 +8,12 @@ from rclpy.callback_groups import ReentrantCallbackGroup, MutuallyExclusiveCallb
 import numpy as np
 import json
 import assembly_manager_interfaces.msg as ami_msg
+import assembly_manager_interfaces.srv as ami_srv
 from scipy.spatial.transform import Rotation as R
 from geometry_msgs.msg import Vector3, Quaternion
 import sympy as sp
 from typing import Union
+from assembly_scene_publisher.py_modules.scene_errors import *
 from ament_index_python.packages import get_package_share_directory
 import os
 # import plt
@@ -26,6 +28,8 @@ from assembly_scene_publisher.py_modules.frame_constraints import (FrameConstrai
                                                                     calculate_constraints_for_scene,
                                                                     get_identification_order)
 from copy import deepcopy,copy
+
+# substite all these imports by using the AssemblySceneAnalyzer class
 from assembly_scene_publisher.py_modules.scene_functions import (get_parent_frame_for_ref_frame,
                                                                  get_ref_frame_by_name,
                                                                  is_frame_from_scene,
@@ -1439,6 +1443,7 @@ class AssemblyManagerScene():
             new_scene = ami_msg.ObjectScene()
             set_message_fields(new_scene, scene_dict)  # modifies in place
             self.scene = new_scene
+            self.assembly_scene_analyzer.set_scene(self.scene)
             self.publish_information()
             self.logger.info(f"Loaded scene from file {file_path} successfully!")
             return True
@@ -1480,3 +1485,30 @@ class AssemblyManagerScene():
         with open(file_path, 'w') as file:
             json.dump(obj_dict, file, indent=4)
             
+    def reset_frame_properties(self, request: ami_srv.ResetFrameProperties.Request):
+        response = ami_srv.ResetFrameProperties.Response()
+        try:
+            self.logger.info(f"Test {str(self.assembly_scene_analyzer._get_scene())}")
+            frame = self.assembly_scene_analyzer.get_ref_frame_by_name(request.frame_name)
+            frame:ami_msg.RefFrame
+            frame.properties = ami_msg.RefFrameProperties()
+            response.success = True
+        except RefFrameNotFoundError as e:
+            self.logger.error(f"Failed to get frame {request.frame_name}: {e}")
+            response.success = False
+            return response
+
+        return response
+    
+    def set_frame_properties(self, request: ami_srv.SetFrameProperties.Request):
+        response = ami_srv.SetFrameProperties.Response()
+        try:
+            frame = self.assembly_scene_analyzer.get_ref_frame_by_name(request.frame_name)
+            frame:ami_msg.RefFrame
+            frame.properties = request.properties
+            response.success = True
+        except RefFrameNotFoundError as e:
+            self.logger.error(f"Failed to get frame {request.frame_name}: {e}")
+            response.success = False
+            return response
+        return response

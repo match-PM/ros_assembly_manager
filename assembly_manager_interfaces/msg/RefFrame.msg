@@ -3,3 +3,4 @@ string parent_frame
 geometry_msgs/Pose pose
 string constraints_dict
 FrConstraints constraints
+RefFrameProperties properties

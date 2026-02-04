@@ -286,7 +286,7 @@ class OrthogonalConstraintHandler(ami_msg.FrConstraintOrthogonal):
         value = normal_unit[index]          # Max value
 
         #self.logger.error(f'{normal_unit}')
-
+        
         if value < 0:
             normal_unit = -normal_unit
             #self.logger.error('Flippping')

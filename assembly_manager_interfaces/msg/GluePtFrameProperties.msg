@@ -1,0 +1,5 @@
+bool is_glue_point False
+bool has_been_placed False
+bool has_been_cured False
+float32 time_ms
+float64 dispense_offset_mm

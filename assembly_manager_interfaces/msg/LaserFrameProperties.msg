@@ -1,0 +1,2 @@
+bool is_laser_frame False
+bool has_been_measured False

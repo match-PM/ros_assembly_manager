@@ -25,40 +25,44 @@ class AssemblyScenePublisherNode(Node):
         self.callback_group = ReentrantCallbackGroup()
 
         self.object_scene = AssemblyManagerScene(self)
+        mng_str = "assembly_manager" 
+        pub_str = "assembly_scene_publisher"
+        self.spawn_object_srv = self.create_service(ami_srv.SpawnObject,f'{pub_str}/spawn_object',self.spawn_object_callback,callback_group=self.callback_group)
+        self.destroy_object_srv = self.create_service(ami_srv.DestroyObject,f'{pub_str}/destroy_object',self.destroy_object_callback,callback_group=self.callback_group)
 
-        self.spawn_object_srv = self.create_service(ami_srv.SpawnObject,f'assembly_scene_publisher/spawn_object',self.spawn_object_callback,callback_group=self.callback_group)
-        self.destroy_object_srv = self.create_service(ami_srv.DestroyObject,f'assembly_scene_publisher/destroy_object',self.destroy_object_callback,callback_group=self.callback_group)
-
-        self.create_ref_frame_srv = self.create_service(ami_srv.CreateRefFrame,f'assembly_manager/create_ref_frame',self.create_ref_frame,callback_group=self.callback_group)
-        self.delete_ref_frame_srv = self.create_service(ami_srv.DeleteRefFrame,f'assembly_manager/delete_ref_frame',self.destroy_ref_frame,callback_group=self.callback_group)  
-
-        self.change_parent_frame_srv = self.create_service(ami_srv.ChangeParentFrame,f'assembly_manager/change_obj_parent_frame',self.change_obj_parent_frame,callback_group=self.callback_group)  
+        self.create_ref_frame_srv = self.create_service(ami_srv.CreateRefFrame,f'{mng_str}/create_ref_frame',self.create_ref_frame,callback_group=self.callback_group)
+        self.delete_ref_frame_srv = self.create_service(ami_srv.DeleteRefFrame,f'{mng_str}/delete_ref_frame',self.destroy_ref_frame,callback_group=self.callback_group)  
+        self.change_parent_frame_srv = self.create_service(ami_srv.ChangeParentFrame,f'{mng_str}/change_obj_parent_frame',self.change_obj_parent_frame,callback_group=self.callback_group)  
         
-        self.modify_frame_absolut_srv = self.create_service(ami_srv.ModifyPoseAbsolut,'assembly_manager/modify_frame_absolut',self.modify_frame_absolut,callback_group=self.callback_group)  
+        self.modify_frame_absolut_srv = self.create_service(ami_srv.ModifyPoseAbsolut,f'{mng_str}/modify_frame_absolut',self.modify_frame_absolut,callback_group=self.callback_group)  
         
-        self.modify_frame_relative_srv = self.create_service(ami_srv.ModifyPoseRelative,'assembly_manager/modify_frame_relative',self.modify_frame_relative,callback_group=self.callback_group)  
+        self.modify_frame_relative_srv = self.create_service(ami_srv.ModifyPoseRelative,f'{mng_str}/modify_frame_relative',self.modify_frame_relative,callback_group=self.callback_group)  
 
-        self.get_info_srv = self.create_service(ami_srv.GetScene,f'assembly_manager/get_scene',self.get_scene,callback_group=self.callback_group)      
+        self.get_info_srv = self.create_service(ami_srv.GetScene,f'{mng_str}/get_scene',self.get_scene,callback_group=self.callback_group)      
 
-        self.create_ref_plane_srv = self.create_service(ami_srv.CreateRefPlane,f'assembly_manager/create_ref_plane',self.create_ref_plane,callback_group=self.callback_group)      
+        self.create_ref_plane_srv = self.create_service(ami_srv.CreateRefPlane,f'{mng_str}/create_ref_plane',self.create_ref_plane,callback_group=self.callback_group)      
         
-        self.create_axis_srv = self.create_service(ami_srv.CreateAxis,f'assembly_manager/create_axis',self.create_axis,callback_group=self.callback_group)      
+        self.create_axis_srv = self.create_service(ami_srv.CreateAxis,f'{mng_str}/create_axis',self.create_axis,callback_group=self.callback_group)      
 
-        self.create_assembly_instructions_srv = self.create_service(ami_srv.CreateAssemblyInstructions,f'assembly_manager/create_assembly_instructions',self.srv_create_assembly_instructions,callback_group=self.callback_group)      
+        self.create_assembly_instructions_srv = self.create_service(ami_srv.CreateAssemblyInstructions,f'{mng_str}/create_assembly_instructions',self.srv_create_assembly_instructions,callback_group=self.callback_group)      
 
-        self.calculate_assembly_instructions_srv = self.create_service(ami_srv.CalculateAssemblyInstructions,f'assembly_manager/calculate_assembly_instructions',self.calculate_assembly_instructions,callback_group=self.callback_group)      
+        self.calculate_assembly_instructions_srv = self.create_service(ami_srv.CalculateAssemblyInstructions,f'{mng_str}/calculate_assembly_instructions',self.calculate_assembly_instructions,callback_group=self.callback_group)      
 
-        self.spawn_frames_from_description_srv = self.create_service(ami_srv.SpawnFramesFromDescription,f'assembly_manager/spawn_frames_from_description',self.spawn_frames_from_description,callback_group=self.callback_group) 
+        self.spawn_frames_from_description_srv = self.create_service(ami_srv.SpawnFramesFromDescription,f'{mng_str}/spawn_frames_from_description',self.spawn_frames_from_description,callback_group=self.callback_group) 
 
-        self.get_frames_for_component_srv = self.create_service(ami_srv.FramesForComponent,f'assembly_manager/get_frames_for_component', self.get_frames_for_component,callback_group=self.callback_group)
+        self.get_frames_for_component_srv = self.create_service(ami_srv.FramesForComponent,f'{mng_str}/get_frames_for_component', self.get_frames_for_component,callback_group=self.callback_group)
 
-        self.modify_frame_from_frame_srv = self.create_service(ami_srv.ModifyPoseFromFrame,f'assembly_manager/modify_frame_from_frame',self.modify_frame_from_frame,callback_group=self.callback_group)
+        self.modify_frame_from_frame_srv = self.create_service(ami_srv.ModifyPoseFromFrame,f'{mng_str}/modify_frame_from_frame',self.modify_frame_from_frame,callback_group=self.callback_group)
 
-        self.clear_scene_srv = self.create_service(ami_srv.ClearScene,f'assembly_manager/clear_scene', self.clear_scene,callback_group=self.callback_group)
+        self.clear_scene_srv = self.create_service(ami_srv.ClearScene,f'{mng_str}/clear_scene', self.clear_scene,callback_group=self.callback_group)
 
-        self.save_scene_to_file_srv = self.create_service(ami_srv.SaveSceneToFile,f'assembly_manager/save_scene_to_file', self.save_scene_to_file,callback_group=self.callback_group)
+        self.save_scene_to_file_srv = self.create_service(ami_srv.SaveSceneToFile,f'{mng_str}/save_scene_to_file', self.save_scene_to_file,callback_group=self.callback_group)
 
-        self.load_scene_from_file_srv = self.create_service(ami_srv.LoadSceneFromFile,f'assembly_manager/load_scene_from_file', self.load_scene_from_file,callback_group=self.callback_group)
+        self.load_scene_from_file_srv = self.create_service(ami_srv.LoadSceneFromFile,f'{mng_str}/load_scene_from_file', self.load_scene_from_file,callback_group=self.callback_group)
+
+        self.reset_frame_properties_srv = self.create_service(ami_srv.ResetFrameProperties,f'{mng_str}/reset_frame_properties', self.reset_frame_properties,callback_group=self.callback_group)
+
+        self.set_frame_properties_srv = self.create_service(ami_srv.SetFrameProperties,f'{mng_str}/set_frame_properties', self.set_frame_properties,callback_group=self.callback_group)
 
         #self.timer = self.create_timer(5.0, self.object_scene.publish_information,callback_group=self.callback_group)
         
@@ -236,6 +240,13 @@ class AssemblyScenePublisherNode(Node):
             response.success = False
         return response
 
+    def reset_frame_properties(self, request: ami_srv.ResetFrameProperties.Request, response: ami_srv.ResetFrameProperties.Response):
+        response = self.object_scene.reset_frame_properties(request)
+        return response
+    
+    def set_frame_properties(self, request: ami_srv.SetFrameProperties.Request, response: ami_srv.SetFrameProperties.Response):
+        response = self.object_scene.set_frame_properties(request)
+        return response
 
 def main(args=None):
     rclpy.init(args=args)

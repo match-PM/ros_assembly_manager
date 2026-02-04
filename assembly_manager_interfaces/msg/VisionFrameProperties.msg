@@ -1,0 +1,2 @@
+bool is_vision_frame False
+bool has_been_measured False
