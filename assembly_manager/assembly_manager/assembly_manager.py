@@ -272,7 +272,7 @@ class AssemblyManagerNode(Node):
             if cad_data_collision == "":
                 cad_data_collision = cad_path
 
-            #self.logger.error(f"Collision: {cad_data_collision}")
+            self.logger.error(f"UUID: {guid}")
 
             mounting_references = file_data.get("mountingDescription").get("mountingReferences")
             ref_frames = mounting_references.get("ref_frames")
@@ -289,12 +289,17 @@ class AssemblyManagerNode(Node):
                 multiplier = 1
             
             color = ColorRGBA()
-            color.r = file_data.get("color",{}).get("R", 0.0)
-            color.g = file_data.get("color",{}).get("G", 0.0)
-            color.b = file_data.get("color",{}).get("B", 0.0)
+            color_data = file_data.get("color", {})
+
+            color = ColorRGBA()
+            color.r = color_data.get("R", 0.0)
+            color.g = color_data.get("G", 0.0)
+            color.b = color_data.get("B", 0.0)
+            color.a = 1.0
             spawn_request = ami_srv.SpawnObject.Request()
             spawn_request.obj_name = comp_name
             spawn_request.apperance_color = color
+            spawn_request.component_type_uuid = guid
             spawn_request.parent_frame = mounting_references.get("spawningOrigin")
             spawn_request.cad_data = f"{os.path.dirname(request.file_path)}/{cad_path}"
             spawn_request.cad_data_collision = f"{os.path.dirname(request.file_path)}/{cad_data_collision}"
@@ -332,7 +337,6 @@ class AssemblyManagerNode(Node):
                 constraint_dict = ref_frame.get("constraints",{})
                 #constraint_dict['units'] = doc_units
                 #constraint_dict = {"constraints": constraint_dict}
-                #create_ref_frame_request.ref_frame.constraints_dict = str(constraint_dict)
 
                 frame_constraint_handler = f_constraints.FrameConstraintsHandler.return_handler_from_dict(dictionary=constraint_dict,
                                                                                                           component_name=comp_name,
@@ -346,7 +350,7 @@ class AssemblyManagerNode(Node):
                 # after the last frame, recalculate the constraints
                 if ind == num_of_ref_frames - 1:
                     create_ref_frame_request.recalculate_constraints = True
-                    self.logger.error(f" !!!!!!!!!!!!!!!!!!!!   Recalculation of constraints triggered for {create_ref_frame_request.ref_frame.frame_name}!")
+                    self.logger.info(f"Recalculation of all constraints triggered by spawing frame '{create_ref_frame_request.ref_frame.frame_name}'!")
 
                 spawn_ref_frame_success = self.create_ref_frame(create_ref_frame_request)
 
@@ -479,8 +483,8 @@ class AssemblyManagerNode(Node):
                     self.logger.error(f"Error while creating assembly instruction {create_assembly_instruction_request.assembly_instruction.id}!")
                     # commented out to make possible that only some of the instructions are created
                     response.success = False
-                    #return response
-
+                    return response
+            
             response.success = True
         except Exception as e:
             self.logger.error(f"Error while creating assembly instructions from description: {e}")
@@ -518,7 +522,7 @@ class AssemblyManagerNode(Node):
             self.get_logger().error('Create Assembly Instruction Service not available!')
             return False
 
-        response = self.create_assembly_instructions_client.call(request)
+        response: ami_srv.CreateAssemblyInstructions.Response = self.create_assembly_instructions_client.call(request)
 
         return response.success
 

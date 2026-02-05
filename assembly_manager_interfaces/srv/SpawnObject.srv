@@ -1,6 +1,7 @@
 string obj_name
 string parent_frame
-string guid
+string uuid
+string component_type_uuid
 geometry_msgs/Vector3 translation
 geometry_msgs/Quaternion rotation
 string cad_data

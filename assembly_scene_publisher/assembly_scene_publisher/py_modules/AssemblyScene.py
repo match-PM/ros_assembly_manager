@@ -16,6 +16,8 @@ from typing import Union
 from assembly_scene_publisher.py_modules.scene_errors import *
 from ament_index_python.packages import get_package_share_directory
 import os
+import random
+import string
 # import plt
 import matplotlib.pyplot as plt
 from assembly_scene_publisher.py_modules.AssemblySceneAnalyzer import AssemblySceneAnalyzer
@@ -82,6 +84,8 @@ def vec_to_um(v)-> str:
 
 class AssemblyManagerScene():
     UNUSED_FRAME_CONST = 'unused_frame'
+    GRIPPING_FRAME_IDENTIFICATORS = ['Grip', 'grip']
+
     def __init__(self, node: Node):
         self.scene:ami_msg.ObjectScene = ami_msg.ObjectScene()
         self.assembly_scene_analyzer = AssemblySceneAnalyzer(self.scene, node.get_logger())
@@ -104,28 +108,32 @@ class AssemblyManagerScene():
         self._scene_publisher.publish(self.scene)
         #self.logger.info("Object Scene has been published")
 
-    def add_obj_to_scene(self, new_obj:ami_msg.Object)-> bool:
+    def add_obj_to_scene(self, new_comp:ami_msg.Object)-> bool:
+        
+        # Generate a new UUID if not set
+        if new_comp.uuid == "":
+            new_comp.uuid = self.generate_id()
 
-        if new_obj.obj_name == "":
+        if new_comp.obj_name == "":
             self.logger.error(f"Name of the component should not be empty. Aboarted!")
             return False
         
-        name_conflict, _ = self.check_ref_frame_exists(new_obj.obj_name)
+        name_conflict, _ = self.check_ref_frame_exists(new_comp.obj_name)
 
         if name_conflict:
             self.logger.error(f'Object can not have the same name as an existing reference frame!')
             return False
 
-        parent_frame_exists = self.check_if_frame_exists(new_obj.parent_frame)
-            
+        parent_frame_exists = self.check_ref_frame_exists(new_comp.parent_frame)
+
         if not parent_frame_exists:
-            self.logger.warn(f"Tried to spawn object {new_obj.obj_name}, but parent frame '{new_obj.parent_frame}' does not exist!")
+            self.logger.warn(f"Tried to spawn component {new_comp.obj_name}, but parent frame '{new_comp.parent_frame}' does not exist!")
             return False
 
-        obj_existend = self.check_object_exists(new_obj.obj_name)
+        obj_existend = self.check_object_exists(new_comp.obj_name)
 
         if not obj_existend:
-            self.scene.objects_in_scene.append(new_obj)
+            self.scene.objects_in_scene.append(new_comp)
             self.publish_scene()
             self.publish_to_tf()
             return True
@@ -134,14 +142,14 @@ class AssemblyManagerScene():
         else:
             for index, obj in enumerate(self.scene.objects_in_scene):
                 obj:ami_msg.Object
-                if obj.obj_name == new_obj.obj_name:
-                    new_obj.obj_pose.orientation = check_and_return_quaternion(new_obj.obj_pose.orientation,self.logger)
-                    obj.cad_data = new_obj.cad_data
-                    obj.obj_pose = new_obj.obj_pose
-                    obj.parent_frame = new_obj.parent_frame
+                if obj.obj_name == new_comp.obj_name:
+                    new_comp.obj_pose.orientation = check_and_return_quaternion(new_comp.obj_pose.orientation,self.logger)
+                    obj.cad_data = new_comp.cad_data
+                    obj.obj_pose = new_comp.obj_pose
+                    obj.parent_frame = new_comp.parent_frame
 
-                    self.logger.warn(f'Service for spawning {new_obj.obj_name} was called, but object does already exist!')
-                    self.logger.warn(f'Information for {new_obj.obj_name} updated!')
+                    self.logger.warn(f'Service for spawning {new_comp.obj_name} was called, but object does already exist!')
+                    self.logger.warn(f'Information for {new_comp.obj_name} updated!')
                     self.publish_scene()
                     self.publish_to_tf()
                     return True
@@ -172,6 +180,15 @@ class AssemblyManagerScene():
         if not parent_frame_exists:
             self.logger.warn(f'Tried to spawn ref frame {new_ref_frame.frame_name}, but parent frame {new_ref_frame.parent_frame} does not exist!')
             return False
+        
+        # Check if the new ref frame is a gripping frame, derived by its name
+        for identificador in self.GRIPPING_FRAME_IDENTIFICATORS:
+            # check if string is part of string
+            if identificador in new_ref_frame.frame_name:
+                new_ref_frame.properties.gripping_frame_properties.is_gripping_frame = True         
+
+        if 'Vision' in new_ref_frame.frame_name or 'vision' in new_ref_frame.frame_name:
+            new_ref_frame.properties.vision_frame_properties.is_vision_frame = True
 
         # Check if the new ref frame should be connected to an existing object or not.
         frame_is_obj_frame = self.check_object_exists(new_ref_frame.parent_frame)
@@ -790,49 +807,43 @@ class AssemblyManagerScene():
 
 
     def create_assembly_instructions(self,instruction: ami_msg.AssemblyInstruction)->bool:
+        """
+        Docstring for create_assembly_instructions
+        
+        :param self: Description
+        :param instruction: Description
+        :type instruction: ami_msg.AssemblyInstruction
+        :return: Description
+        :rtype: bool
+        :raises ComponentNotFoundError: Raised when a component specified in the instruction does not exist in the scene.
+        :raises ValueError: Raised when the assembly transformation cannot be calculated due to invalid plane selection or other issues.
+        :raises RefPlaneNotFoundError: Raised when a plane specified in the instruction does not exist in the scene.
+        """
         # Get plane msgs for object 1
         if instruction.id == "":
                 self.logger.error(f"ID of the instruction shoud not be empty. Aboarted!")
                 return False
-            
-        obj1_plane1_msg = get_plane_from_scene(scene=self.scene, plane_name=instruction.plane_match_1.plane_name_component_1)
-        obj1_plane2_msg = get_plane_from_scene(scene=self.scene, plane_name=instruction.plane_match_2.plane_name_component_1)
-        obj1_plane3_msg = get_plane_from_scene(scene=self.scene, plane_name=instruction.plane_match_3.plane_name_component_1)
+        instruction.plane_match_1.plane_name_component_1
 
-        # Get plane msgs for object 2
-        obj2_plane1_msg = get_plane_from_scene(scene=self.scene, plane_name=instruction.plane_match_1.plane_name_component_2)
-        obj2_plane2_msg = get_plane_from_scene(scene=self.scene, plane_name=instruction.plane_match_2.plane_name_component_2)
-        obj2_plane3_msg = get_plane_from_scene(scene=self.scene, plane_name=instruction.plane_match_3.plane_name_component_2) 
+        if not self.assembly_scene_analyzer.check_component_exists(instruction.component_1):
+            raise ComponentNotFoundError(f"Component 1 '{instruction.component_1}' does not exist in the scene!")
+        
+        if not self.assembly_scene_analyzer.check_component_exists(instruction.component_2):
+            raise ComponentNotFoundError(f"Component 2 '{instruction.component_2}' does not exist in the scene!")
 
-        # return false if planes do not exist in scene
-        create_plane_error = False
-        if (obj1_plane1_msg is None):
-            self.logger.error(f"Plane 1 '{instruction.plane_match_1.plane_name_component_1}' of component 1 does not exist. Invalid input!")
-            create_plane_error = True
-        if (obj1_plane2_msg is None):
-            self.logger.error(f"Plane 2 '{instruction.plane_match_2.plane_name_component_1}' of component 1 does not exist. Invalid input!")
-            create_plane_error = True
-        if (obj1_plane3_msg is None):
-            self.logger.error(f"Plane 3 '{instruction.plane_match_3.plane_name_component_1}' of component 1 does not exist. Invalid input!")
-            create_plane_error = True
-        if (obj2_plane1_msg is None):
-            self.logger.error(f"Plane 1 '{instruction.plane_match_1.plane_name_component_2}' of component 2 does not exist. Invalid input!")
-            create_plane_error = True
-        if (obj2_plane2_msg is None):
-            self.logger.error(f"Plane 2 '{instruction.plane_match_2.plane_name_component_2}' of component 2 does not exist. Invalid input!")
-            create_plane_error = True
-        if (obj2_plane3_msg is None):
-            self.logger.error(f"Plane 3 '{instruction.plane_match_3.plane_name_component_2}' of component 2 does not exist. Invalid input!")
-            create_plane_error = True
-
-        # return false if planes do not exist in scene
-        if create_plane_error:
-            self.logger.error(f"Invalid input for assembly instruction. Planes do not exist in scene!")
-            return False
+        # Check if planes exist in the scene
+        obj1_plane1_msg = self.assembly_scene_analyzer.get_plane_from_scene(plane_name=instruction.plane_match_1.plane_name_component_1)
+        obj1_plane2_msg = self.assembly_scene_analyzer.get_plane_from_scene(plane_name=instruction.plane_match_2.plane_name_component_1)
+        obj1_plane3_msg = self.assembly_scene_analyzer.get_plane_from_scene(plane_name=instruction.plane_match_3.plane_name_component_1)
+        
+        obj2_plane1_msg = self.assembly_scene_analyzer.get_plane_from_scene(plane_name=instruction.plane_match_1.plane_name_component_2)
+        obj2_plane2_msg = self.assembly_scene_analyzer.get_plane_from_scene(plane_name=instruction.plane_match_2.plane_name_component_2)
+        obj2_plane3_msg = self.assembly_scene_analyzer.get_plane_from_scene(plane_name=instruction.plane_match_3.plane_name_component_2) 
         
         obj_1_name = get_parent_frame_for_ref_frame(self.scene, 
                                                     get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_1).point_names[0],
                                                     logger=self.logger)
+        
         obj_2_name = get_parent_frame_for_ref_frame(self.scene,
                                                     get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_2).point_names[0],
                                                     logger=self.logger)
@@ -1027,7 +1038,7 @@ class AssemblyManagerScene():
             moving_component = obj_2_name
             static_component = obj_1_name
 
-        self.logger.warn(f"\nMoving component: '{moving_component}'\nStatic component: '{static_component}'")
+        self.logger.info(f"\nMoving component: '{moving_component}'\nStatic component: '{static_component}'")
         
         # Get the ideal norm vectors from the plane messages
         comp_1_plane_1_ideal_norm_vector = get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_1).ideal_norm_vector
@@ -1190,9 +1201,11 @@ class AssemblyManagerScene():
                                         static_component_plane_intersection:sp.Point3D, 
                                         assembly_transform: Pose)-> bool:
         assembly_frame = ami_msg.RefFrame()
+        target_frame = ami_msg.RefFrame()
+        target_frame.frame_name = f"target_frame_{instruction_id}"
         assembly_frame.frame_name = f"assembly_frame_{instruction_id}"
+
         assembly_frame.parent_frame = moving_component
-        assembly_frame.constraints_dict = str({})
         assembly_frame.pose.position.x = float(moving_component_plane_intersection.x)
         assembly_frame.pose.position.y = float(moving_component_plane_intersection.y)
         assembly_frame.pose.position.z = float(moving_component_plane_intersection.z)
@@ -1205,16 +1218,20 @@ class AssemblyManagerScene():
 
         helper_pose = transform_matrix_to_pose(moving_component_matrix.inv()*assembly_frame_matrix)
         assembly_frame.pose = helper_pose
+        assembly_frame.properties.assembly_frame_properties.is_assembly_frame = True
+        assembly_frame.properties.assembly_frame_properties.associated_frame = target_frame.frame_name
+
+        # add the assembly frame to the scene
         add_assembly_frame_success = self.add_ref_frame_to_scene(assembly_frame)
 
-        # Create frame for the static component
-        target_frame = ami_msg.RefFrame()
-        target_frame.frame_name = f"target_frame_{instruction_id}"
+        # Create frame for the static (target) component
         target_frame.parent_frame = static_component
         target_frame.pose.position.x = float(static_component_plane_intersection.x)
         target_frame.pose.position.y = float(static_component_plane_intersection.y)
         target_frame.pose.position.z = float(static_component_plane_intersection.z)
-        target_frame.constraints_dict = str({})
+        target_frame.properties.assembly_frame_properties.is_target_frame = True
+        target_frame.properties.assembly_frame_properties.associated_frame = assembly_frame.frame_name
+
         #target_frame.pose.orientation = quaternion_multiply(assembly_transfrom.orientation, target_frame.pose.orientation)
         target_frame.pose.orientation = quaternion_multiply(assembly_transform.orientation, moving_component_world_transform.transform.rotation)
         static_component_world_transform = get_transform_for_frame_in_world(static_component, self.tf_buffer)
@@ -1225,6 +1242,7 @@ class AssemblyManagerScene():
         static_component_matrix = get_transform_matrix_from_tf(static_component_world_transform)
         helper_pose_2 = transform_matrix_to_pose(static_component_matrix.inv()*target_frame_matrix, logger=self.logger)
         target_frame.pose = helper_pose_2
+        # add the target frame to the scene
         add_target_frame_success = self.add_ref_frame_to_scene(target_frame)
         result = add_assembly_frame_success and add_target_frame_success
 
@@ -1437,7 +1455,8 @@ class AssemblyManagerScene():
             return False
         
         scene_dict = file_dict["scene"]
-        self.logger.info(f"Scene data: {scene_dict}")
+
+        #self.logger.info(f"Scene data: {scene_dict}")
 
         try:
             new_scene = ami_msg.ObjectScene()
@@ -1459,7 +1478,7 @@ class AssemblyManagerScene():
             self.save_object_to_file(obj)
         
     def save_object_to_file(self, obj:ami_msg.Object):
-        filename = f"{obj.guid}"
+        filename = f"{obj.uuid}"
         folder_name = f"{obj.obj_name}"
         
         if filename is None or filename == "":
@@ -1512,3 +1531,21 @@ class AssemblyManagerScene():
             response.success = False
             return response
         return response
+    
+    def set_component_uuid(self, request: ami_srv.SetComponentUuid.Request):
+        response = ami_srv.SetComponentUuid.Response()
+        try:
+            component = self.assembly_scene_analyzer.get_component_by_name(request.component_name)
+            component.uuid = request.new_uuid
+            response.success = True
+            response.given_uuid = request.new_uuid
+        except ComponentNotFoundError as e:
+            self.logger.error(f"Failed to get component {request.component_name}: {e}")
+            response.success = False
+            return response
+        return response
+    
+    @staticmethod
+    def generate_id(length:int=7)-> str:
+        chars = string.ascii_letters + string.digits
+        return ''.join(random.choice(chars) for _ in range(length))

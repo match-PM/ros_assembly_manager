@@ -38,6 +38,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/LoadSceneFromFile.srv"
   "srv/ResetFrameProperties.srv"
   "srv/SetFrameProperties.srv"
+  "srv/SetComponentUuid.srv"
 
   "msg/AssemblyInstruction.msg"
   "msg/Object.msg"
@@ -55,6 +56,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/LaserFrameProperties.msg"
   "msg/GrippingFrameProperties.msg"
   "msg/RefFrameProperties.msg"
+  "msg/AssemblyFrameProperties.msg"
 
   DEPENDENCIES geometry_msgs std_msgs# Add packages that above messages depend on, in this case geometry_msgs for Sphere.msg
 )

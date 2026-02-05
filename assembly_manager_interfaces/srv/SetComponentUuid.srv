@@ -1,0 +1,5 @@
+string new_uuid
+string component_name
+---
+bool success
+string given_uuid

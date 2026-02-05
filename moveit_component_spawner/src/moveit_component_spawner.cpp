@@ -177,7 +177,7 @@ private:
         // Verify if the object is indeed removed
       }
       planning_scene_diff_publisher->publish(planning_scene);
-      RCLCPP_ERROR(this->get_logger(), "DEBUG - Publishing object Destructions");
+      //RCLCPP_ERROR(this->get_logger(), "DEBUG - Publishing object Destructions");
 
       return true;
     }
@@ -193,7 +193,7 @@ private:
     // Check if the scene has changed
     if (check_scene_has_changed(msg->objects_in_scene))
     {
-      RCLCPP_WARN(this->get_logger(), "Scene has changed!!!");
+      //RCLCPP_WARN(this->get_logger(), "Scene has changed!!!");
       clear_scene();
       object_list = msg->objects_in_scene;
       // Update the scene
@@ -344,7 +344,7 @@ private:
         spawining_object.object.operation = spawining_object.object.ADD;
         delete m; // Cleanup the mesh object
         planning_scene.robot_state.attached_collision_objects.push_back(spawining_object);
-        RCLCPP_ERROR(this->get_logger(), "Spawned STL for component %s in parent frame %s", object_id.c_str(), new_parent_frame.c_str());
+        RCLCPP_INFO(this->get_logger(), "Spawned STL for component %s in parent frame %s", object_id.c_str(), new_parent_frame.c_str());
       }
 
       planning_scene_diff_publisher->publish(planning_scene);

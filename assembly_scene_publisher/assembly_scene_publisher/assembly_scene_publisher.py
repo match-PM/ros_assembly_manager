@@ -16,6 +16,7 @@ import os
 import json
 from typing import Union
 from assembly_scene_publisher.py_modules.AssemblyScene import AssemblyManagerScene
+from assembly_scene_publisher.py_modules.scene_errors import *
 
 class AssemblyScenePublisherNode(Node):
     def __init__(self):
@@ -64,6 +65,7 @@ class AssemblyScenePublisherNode(Node):
 
         self.set_frame_properties_srv = self.create_service(ami_srv.SetFrameProperties,f'{mng_str}/set_frame_properties', self.set_frame_properties,callback_group=self.callback_group)
 
+        self.set_component_uuid_srv = self.create_service(ami_srv.SetComponentUuid,f'{mng_str}/set_component_uuid', self.set_component_uuid,callback_group=self.callback_group)
         #self.timer = self.create_timer(5.0, self.object_scene.publish_information,callback_group=self.callback_group)
         
         self.get_logger().info("Assembly scene publisher started!")
@@ -120,6 +122,8 @@ class AssemblyScenePublisherNode(Node):
         new_obj.cad_data = request.cad_data
         new_obj.cad_data_collision = request.cad_data_collision
         new_obj.obj_name = request.obj_name
+        new_obj.component_type_uuid = request.component_type_uuid
+        new_obj.apperance_color = request.apperance_color
         new_obj.parent_frame = request.parent_frame
         new_obj.obj_pose.orientation = request.rotation
         new_obj.obj_pose.position.x = request.translation.x
@@ -150,9 +154,19 @@ class AssemblyScenePublisherNode(Node):
         return response
         
     def srv_create_assembly_instructions(self, request: ami_srv.CreateAssemblyInstructions.Request, response: ami_srv.CreateAssemblyInstructions.Response):
-        create_success = self.object_scene.create_assembly_instructions(instruction=request.assembly_instruction)
-        response.instruction_id = request.assembly_instruction.id
-        response.success = create_success
+        try:
+            create_success = self.object_scene.create_assembly_instructions(instruction=request.assembly_instruction)
+            response.instruction_id = request.assembly_instruction.id
+            response.success = create_success
+
+        except (ComponentNotFoundError) as e:
+            self.get_logger().warn(f"Components not found when creating assembly instructions '{request.assembly_instruction.id}: {e}. Check if the components exist in the scene!")
+            response.success = True
+
+        except (RefPlaneNotFoundError, ComponentNotFoundError) as e:
+            self.get_logger().error(f"Error creating assembly instructions: {e}")
+            response.success = False
+    
         return response
     
     def calculate_assembly_instructions(self, request: ami_srv.CalculateAssemblyInstructions.Request, response: ami_srv.CalculateAssemblyInstructions.Response):
@@ -248,6 +262,10 @@ class AssemblyScenePublisherNode(Node):
         response = self.object_scene.set_frame_properties(request)
         return response
 
+    def set_component_uuid(self, request: ami_srv.SetComponentUuid.Request, response: ami_srv.SetComponentUuid.Response):
+        response = self.object_scene.set_component_uuid(request)
+        return response
+    
 def main(args=None):
     rclpy.init(args=args)
     node = AssemblyScenePublisherNode()

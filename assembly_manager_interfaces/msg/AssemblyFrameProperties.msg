@@ -1,0 +1,3 @@
+bool is_assembly_frame False
+bool is_target_frame False
+string associated_frame

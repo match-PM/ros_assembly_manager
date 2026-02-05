@@ -1,6 +1,7 @@
 string obj_name
 string parent_frame
-string guid
+string uuid
+string component_type_uuid
 geometry_msgs/Pose obj_pose
 string cad_data
 string cad_data_collision

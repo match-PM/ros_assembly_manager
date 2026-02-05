@@ -66,7 +66,6 @@ The RefFrameMsg message describes an reference frame.
 * `frame_name` (str): Name of the ref_frame. This is a unique name.
 * `parent_frame`(str): Name of the parent frame that the ref_frame is connected to (can be any frame on tf topic)
 * `pose` (Pose): Pose of the ref_frame in reference to the parent frame
-* `constraints_dict`(str): Dictionary of constraints for the reference frame as a string.
 
 ```
 RefAxis

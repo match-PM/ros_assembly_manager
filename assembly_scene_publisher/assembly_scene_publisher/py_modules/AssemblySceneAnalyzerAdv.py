@@ -18,7 +18,6 @@ import time
 PM_ROBOT_GRIPPER_FRAME = 'PM_Robot_Tool_TCP'
 PM_ROBOT_GONIO_LEFT_FRAME_INDICATOR = 'Gonio_Left_Part'
 PM_ROBOT_GONIO_RIGHT_FRAME_INDICATOR = 'Gonio_Right_Part'
-GRIPPING_FRAME_IDENTIFICATORS = ['Grip', 'grip']
 
 class AssemblySceneAnalyzerAdv(AssemblySceneAnalyzer):
     def __init__(self, scene_data: ObjectScene, logger: RcutilsLogger = None):
@@ -101,29 +100,3 @@ class AssemblySceneAnalyzerAdv(AssemblySceneAnalyzer):
         except ComponentNotFoundError as e:
             return False
         
-    def get_gripping_frame(self, component_name:str)-> str:
-        """
-        Get the gripping frame of a component by searching for known identifiers in its reference frames.
-        :param component_name: Name of the component to search for.
-        :return: Name of the gripping frame.
-        :raises ComponentNotFoundError: If the component is not found in the scene.
-        :raises GrippingFrameNotFoundError: If no gripping frame or multiple gripping frames are found.
-        """
-        grip_frames = []
-        component = self.get_component_by_name(component_name)
-
-        for frame in component.ref_frames:
-            frame:ami_msg.RefFrame
-            for identificador in GRIPPING_FRAME_IDENTIFICATORS:
-                # check if string is part of string
-                if identificador in frame.frame_name:
-                    grip_frames.append(frame.frame_name)                    
-
-        if len(grip_frames) == 0:
-            raise GrippingFrameNotFoundError(component_name)
-        
-        if len(grip_frames) > 1:
-            raise GrippingFrameNotFoundError(component_name)
-        
-        else:
-            return grip_frames[0]

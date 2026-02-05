@@ -512,6 +512,7 @@ class AssemblySceneAnalyzer():
 
     def check_object_exists(self, object_name:str)-> bool:
         """
+        DEPRICATED! Use 'check_components_exists' instead.
         Checks if the given object exists in the scene.
         parameters:
         - object_name: name of the object to check
@@ -521,6 +522,20 @@ class AssemblySceneAnalyzer():
         for obj in self._get_scene().objects_in_scene:
             obj:ami_msg.Object
             if obj.obj_name == object_name:
+                return True
+        return False
+    
+    def check_component_exists(self, component_name:str)-> bool:
+        """
+        Checks if the given component exists in the scene.
+        parameters:
+        - component_name: name of the component to check
+        returns:
+        - True if the component exists in the scene, False otherwise
+        """
+        for obj in self._get_scene().objects_in_scene:
+            obj:ami_msg.Object
+            if obj.obj_name == component_name:
                 return True
         return False
 
@@ -662,6 +677,8 @@ class AssemblySceneAnalyzer():
         
         return components_to_assembly
 
+
+    # rework!
     def get_all_assembly_and_target_frames(self)-> list[tuple[str,str]]:
         """
         Returns a list of tuples with the object name and the frame name for all assembly and target frames in the scene.
@@ -680,6 +697,7 @@ class AssemblySceneAnalyzer():
                     frames.append((obj.obj_name,frame.frame_name))
         return frames
 
+    # rework!
     def get_all_assembly_and_target_frames_for_component(self, component_name:str)-> list[str]:
         """
         Returns a list of assembly and target frame names for the given component name.
@@ -769,6 +787,34 @@ class AssemblySceneAnalyzer():
         return target_frame
 
 
+    # def get_assembly_frame_for_component(self, component_name:str)-> str:
+    #     """
+    #     Returns the assembly frame name for the given component name.
+    #     That means the assembly frame which is used to assemble the component.
+    #     This should be unique as a component can only have one assembly frame.
+    #     parameters:
+    #     - component_name: name of the component to get the assembly frame for
+    #     raises:
+    #     - ComponentNotFoundError: if the component is not found in the scene
+    #     returns:
+    #     - assembly frame name for the given component or None if no assembly frame is found
+    #     """
+
+    #     component_t_a_frames = self.get_all_assembly_and_target_frames_for_component(component_name=component_name)
+
+    #     if len(component_t_a_frames) == 0:
+    #         raise AssemblyFrameNotFoundError(component_name)
+
+    #     all_involved_frames_tuples: list[tuple[str,str]] = self.get_all_assembly_and_target_frames()
+
+    #     # iterate over all assembly and target frames of the component
+    #     for component_frame in component_t_a_frames:
+    #             # if the frame is an assembly frame
+    #             if self.ASSEMBLY_FRAME_INDICATOR in component_frame:
+    #                 return component_frame
+        
+    #     raise AssemblyFrameNotFoundError(component_name)
+
     def get_assembly_frame_for_component(self, component_name:str)-> str:
         """
         Returns the assembly frame name for the given component name.
@@ -778,81 +824,30 @@ class AssemblySceneAnalyzer():
         - component_name: name of the component to get the assembly frame for
         raises:
         - ComponentNotFoundError: if the component is not found in the scene
+        - AssemblyFrameNotFoundError: if no assembly frame is found for the given component
         returns:
         - assembly frame name for the given component or None if no assembly frame is found
         """
 
-        component_t_a_frames = self.get_all_assembly_and_target_frames_for_component(component_name=component_name)
+        # check if component exists
+        component = self.get_component_by_name(component_name)       
 
-        if len(component_t_a_frames) == 0:
-            raise AssemblyFrameNotFoundError(component_name)
+        assembly_frames = []
 
-        all_involved_frames_tuples: list[tuple[str,str]] = self.get_all_assembly_and_target_frames()
+        for frame in component.ref_frames:
+            frame: ami_msg.RefFrame
+            if (frame.properties.assembly_frame_properties.is_assembly_frame == True and 
+                frame.properties.assembly_frame_properties.is_target_frame == False):
+                assembly_frames.append(frame.frame_name)    
 
-        # iterate over all assembly and target frames of the component
-        for component_frame in component_t_a_frames:
-                # if the frame is an assembly frame
-                if self.ASSEMBLY_FRAME_INDICATOR in component_frame:
-                    return component_frame
-        
-        raise AssemblyFrameNotFoundError(component_name)
+        if len(assembly_frames) > 1:
+            raise AssemblyFrameNotFoundError(f"Multiple assembly frames found for component {component_name}: {assembly_frames}. Expected only one assembly frame per component.")    
+                
+        if len(assembly_frames) == 0:
+            raise AssemblyFrameNotFoundError(f"No assembly frame found for component {component_name}.")
 
-    
-    def get_assembly_frame_for_target_frame(self, target_frame_name:str)-> str:
-        """
-        Returns the assembly frame name associated with the given target frame name.
-        parameters:
-        - target_frame_name: name of the target frame to get the assembly frame for
-        raises:
-        - RefFrameNotFoundError: if the target frame is not found in the scene
-        - AssemblyFrameNotFoundError: if no assembly frame is found for the given target frame
-        returns:
-        - assembly frame name associated with the target frame
-        """
-
-        # check if target frame exists
-        self.get_ref_frame_by_name(target_frame_name)
-
-        all_involved_frames_tuples: list[tuple[str,str]] = self.get_all_assembly_and_target_frames()
-
-        assembly_target_frames = [t[1] for t in all_involved_frames_tuples]
-
-        assembly_description = target_frame_name.replace(self.TARGET_FRAME_INDICATOR, '')
-
-        # iterate over all assembly and target frames of the component
-        for frame in assembly_target_frames:
-            if assembly_description in frame and frame != target_frame_name:
-                return frame
-
-        raise AssemblyFrameNotFoundError(target_frame_name)
-
-    def get_target_frame_for_assembly_frame(self, assembly_frame_name:str)-> str:
-        """
-        Returns the target frame name associated with the given assembly frame name.
-        parameters:
-        - assembly_frame_name: name of the assembly frame to get the target frame for
-        raises:
-        - RefFrameNotFoundError: if the target frame is not found in the scene
-        - AssemblyFrameNotFoundError: if no assembly frame is found for the given target frame
-        returns:
-        - assembly frame name associated with the target frame
-        """
-
-        # check if target frame exists
-        self.get_ref_frame_by_name(assembly_frame_name)
-
-        all_involved_frames_tuples: list[tuple[str,str]] = self.get_all_assembly_and_target_frames()
-
-        assembly_target_frames = [t[1] for t in all_involved_frames_tuples]
-
-        assembly_description = assembly_frame_name.replace(self.ASSEMBLY_FRAME_INDICATOR, '')
-
-        # iterate over all assembly and target frames of the component
-        for frame in assembly_target_frames:
-            if assembly_description in frame and frame != assembly_frame_name:
-                return frame
-
-        raise AssemblyFrameNotFoundError(assembly_frame_name)
+        # return the first (and only) assembly frame
+        return assembly_frames[0]
 
     def get_target_frames_of_component(self,component_name:str)-> list[str]:
         """
@@ -866,27 +861,165 @@ class AssemblySceneAnalyzer():
         """
 
         # check if component exists
-        self.get_component_by_name(component_name)
+        component = self.get_component_by_name(component_name)       
 
         target_frames = []
 
-        component_t_a_frames = self.get_all_assembly_and_target_frames_for_component(component_name=component_name)
+        for frame in component.ref_frames:
+            frame: ami_msg.RefFrame
+            if (frame.properties.assembly_frame_properties.is_assembly_frame == False and 
+                frame.properties.assembly_frame_properties.is_target_frame == True):
+                target_frames.append(frame.frame_name)    
 
-        if len(component_t_a_frames) == 0:
-            raise AssemblyFrameNotFoundError(component_name)
-
-        all_involved_frames_tuples: list[tuple[str,str]] = self.get_all_assembly_and_target_frames()
-
-        # iterate over all assembly and target frames of the component
-        for component_frame in component_t_a_frames:
-                # if the frame is an assembly frame
-                if self.TARGET_FRAME_INDICATOR in component_frame:
-                    target_frames.append(component_frame)
-        
         if len(target_frames) == 0:
             raise TargetFrameNotFoundError(component_name)
 
-        return target_frames
+        return target_frames    
+    
+    # def get_assembly_frame_for_target_frame(self, target_frame_name:str)-> str:
+    #     """
+    #     Returns the assembly frame name associated with the given target frame name.
+    #     parameters:
+    #     - target_frame_name: name of the target frame to get the assembly frame for
+    #     raises:
+    #     - RefFrameNotFoundError: if the target frame is not found in the scene
+    #     - AssemblyFrameNotFoundError: if no assembly frame is found for the given target frame
+    #     returns:
+    #     - assembly frame name associated with the target frame
+    #     """
+
+    #     # check if target frame exists
+    #     self.get_ref_frame_by_name(target_frame_name)
+
+    #     all_involved_frames_tuples: list[tuple[str,str]] = self.get_all_assembly_and_target_frames()
+
+    #     assembly_target_frames = [t[1] for t in all_involved_frames_tuples]
+
+    #     assembly_description = target_frame_name.replace(self.TARGET_FRAME_INDICATOR, '')
+
+    #     # iterate over all assembly and target frames of the component
+    #     for frame in assembly_target_frames:
+    #         if assembly_description in frame and frame != target_frame_name:
+    #             return frame
+
+    #     raise AssemblyFrameNotFoundError(target_frame_name)
+    
+
+
+    def get_assembly_frame_for_target_frame(self, target_frame_name:str)-> str:
+        
+        target_frame = self.get_ref_frame_by_name(target_frame_name)
+
+        if not target_frame.properties.assembly_frame_properties.is_assembly_frame:
+            raise TargetFrameNotFoundError(f"The frame {target_frame_name} is not an assembly frame.")
+        
+        if target_frame.properties.assembly_frame_properties.is_target_frame:
+            raise TargetFrameNotFoundError(f"The frame {target_frame_name} is marked as assembly as well as as target frame. This is not allowed!")
+        
+        associated_assembly_frame = target_frame.properties.assembly_frame_properties.associated_frame
+
+        if associated_assembly_frame is None or associated_assembly_frame == "":
+            raise AssemblyFrameNotFoundError(f"The target frame {target_frame_name} does not have an associated assembly frame.")
+        
+        frame_exists = self.is_frame_from_scene(associated_assembly_frame)
+        if not frame_exists:
+            raise RefFrameNotFoundError(f"The associated assembly frame {associated_assembly_frame} for target frame {target_frame_name} is not found in the scene.")
+        
+        assembly_frame = self.get_ref_frame_by_name(associated_assembly_frame)
+        
+        if not assembly_frame.properties.assembly_frame_properties.is_assembly_frame:
+            raise AssemblyFrameNotFoundError(f"The associated frame {associated_assembly_frame} for target frame {target_frame_name} is not marked as assembly frame.")
+        
+        return associated_assembly_frame
+
+    # def get_target_frame_for_assembly_frame(self, assembly_frame_name:str)-> str:
+    #     """
+    #     Returns the target frame name associated with the given assembly frame name.
+    #     parameters:
+    #     - assembly_frame_name: name of the assembly frame to get the target frame for
+    #     raises:
+    #     - RefFrameNotFoundError: if the target frame is not found in the scene
+    #     - AssemblyFrameNotFoundError: if no assembly frame is found for the given target frame
+    #     returns:
+    #     - assembly frame name associated with the target frame
+    #     """
+
+    #     # check if target frame exists
+    #     self.get_ref_frame_by_name(assembly_frame_name)
+
+    #     all_involved_frames_tuples: list[tuple[str,str]] = self.get_all_assembly_and_target_frames()
+
+    #     assembly_target_frames = [t[1] for t in all_involved_frames_tuples]
+
+    #     assembly_description = assembly_frame_name.replace(self.ASSEMBLY_FRAME_INDICATOR, '')
+
+    #     # iterate over all assembly and target frames of the component
+    #     for frame in assembly_target_frames:
+    #         if assembly_description in frame and frame != assembly_frame_name:
+    #             return frame
+
+    #     raise AssemblyFrameNotFoundError(assembly_frame_name)
+
+    def get_target_frame_for_assembly_frame(self, assembly_frame_name:str)-> str:
+        
+        assembly_frame = self.get_ref_frame_by_name(assembly_frame_name)
+
+        if not assembly_frame.properties.assembly_frame_properties.is_assembly_frame:
+            raise AssemblyFrameNotFoundError(f"The frame {assembly_frame_name} is not an assembly frame.")
+        
+        if assembly_frame.properties.assembly_frame_properties.is_target_frame:
+            raise AssemblyFrameNotFoundError(f"The frame {assembly_frame_name} is marked as assembly as well as as target frame. This is not allowed!")
+        
+        associated_target_frame = assembly_frame.properties.assembly_frame_properties.associated_frame
+
+        if associated_target_frame is None or associated_target_frame == "":
+            raise TargetFrameNotFoundError(f"The assembly frame {assembly_frame_name} does not have an associated target frame.")
+        
+        frame_exists = self.is_frame_from_scene(associated_target_frame)
+        if not frame_exists:
+            raise RefFrameNotFoundError(f"The associated target frame {associated_target_frame} for assembly frame {assembly_frame_name} is not found in the scene.")
+        
+        target_frame = self.get_ref_frame_by_name(associated_target_frame)
+        
+        if not target_frame.properties.assembly_frame_properties.is_target_frame:
+            raise TargetFrameNotFoundError(f"The associated frame {associated_target_frame} for assembly frame {assembly_frame_name} is not marked as target frame.")
+        
+        return associated_target_frame
+
+
+    # def get_target_frames_of_component(self,component_name:str)-> list[str]:
+    #     """
+    #     Returns a list of the target frame names for the given component name.
+    #     parameters:
+    #     - component_name: name of the component to get the target frames for
+    #     raises:
+    #     - ComponentNotFoundError: if the component is not found in the scene
+    #     returns:
+    #     - list of target frame names for the given component
+    #     """
+
+    #     # check if component exists
+    #     self.get_component_by_name(component_name)
+
+    #     target_frames = []
+
+    #     component_t_a_frames = self.get_all_assembly_and_target_frames_for_component(component_name=component_name)
+
+    #     if len(component_t_a_frames) == 0:
+    #         raise AssemblyFrameNotFoundError(component_name)
+
+    #     all_involved_frames_tuples: list[tuple[str,str]] = self.get_all_assembly_and_target_frames()
+
+    #     # iterate over all assembly and target frames of the component
+    #     for component_frame in component_t_a_frames:
+    #             # if the frame is an assembly frame
+    #             if self.TARGET_FRAME_INDICATOR in component_frame:
+    #                 target_frames.append(component_frame)
+        
+    #     if len(target_frames) == 0:
+    #         raise TargetFrameNotFoundError(component_name)
+
+    #     return target_frames
 
     def get_assembly_instruction(self, assembly_component: str, target_component: str) -> ami_msg.AssemblyInstruction:
         """
