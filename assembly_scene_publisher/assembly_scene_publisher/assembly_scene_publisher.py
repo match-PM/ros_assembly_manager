@@ -17,15 +17,22 @@ import json
 from typing import Union
 from assembly_scene_publisher.py_modules.AssemblyScene import AssemblyManagerScene
 from assembly_scene_publisher.py_modules.scene_errors import *
-
+from assembly_scene_publisher.py_modules.AssemblyScenePositionCorrector import AssemblyScenePositionCorrector
 class AssemblyScenePublisherNode(Node):
     def __init__(self):
         super().__init__("assembly_scene_publisher")
 
+        assembly_scene_topic = '/assembly_manager/scene'
         #self.callback_group = MutuallyExclusiveCallbackGroup()
         self.callback_group = ReentrantCallbackGroup()
 
-        self.object_scene = AssemblyManagerScene(self)
+        self.object_scene = AssemblyManagerScene(node = self, 
+                                                 assembly_scene_topic=assembly_scene_topic)
+        
+        self.position_corrector = AssemblyScenePositionCorrector(node=self, 
+                                                                 get_scene_callback = self.object_scene.get_scene,
+                                                                 assembly_scene_topic=assembly_scene_topic)
+        
         mng_str = "assembly_manager" 
         pub_str = "assembly_scene_publisher"
         self.spawn_object_srv = self.create_service(ami_srv.SpawnObject,f'{pub_str}/spawn_object',self.spawn_object_callback,callback_group=self.callback_group)

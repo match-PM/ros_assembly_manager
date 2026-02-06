@@ -86,12 +86,14 @@ class AssemblyManagerScene():
     UNUSED_FRAME_CONST = 'unused_frame'
     GRIPPING_FRAME_IDENTIFICATORS = ['Grip', 'grip']
 
-    def __init__(self, node: Node):
+    def __init__(self, 
+                 node: Node, 
+                 assembly_scene_topic: str = '/assembly_manager/scene'):
         self.scene:ami_msg.ObjectScene = ami_msg.ObjectScene()
         self.assembly_scene_analyzer = AssemblySceneAnalyzer(self.scene, node.get_logger())
         self.node = node
         self.callback_group_pub = ReentrantCallbackGroup()
-        self._scene_publisher = node.create_publisher(ami_msg.ObjectScene,'/assembly_manager/scene',10,callback_group=self.callback_group_pub)
+        self._scene_publisher = node.create_publisher(ami_msg.ObjectScene,assembly_scene_topic,10,callback_group=self.callback_group_pub)
         self.timer = node.create_timer(5.0, self.publish_information,callback_group=self.callback_group_pub)
         self.logger = node.get_logger()
         self.tf_broadcaster = StaticTransformBroadcaster(node)
@@ -107,7 +109,10 @@ class AssemblyManagerScene():
         #self.logger.warn("Object Scene has been published")
         self._scene_publisher.publish(self.scene)
         #self.logger.info("Object Scene has been published")
-
+    
+    def get_scene(self) -> ami_msg.ObjectScene:
+        return self.scene
+    
     def add_obj_to_scene(self, new_comp:ami_msg.Object)-> bool:
         
         # Generate a new UUID if not set
@@ -190,6 +195,9 @@ class AssemblyManagerScene():
         if 'Vision' in new_ref_frame.frame_name or 'vision' in new_ref_frame.frame_name:
             new_ref_frame.properties.vision_frame_properties.is_vision_frame = True
 
+        if 'Laser' in new_ref_frame.frame_name or 'laser' in new_ref_frame.frame_name:
+            new_ref_frame.properties.laser_frame_properties.is_laser_frame = True
+        
         # Check if the new ref frame should be connected to an existing object or not.
         frame_is_obj_frame = self.check_object_exists(new_ref_frame.parent_frame)
 

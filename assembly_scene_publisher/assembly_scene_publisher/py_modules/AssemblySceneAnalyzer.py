@@ -510,6 +510,71 @@ class AssemblySceneAnalyzer():
         
         raise ComponentNotFoundError(frame_name)
 
+    def is_frame_constrained(
+        self,
+        frame_name: str,
+        except_centroid: bool = False,
+        except_orthogonal: bool = False,
+        except_in_plane: bool = False,
+    ) -> bool:
+        """
+        Checks if the given frame is constrained in the scene.
+
+        Parameters:
+        - frame_name: name of the frame to check
+
+        Returns:
+        - True if the frame is constrained, False otherwise
+
+        Raises:
+        - RefFrameNotFoundError: if the frame name is not found in the scene
+        """
+        _obj, _frame = self.get_frame_from_scene(frame_name)
+        constraints = _frame.constraints
+
+        active_constraints = {
+            "centroid": constraints.centroid.is_active,
+            "orthogonal": constraints.orthogonal.is_active,
+            "in_plane": constraints.in_plane.is_active,
+        }
+
+        if except_centroid:
+            active_constraints["centroid"] = False
+        if except_orthogonal:
+            active_constraints["orthogonal"] = False
+        if except_in_plane:
+            active_constraints["in_plane"] = False
+
+        return any(active_constraints.values())
+
+    def get_property_types_for_frame(self, frame_name: str) -> list[str]:
+        """
+        Returns a list of active property types for the given frame name.
+
+        Parameters:
+        - frame_name: name of the frame to check
+
+        Returns:
+        - List of active property types (e.g., ["centroid", "orthogonal", "in_plane"])
+
+        Raises:
+        - RefFrameNotFoundError: if the frame name is not found in the scene
+        """
+        _obj, _frame = self.get_frame_from_scene(frame_name)
+        properties = _frame.properties
+
+        active_properties = []
+        if properties.glue_pt_frame_properties.is_glue_point:
+            active_properties.append("glue_point")
+        if properties.gripping_frame_properties.is_gripping_frame:
+            active_properties.append("gripping")
+        if properties.laser_frame_properties.is_laser_frame:
+            active_properties.append("laser")
+        if properties.vision_frame_properties.is_vision_frame:
+            active_properties.append("vision")
+
+        return active_properties
+    
     def check_object_exists(self, object_name:str)-> bool:
         """
         DEPRICATED! Use 'check_components_exists' instead.
