@@ -31,7 +31,8 @@ class AssemblyScenePublisherNode(Node):
         
         self.position_corrector = AssemblyScenePositionCorrector(node=self, 
                                                                  get_scene_callback = self.object_scene.get_scene,
-                                                                 assembly_scene_topic=assembly_scene_topic)
+                                                                 assembly_scene_topic=assembly_scene_topic,
+                                                                 update_scene_with_constraints_callback=self.object_scene.update_scene_with_constraints)
         
         mng_str = "assembly_manager" 
         pub_str = "assembly_scene_publisher"
@@ -75,8 +76,9 @@ class AssemblyScenePublisherNode(Node):
         self.set_component_uuid_srv = self.create_service(ami_srv.SetComponentUuid,f'{mng_str}/set_component_uuid', self.set_component_uuid,callback_group=self.callback_group)
         #self.timer = self.create_timer(5.0, self.object_scene.publish_information,callback_group=self.callback_group)
         
+        self.correct_component_position_srv = self.create_service(ami_srv.CorrectComponentPosition,f'{mng_str}/correct_component_position', self.correct_component_position,callback_group=self.callback_group)
         self.get_logger().info("Assembly scene publisher started!")
-    
+
     def get_scene(self, request :ami_srv.GetScene.Request, response:ami_srv.GetScene.Response):
         response.scene = self.object_scene.scene
         response.success = True
@@ -271,6 +273,15 @@ class AssemblyScenePublisherNode(Node):
 
     def set_component_uuid(self, request: ami_srv.SetComponentUuid.Request, response: ami_srv.SetComponentUuid.Response):
         response = self.object_scene.set_component_uuid(request)
+        return response
+    
+    def correct_component_position(self, request: ami_srv.CorrectComponentPosition.Request, response: ami_srv.CorrectComponentPosition.Response):
+        try:
+            response.success = self.position_corrector.correct_component_position(request.component_name)
+        
+        except ComponentNotFoundError as e:
+            self.get_logger().error(f"Error correcting component position: {e}")
+            response.success = False
         return response
     
 def main(args=None):

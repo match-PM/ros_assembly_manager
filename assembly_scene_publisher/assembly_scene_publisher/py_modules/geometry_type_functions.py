@@ -4,8 +4,9 @@ from geometry_msgs.msg import TransformStamped, Transform
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import Point
 import numpy as np
-from typing import Union
+from typing import Union, Type, Optional
 from scipy.spatial.transform import Rotation as R
+from copy import deepcopy
 
 SCALE_FACTOR = 100.0
 def vector3_to_matrix1x4(vector:Vector3)->sp.Matrix:
@@ -390,3 +391,87 @@ def get_relative_transform_for_transforms_calibration(base_transform: TransformS
     # Compute relative transform: to_mat⁻¹ * from_mat
     relative_mat = base_mat * additional_mat
     return transform_matrix_to_transform(relative_mat)
+
+
+# Type alias for ROS message inputs
+RosTransformType = Union[Transform, TransformStamped, Pose]
+
+def ros_msg_to_matrix(msg: RosTransformType) -> np.ndarray:
+    """
+    Convert a ROS Transform, TransformStamped, or Pose into a 4x4 homogeneous matrix.
+    """
+    if isinstance(msg, TransformStamped):
+        msg = msg.transform
+
+    if isinstance(msg, Transform):
+        t = np.array([msg.translation.x, msg.translation.y, msg.translation.z])
+        q = [msg.rotation.x, msg.rotation.y, msg.rotation.z, msg.rotation.w]
+    elif isinstance(msg, Pose):
+        t = np.array([msg.position.x, msg.position.y, msg.position.z])
+        q = [msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w]
+    else:
+        raise TypeError(f"Unsupported ROS type: {type(msg)}")
+
+    R_mat = R.from_quat(q).as_matrix()
+    T = np.eye(4)
+    T[:3, :3] = R_mat
+    T[:3, 3] = t
+    return T
+
+def get_translation_and_rotation(
+    msg: Union[Pose, Transform, TransformStamped]
+) -> tuple[np.ndarray, R]:
+    """
+    Extract translation (as np.array) and rotation (as scipy Rotation) from a ROS transform message.
+    """
+    if isinstance(msg, Pose):
+        p = msg.position
+        q = msg.orientation
+    elif isinstance(msg, Transform):
+        p = msg.translation
+        q = msg.rotation
+    elif isinstance(msg, TransformStamped):
+        p = msg.transform.translation
+        q = msg.transform.rotation
+    else:
+        raise TypeError(f"Unsupported type {type(msg)}")
+
+    translation = np.array([p.x, p.y, p.z], dtype=float)
+    rotation = R.from_quat([q.x, q.y, q.z, q.w])
+    return translation, rotation
+
+
+def matrix_to_ros_msg(
+    translation: np.ndarray,
+    rotation: R,
+    result_type: Type[Union[Pose, Transform, TransformStamped]],
+    template: Optional[Union[Pose, Transform, TransformStamped]] = None
+) -> Union[Pose, Transform, TransformStamped]:
+    """
+    Convert translation & rotation to a ROS message of the desired type.
+    """
+    qx, qy, qz, qw = rotation.as_quat()
+
+    if result_type is Pose:
+        out = Pose()
+        out.position.x, out.position.y, out.position.z = translation
+        out.orientation.x, out.orientation.y, out.orientation.z, out.orientation.w = qx, qy, qz, qw
+        return out
+
+    elif result_type is Transform:
+        out = Transform()
+        out.translation.x, out.translation.y, out.translation.z = translation
+        out.rotation.x, out.rotation.y, out.rotation.z, out.rotation.w = qx, qy, qz, qw
+        return out
+
+    elif result_type is TransformStamped:
+        out = TransformStamped() if template is None else deepcopy(template)
+        out.transform.translation.x, out.transform.translation.y, out.transform.translation.z = translation
+        out.transform.rotation.x, out.transform.rotation.y, out.transform.rotation.z, out.transform.rotation.w = qx, qy, qz, qw
+        return out
+
+    else:
+        raise TypeError(f"Unsupported output type {result_type}")
+    
+
+

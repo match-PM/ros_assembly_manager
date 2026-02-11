@@ -1,13 +1,17 @@
 from copy import deepcopy
 import sympy as sp
-from geometry_msgs.msg import Vector3, Quaternion
-from geometry_msgs.msg import TransformStamped
-from geometry_msgs.msg import Pose
-from geometry_msgs.msg import Point
+from geometry_msgs.msg import Vector3, Quaternion, Transform, TransformStamped, Pose, Point
+
 import numpy as np
-from typing import Union
+from typing import Union, Type, Optional
 from scipy.spatial.transform import Rotation
-from assembly_scene_publisher.py_modules.geometry_type_functions import rotation_matrix_to_quaternion, quaternion_to_rotation_matrix
+from assembly_scene_publisher.py_modules.geometry_type_functions import (rotation_matrix_to_quaternion, 
+                                                                         quaternion_to_rotation_matrix,
+                                                                            RosTransformType,
+                                                                            matrix_to_ros_msg,
+                                                                            ros_msg_to_matrix,
+                                                                            get_translation_and_rotation
+                                                                            )
 from rclpy.impl.rcutils_logger import RcutilsLogger 
 import math
 
@@ -850,3 +854,42 @@ if __name__ == "__main__":
     # print(quad)
     # print(centroid)
     
+
+def multiply_ros_transforms(
+    a: Union[Pose, Transform, TransformStamped],
+    b: Union[Pose, Transform, TransformStamped],
+    output_type: Type[Union[Pose, Transform, TransformStamped]] = Pose,
+    template: Optional[Union[Pose, Transform, TransformStamped]] = None
+) -> Union[Pose, Transform, TransformStamped]:
+    """
+    Multiply two ROS transforms (Pose, Transform, or TransformStamped) and return
+    a result in the desired output type.
+    """
+    # Extract translations & rotations
+    t_a, r_a = get_translation_and_rotation(a)
+    t_b, r_b = get_translation_and_rotation(b)
+
+    # Compose: translation and rotation
+    t_c = t_a + r_a.apply(t_b)
+    r_c = r_a * r_b
+
+    # Convert back to ROS message
+    return matrix_to_ros_msg(t_c, r_c, output_type, template=template)
+
+
+def inverse_ros_transform(
+    msg: RosTransformType,
+    output_type: Type[Union[Pose, Transform, TransformStamped]]
+) -> RosTransformType:
+    """
+    Returns the inverse of a ROS Transform, TransformStamped, or Pose.
+    """
+    T = ros_msg_to_matrix(msg)      # Convert ROS message to 4x4 matrix
+    T_inv = np.linalg.inv(T)        # Invert the matrix
+
+    # Extract translation and rotation
+    translation = T_inv[:3, 3]
+    rotation = R.from_matrix(T_inv[:3, :3])
+
+    # Use your existing helper to generate ROS message
+    return matrix_to_ros_msg(translation, rotation, result_type=output_type)

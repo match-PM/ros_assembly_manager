@@ -272,7 +272,7 @@ class AssemblyManagerNode(Node):
             if cad_data_collision == "":
                 cad_data_collision = cad_path
 
-            self.logger.error(f"UUID: {guid}")
+            #self.logger.error(f": {guid}")
 
             mounting_references = file_data.get("mountingDescription").get("mountingReferences")
             ref_frames = mounting_references.get("ref_frames")

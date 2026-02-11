@@ -39,6 +39,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/ResetFrameProperties.srv"
   "srv/SetFrameProperties.srv"
   "srv/SetComponentUuid.srv"
+  "srv/CorrectComponentPosition.srv"
 
   "msg/AssemblyInstruction.msg"
   "msg/Object.msg"
