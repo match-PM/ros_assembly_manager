@@ -483,8 +483,6 @@ class AssemblyScenceViewerWidget(QWidget):
         if not item:
             return
 
-        # Capture current selection before clearing
-        self._capture_element_selection()
 
         self.instructions_panel.list_widget.clearSelection()
         self.clear_middle_panel()
@@ -521,49 +519,69 @@ class AssemblyScenceViewerWidget(QWidget):
     # Frame selection handler - marks constraining frames
     # ----------------------------------------------------------------------
     def on_frame_selected(self, full_frame_name: str):
-        """
-        Called when a frame is clicked in the frames list.
-        Finds all frames that constrain the selected frame and highlights them.
-        """
         if not self._current_element_panel:
             return
-        
+
+        obj_name = self._current_element_panel.frames_panel.obj_name
+
+        display_name = full_frame_name
+        if display_name.startswith(obj_name + "_"):
+            display_name = display_name[len(obj_name)+1:]
+
+        self._current_selected_frame = display_name
+        self._current_selected_axis = None
+        self._current_selected_plane = None
+
         constraining_frames = self.find_constraining_frames(full_frame_name)
         self.highlight_constraining_frames(constraining_frames)
+
+
 
     # ----------------------------------------------------------------------
     # Axis selection handler - marks defining frames and axes
     # ----------------------------------------------------------------------
     def on_axis_selected(self, full_axis_name: str):
-        """
-        Called when an axis is clicked in the axes list.
-        Finds all frames/axes that define the selected axis and highlights them.
-        """
         if not self._current_element_panel:
             return
-        
-        # Clear any previous highlighting
+
+        obj_name = self._current_element_panel.axis_panel.obj_name
+
+        display_name = full_axis_name
+        if display_name.startswith(obj_name + "_"):
+            display_name = display_name[len(obj_name)+1:]
+
+        self._current_selected_axis = display_name
+        self._current_selected_frame = None
+        self._current_selected_plane = None
+
         self._current_element_panel.clear_frame_highlighting()
-        
         defining_items = self.find_defining_frames_and_axes_for_axis(full_axis_name)
         self.highlight_defining_items(defining_items)
+
+
 
     # ----------------------------------------------------------------------
     # Plane selection handler - marks defining frames and axes
     # ----------------------------------------------------------------------
     def on_plane_selected(self, full_plane_name: str):
-        """
-        Called when a plane is clicked in the planes list.
-        Finds all frames/axes that define the selected plane and highlights them.
-        """
         if not self._current_element_panel:
             return
-        
-        # Clear any previous highlighting
+
+        obj_name = self._current_element_panel.planes_panel.obj_name
+
+        display_name = full_plane_name
+        if display_name.startswith(obj_name + "_"):
+            display_name = display_name[len(obj_name)+1:]
+
+        self._current_selected_plane = display_name
+        self._current_selected_frame = None
+        self._current_selected_axis = None
+
         self._current_element_panel.clear_frame_highlighting()
-        
         defining_items = self.find_defining_frames_and_axes_for_plane(full_plane_name)
         self.highlight_defining_items(defining_items)
+
+
 
     def find_constraining_frames(self, frame_name: str) -> list:
         """
@@ -572,33 +590,9 @@ class AssemblyScenceViewerWidget(QWidget):
         """
         defining_frames = []
         
-        # Search through all objects in the scene to find the clicked frame
-        for obj in self._assembly_scene.objects_in_scene:
-            obj: am_msgs.Object
-            for ref_frame in obj.ref_frames:
-                ref_frame: am_msgs.RefFrame
-                
-                # Check if this is the frame we're looking for
-                if ref_frame.frame_name == frame_name:
-                    # Extract frames from centroid constraint
-                    if ref_frame.constraints.centroid.is_active:
-                        defining_frames.extend(ref_frame.constraints.centroid.ref_frame_names)
-                    
-                    # Extract frames from in-plane constraint
-                    if ref_frame.constraints.in_plane.is_active:
-                        defining_frames.extend(ref_frame.constraints.in_plane.ref_frame_names)
-                    
-                    # Extract frames from orthogonal constraint
-                    if ref_frame.constraints.orthogonal.is_active:
-                        frames_to_add = [
-                            ref_frame.constraints.orthogonal.frame_1,
-                            ref_frame.constraints.orthogonal.frame_2,
-                            ref_frame.constraints.orthogonal.frame_3
-                        ]
-                        # Add non-empty frame names
-                        defining_frames.extend([f for f in frames_to_add if f])
-                    
-                    return defining_frames
+        _frame = self.anylzer.get_ref_frame_by_name(frame_name)
+        frames = self.anylzer.get_constraint_frame_names_for_frame(_frame)
+        defining_frames.extend(frames)
         
         return defining_frames
 
@@ -826,6 +820,8 @@ class AssemblyScenceViewerWidget(QWidget):
     # ----------------------------------------------------------------------
     def update_panels(self):
         self.objects_panel.update_scene(self._assembly_scene)
+        if self._current_element_panel is not None:
+            self._restore_element_selection(self._current_element_panel)
         self.instructions_panel.update_scene(self._assembly_scene)
 
     # ----------------------------------------------------------------------
@@ -849,34 +845,6 @@ class AssemblyScenceViewerWidget(QWidget):
         # If no match found
         #self.ros_node.get_logger().warn("Previous selection no longer exists.")
 
-    # ----------------------------------------------------------------------
-    # Capture element selection (frame/axis/plane) before panel recreation
-    # ----------------------------------------------------------------------
-    def _capture_element_selection(self):
-        """Capture currently selected frame, axis, or plane before panel is cleared"""
-        if not self._current_element_panel:
-            return
-        
-        # Only one can be selected at a time - clear all and find which one is selected
-        self._current_selected_frame = None
-        self._current_selected_axis = None
-        self._current_selected_plane = None
-        
-        # Check which one is selected
-        frame_item = self._current_element_panel.frames_panel.currentItem()
-        if frame_item:
-            self._current_selected_frame = frame_item.text()
-            return
-        
-        axis_item = self._current_element_panel.axis_panel.currentItem()
-        if axis_item:
-            self._current_selected_axis = axis_item.text()
-            return
-        
-        plane_item = self._current_element_panel.planes_panel.currentItem()
-        if plane_item:
-            self._current_selected_plane = plane_item.text()
-            return
 
     # ----------------------------------------------------------------------
     # Restore element selection (frame/axis/plane) after panel recreation
@@ -885,14 +853,17 @@ class AssemblyScenceViewerWidget(QWidget):
         """Restore previously selected frame, axis, or plane in the new panel"""
         # Restore selected frame
         if self._current_selected_frame:
+            self.ros_node.get_logger().warn(f"Restoring selected frame: {self._current_selected_frame}")
             for i in range(element_panel.frames_panel.count()):
                 item = element_panel.frames_panel.item(i)
                 if item.text() == self._current_selected_frame:
                     element_panel.frames_panel.setCurrentItem(item)
                     return
+            
         
         # Restore selected axis
         if self._current_selected_axis:
+            self.ros_node.get_logger().warn(f"Restoring selected axis: {self._current_selected_axis}")
             for i in range(element_panel.axis_panel.count()):
                 item = element_panel.axis_panel.item(i)
                 if item.text() == self._current_selected_axis:
@@ -901,8 +872,10 @@ class AssemblyScenceViewerWidget(QWidget):
         
         # Restore selected plane
         if self._current_selected_plane:
+            self.ros_node.get_logger().warn(f"Restoring selected plane: {self._current_selected_plane}")
             for i in range(element_panel.planes_panel.count()):
                 item = element_panel.planes_panel.item(i)
                 if item.text() == self._current_selected_plane:
                     element_panel.planes_panel.setCurrentItem(item)
                     return
+                
