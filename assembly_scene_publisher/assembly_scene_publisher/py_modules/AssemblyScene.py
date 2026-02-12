@@ -23,10 +23,7 @@ import matplotlib.pyplot as plt
 from assembly_scene_publisher.py_modules.AssemblySceneAnalyzer import AssemblySceneAnalyzer
 from scipy.optimize import minimize, least_squares
 from assembly_scene_publisher.py_modules.frame_constraints import (FrameConstraintsHandler, 
-                                                                    update_ref_frame_by_constraint, 
-                                                                    build_frame_reference_tree,
                                                                     calculate_constraints_for_component,
-                                                                    calculate_frame_contrains_for_frame_list,
                                                                     calculate_constraints_for_scene,
                                                                     get_identification_order)
 from copy import deepcopy,copy
@@ -38,10 +35,6 @@ from assembly_scene_publisher.py_modules.scene_functions import (get_parent_fram
                                                                  get_axis_from_scene,
                                                                  get_plane_from_scene,
                                                                  get_component_for_frame_name,
-                                                                 get_frames_for_plane,
-                                                                 get_frame_names_from_list,
-                                                                 get_frames_for_axis,
-                                                                 get_frames_for_planes_of_component,
                                                                  get_component_by_name,
                                                                  get_plane_intersection_from_scene_num)
 

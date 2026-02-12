@@ -29,6 +29,7 @@ To be able to execute the ros assembly manager, make sure you have the following
 
 * Python - scipy
 * Python - sympy
+* Python - pip install vtk PyQt6
 * apt install ros-humble-moveit
 * To-Do: Add other necessary libaries
 

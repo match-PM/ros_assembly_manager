@@ -231,7 +231,8 @@ def update_ref_frame_by_constraint(scene:ami_msg.ObjectScene,
             logger.error(f"Unknown Error. Constraint could not be updated!")
         return False
 
-    
+
+### delete here if possible
 def get_constraint_frame_names_for_frame(frame: ami_msg.RefFrame,
                                     logger: RcutilsLogger = None)-> list[str]:
     """
@@ -248,6 +249,7 @@ def get_constraint_frame_names_for_frame(frame: ami_msg.RefFrame,
     
     return final_list
 
+### Delete here if possible
 def get_constraint_frames_for_frame(scene: ami_msg.ObjectScene,
                                     frame: ami_msg.RefFrame,
                                     logger: RcutilsLogger = None)-> list[ami_msg.RefFrame]:
@@ -271,6 +273,7 @@ def get_constraint_frames_for_frame(scene: ami_msg.ObjectScene,
     
     return final_list
 
+### Delete here if possible
 def build_frame_reference_tree(scene: ami_msg.ObjectScene,
                                frames: list[ami_msg.RefFrame],
                                logger: RcutilsLogger) -> dict:
@@ -295,6 +298,9 @@ def build_frame_reference_tree(scene: ami_msg.ObjectScene,
     iterate_frames(frames, tree, set())  # Start with an empty ancestry set
     return tree    
     
+    
+### Delete here if possible
+
 def get_dict_depth(d: dict) -> int:
     """Recursively calculates the depth of a nested dictionary."""
     if not isinstance(d, dict) or not d:  # Base case: empty or non-dict
@@ -316,6 +322,7 @@ def get_unique_elements_at_depth(d: dict, depth: int) -> list:
 
     return list(elements)  # Convert back to a list for the final output
 
+### Delete here if possible
 def calculate_frame_contrains_for_frame_list(scene: ami_msg.ObjectScene,
                                             frame_list: list[ami_msg.RefFrame],
                                             component_name: str = None,
@@ -342,6 +349,7 @@ def calculate_frame_contrains_for_frame_list(scene: ami_msg.ObjectScene,
                 calculated_frames.append(frame_name)
     return True
 
+### Delete here if possible
 def calculate_constraints_for_component(scene: ami_msg.ObjectScene,
                                         component_name: str = None,
                                         logger: RcutilsLogger = None)-> bool:
@@ -362,7 +370,7 @@ def calculate_constraints_for_component(scene: ami_msg.ObjectScene,
 
     return calculate_frame_contrains_for_frame_list(scene, frame_list, component_name=component_name, logger=logger)
 
-
+### Delete here if possible
 def calculate_constraints_for_scene(scene: ami_msg.ObjectScene,
                                     logger: RcutilsLogger = None)-> bool:
     """
@@ -380,6 +388,8 @@ def calculate_constraints_for_scene(scene: ami_msg.ObjectScene,
     #logger.warn(f"final_scene{str(scene)}")
     return True
 
+
+### Delete here if possible
 def get_identification_order(scene: ami_msg.ObjectScene,
                             frame_list: list[ami_msg.RefFrame],
                             logger: RcutilsLogger = None)->ConstraintRestrictionList:

@@ -13,7 +13,7 @@ from assembly_scene_publisher.py_modules.scene_errors import (RefAxisNotFoundErr
 from copy import copy
 from typing import Union
 import time
-
+from assembly_scene_publisher.py_modules.frame_constraints import CentroidConstraintHandler
 
 PM_ROBOT_GRIPPER_FRAME = 'PM_Robot_Tool_TCP'
 PM_ROBOT_GONIO_LEFT_FRAME_INDICATOR = 'Gonio_Left_Part'
@@ -99,4 +99,5 @@ class AssemblySceneAnalyzerAdv(AssemblySceneAnalyzer):
             return False
         except ComponentNotFoundError as e:
             return False
+        
         

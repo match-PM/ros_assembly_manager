@@ -399,7 +399,7 @@ class AssemblyScenceViewerWidget(QWidget):
         placeholder_panel = QLabel(f"Instruction selected: {item.text()}")
         placeholder_panel.setStyleSheet("font-size: 16pt; padding: 10px;")
         self.middle_layout.addWidget(placeholder_panel)
-
+        
         item_text = item.text()
 
         inst:am_msgs.AssemblyInstruction = self.anylzer.get_assembly_instruction_by_name(item_text)

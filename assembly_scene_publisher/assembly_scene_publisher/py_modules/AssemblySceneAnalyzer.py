@@ -1,11 +1,12 @@
+from loguru import logger
 from assembly_manager_interfaces.msg import ObjectScene
 from rclpy.impl.rcutils_logger import RcutilsLogger
 import assembly_manager_interfaces.msg as ami_msg
 from geometry_msgs.msg import Pose, Transform
-
+from assembly_scene_publisher.py_modules.frame_constraints import FrameConstraintsHandler
 from assembly_scene_publisher.py_modules.scene_errors import *
 
-from copy import copy
+from copy import copy, deepcopy
 from typing import Union
 import time
 from typing import Union
@@ -95,12 +96,11 @@ class AssemblySceneAnalyzer():
             return True
         return False
 
-    def get_frames_for_plane(self, plane_name: str, component_name: str = None)-> list[ami_msg.RefFrame]:
+    def get_frames_for_plane(self, plane_name: str)-> list[ami_msg.RefFrame]:
         """
         Returns the frames associated with the given plane name.
         parameters:
         - plane_name: name of the plane to get the frames for
-        - component_name: name of the component to search the plane in (optional)
         raises:
         - RefPlaneNotFoundError: if the plane name is not found in the scene
         - RefAxisNotFoundError: if the axis name associated with the plane is not found in the scene
@@ -114,7 +114,7 @@ class AssemblySceneAnalyzer():
         axis_name = plane.axis_names[0]
         
         if axis_name != '':
-            list_ax = self.get_frames_for_axis(axis_name, component_name)
+            list_ax = self.get_frames_for_axis(axis_name)
             frame_list.extend(list_ax)
         
         for point_name in plane.point_names:
@@ -298,7 +298,7 @@ class AssemblySceneAnalyzer():
         
         for plane in component.ref_planes:
             plane: ami_msg.Plane
-            fr = self.get_frames_for_plane(plane.ref_plane_name, component_name)
+            fr = self.get_frames_for_plane(plane.ref_plane_name)
 
             frames.extend(fr)
         
@@ -1246,3 +1246,229 @@ class AssemblySceneAnalyzer():
         """
         frame = self.get_ref_frame_by_name(frame_name)
         return copy(frame.properties)
+
+    def get_constraint_frame_names_for_frame(self,
+                                            frame: ami_msg.RefFrame)-> list[str]:
+        """
+        This function returns a list of frame names that are constraints for the given frame.
+        """
+        final_list = []
+        constraints_handler = FrameConstraintsHandler()
+        constraints_handler.set_from_msg(frame.constraints)
+        
+        ref_frames = constraints_handler.get_frame_references()
+        
+        if len(ref_frames) > 0:
+            final_list.extend(ref_frames)
+    
+        return final_list
+
+    def get_constraint_frames_for_frame(self,
+                                        frame: ami_msg.RefFrame)-> list[ami_msg.RefFrame]:
+        """
+        This function returns a list of frame names that are constraints for the given frame.
+        """
+        final_list = []
+        constraints_handler = FrameConstraintsHandler()
+        constraints_handler.set_from_msg(frame.constraints)
+        
+        ref_frame_names = constraints_handler.get_frame_references()
+        
+        if len(ref_frame_names) > 0:
+            for ref_frame_name in ref_frame_names:
+                ref_frame = self.get_ref_frame_by_name(ref_frame_name)
+
+                final_list.append(ref_frame)
+        
+        return final_list
+    
+    def build_frame_reference_tree(self,
+                               frames: list[ami_msg.RefFrame]) -> dict:
+        """Builds a tree structure representing the references between frames.
+
+        Args:
+            frames (list[ami_msg.RefFrame]): The list of frames to build the tree from.
+
+        Raises:
+            ValueError: If a cycle is detected in the frame references.
+
+        Returns:
+            dict: A dictionary representing the tree structure of frame references.
+        """
+
+        tree = {}  # Stores the final tree structure
+
+        def iterate_frames(frames: list[ami_msg.RefFrame], frame_dict: dict, ancestry: set):
+
+            for frame in frames:
+            
+                #logger.warn(f"HERE List : {str(frame)}")
+
+                if frame.frame_name in ancestry:
+                    raise ValueError(f"Cycle detected involving frame {frame.frame_name}")
+
+                frame_references = self.get_constraint_frames_for_frame(frame)
+
+                frame_dict[frame.frame_name] = {}
+                # Recurse with an updated ancestry (specific to this path)
+                iterate_frames(frame_references, frame_dict[frame.frame_name], ancestry | {frame.frame_name})
+
+        iterate_frames(frames, tree, set())  # Start with an empty ancestry set
+        return tree    
+    
+    def update_ref_frame_by_constraint(self,
+                                        ref_frame:ami_msg.RefFrame, 
+                                        component_name:str
+                                        )-> bool:
+        """Updates the reference frame by applying constraints.
+
+        Args:
+            ref_frame (ami_msg.RefFrame): The reference frame to update.
+            component_name (str): The name of the component to update the constraints for.
+
+        Returns:
+            bool: True if the update was successful, False otherwise.
+        """
+
+        try:
+            # make a deep copy just to be sure that the original ref frame is not modified
+            # this is just for safety reasons
+            copy_ref_frame = deepcopy(ref_frame)
+            scene_copy = deepcopy(self._get_scene())
+
+            #self.logger.warn(f"Update ref frame constraints for frame '{ref_frame.frame_name}'")
+            
+            frame_constraints_handler:FrameConstraintsHandler = FrameConstraintsHandler.return_handler_from_msg(msg=copy_ref_frame.constraints,
+                                                                                                                scene=scene_copy)
+            
+            pose = frame_constraints_handler.calculate_frame_constraints(initial_pose = copy_ref_frame.pose, 
+                                                                            scene=scene_copy,
+                                                                            frame_name=copy_ref_frame.frame_name,
+                                                                            component_name = component_name,
+                                                                            logger=self.logger)
+            
+            ref_frame.pose = pose
+
+            return True
+        
+        except Exception as e:
+            self.logger.error(str(e))
+            self.logger.error(f"Unknown Error. Constraint could not be updated!")
+            return False
+
+    def calculate_frame_constraints_for_frame_list(self,
+                                                frame_list: list[ami_msg.RefFrame],
+                                                component_name: str = None)-> bool:
+        """
+        This function calculates the frame constraints for a list of frames.
+        """
+        def get_dict_depth(d: dict) -> int:
+            """Recursively calculates the depth of a nested dictionary."""
+            if not isinstance(d, dict) or not d:  # Base case: empty or non-dict
+                return 0
+            return 1 + max(get_dict_depth(v) for v in d.values())
+
+        def get_unique_elements_at_depth(d: dict, depth: int) -> list:
+            """Returns unique keys at a specific depth in a nested dictionary."""
+            if depth < 1:
+                return []
+            
+            if depth == 1:
+                return list(set(d.keys()))  # Base case: return unique keys at the current level
+            
+            elements = set()  # Use a set to store unique elements
+            for v in d.values():
+                if isinstance(v, dict):
+                    elements.update(get_unique_elements_at_depth(v, depth - 1))  # Recurse deeper
+
+            return list(elements)  # Convert back to a list for the final output
+    
+        reference_tree = self.build_frame_reference_tree(frame_list)
+        max_depth = get_dict_depth(reference_tree)
+        calculated_frames=[]
+
+        for depth in range(max_depth, 0, -1):
+            unique_elements = get_unique_elements_at_depth(reference_tree, depth)
+            #logger.warn(f"unique_elements{unique_elements}")
+            for frame_name in unique_elements:
+                if frame_name not in calculated_frames:
+
+
+                    frame = self.get_ref_frame_by_name(frame_name)
+                    self.update_ref_frame_by_constraint(frame, component_name=component_name)
+                    calculated_frames.append(frame_name)
+        return True
+
+    def calculate_constraints_for_component(self,
+                                            component_name: str = None)-> bool:
+        """
+        This function calculates the frame constraints for a component.
+        """
+        frame_list = []
+        if component_name is None:
+            frame_list = self._get_scene().ref_frames_in_scene
+        else:
+            comp = self.get_component_by_name(component_name)
+
+        return self.calculate_frame_constraints_for_frame_list(frame_list, component_name=component_name)
+
+
+    def calculate_constraints_for_scene(self)-> bool:
+        """
+        This function calculates the frame constraints for the whole scene.
+        """
+        #logger.warn(f"initial_scene{str(scene)}")
+        # calculate the constraints for all components in the scene
+        for component in self._get_scene().objects_in_scene:
+            component: ami_msg.Object
+            self.calculate_constraints_for_component(component.obj_name)
+
+        # calculate the constraints for frames not associated with any component
+        self.calculate_constraints_for_component()
+
+        #logger.warn(f"final_scene{str(scene)}")
+        return True
+
+    # def get_identification_order(scene: ami_msg.ObjectScene,
+    #                             frame_list: list[ami_msg.RefFrame],
+    #                             logger: RcutilsLogger = None)->ConstraintRestrictionList:
+    #     """
+    #     Get the vectors and the frame names relevant for the assembly in oder of the identification.
+
+    #     Args:
+    #         scene (ami_msg.ObjectScene): _description_
+    #         logger (RcutilsLogger, optional): _description_. Defaults to None.
+
+    #     Returns:
+    #         ConstraintRestrictionList: _description_
+    #     """
+        
+    #     reference_tree = build_frame_reference_tree(scene, frame_list, logger)
+    #     max_depth = get_dict_depth(reference_tree)
+    #     calculated_frames=[]
+        
+    #     if max_depth == 0:
+    #         if logger is not None:
+    #             logger.warn("222: No frame constraints found in the scene.")
+    #         return ConstraintRestrictionList()
+        
+    #     if logger is not None:
+    #         logger.warn(f"reference_tree{str(reference_tree)}")
+            
+    #     total_list = ConstraintRestrictionList()
+    #     for depth in range(max_depth-1, 0, -1):
+    #         unique_elements = get_unique_elements_at_depth(reference_tree, depth)
+    #         #logger.warn(f"unique_elements{unique_elements}")
+            
+    #         for frame_name in unique_elements:
+                
+    #             if frame_name not in calculated_frames:
+                    
+    #                 frame = get_ref_frame_by_name(scene, frame_name)
+    #                 frame_constraints_handler = FrameConstraintsHandler.return_handler_from_msg(frame.constraints, scene=scene, logger=logger)
+    #                 test_list = frame_constraints_handler.get_frame_references_const(scene=scene)
+    #                 if logger is not None:
+    #                     logger.warn(f"Frame: {frame_name} - {str(test_list)}")
+    #                 total_list.add_list_to_list(test_list)
+
+    #     return total_list
