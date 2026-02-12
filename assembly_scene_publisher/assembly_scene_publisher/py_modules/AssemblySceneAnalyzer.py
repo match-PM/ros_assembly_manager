@@ -124,6 +124,24 @@ class AssemblySceneAnalyzer():
             frame_list.append(frame)
                 
         return frame_list
+    
+    def get_axis_name_for_plane(self, plane_name: str)-> list[str]:
+        """
+        Returns the axis names associated with the given plane name.
+        parameters:
+        - plane_name: name of the plane to get the axis names for
+        raises:
+        - RefPlaneNotFoundError: if the plane name is not found in the scene
+        - RefAxisNotFoundError: if the axis name associated with the plane is not found in the scene
+        returns:
+        - list of axis names associated with the plane
+        """
+        plane = self.get_plane_from_scene(plane_name)
+
+        if plane.axis_names[0] == '':
+            raise RefAxisNotFoundError(f"No axis name associated with plane {plane_name}.")
+        
+        return plane.axis_names[0]
 
     def get_plane_from_scene(self,plane_name:str)-> ami_msg.Plane:
         """

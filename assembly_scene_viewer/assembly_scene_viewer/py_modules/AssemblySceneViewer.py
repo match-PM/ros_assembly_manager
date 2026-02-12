@@ -44,6 +44,7 @@ from geometry_msgs.msg import TransformStamped, Transform
 import assembly_manager_interfaces.msg as am_msgs
 import rclpy
 import yaml
+from assembly_scene_publisher.py_modules.scene_errors import *
 from assembly_scene_publisher.py_modules.AssemblySceneAnalyzerAdv import AssemblySceneAnalyzerAdv
 from assembly_scene_publisher.py_modules.AssemblySceneAnalyzer import UnInitializedScene
 from assembly_scene_viewer.py_modules.STLViewerWidget import STLViewerWidget
@@ -179,10 +180,12 @@ class InstructionListPanel(QWidget):
 
 class ObjectsElementPanel(QWidget):
     def __init__(self, obj: am_msgs.Object, 
+                 scene_message: am_msgs.ObjectScene = None,
                  logger=None):
         super().__init__()
         self.logger = logger
         self.obj = obj
+        self.scene_message = scene_message or am_msgs.ObjectScene()
 
         # ---- Main Vertical Layout ----
         layout = QVBoxLayout(self)
@@ -199,6 +202,7 @@ class ObjectsElementPanel(QWidget):
         frames_container.addWidget(frames_label)
 
         self.frames_panel = FramesElementPanel(obj, 
+                                               scene_message=scene_message,
                                                logger=self.logger)
         frames_container.addWidget(self.frames_panel)
 
@@ -237,16 +241,91 @@ class ObjectsElementPanel(QWidget):
         layout.setStretchFactor(frames_widget, 3)   # Largest
         layout.setStretchFactor(axis_widget,   1)   # Medium
         layout.setStretchFactor(planes_widget, 1)   # Smallest
+        
+        # ---- Connect mutual exclusion signals ----
+        self.frames_panel.itemSelectionChanged.connect(self._on_frame_selection_changed)
+        self.axis_panel.itemSelectionChanged.connect(self._on_axis_selection_changed)
+        self.planes_panel.itemSelectionChanged.connect(self._on_plane_selection_changed)
+
+    def _on_frame_selection_changed(self):
+        """Clear axis and plane selection when frame is selected"""
+        if self.frames_panel.currentItem():
+            self.axis_panel.blockSignals(True)
+            self.planes_panel.blockSignals(True)
+            self.axis_panel.clearSelection()
+            self.planes_panel.clearSelection()
+            self.axis_panel.blockSignals(False)
+            self.planes_panel.blockSignals(False)
+
+    def _on_axis_selection_changed(self):
+        """Clear frame and plane selection when axis is selected"""
+        if self.axis_panel.currentItem():
+            self.frames_panel.blockSignals(True)
+            self.planes_panel.blockSignals(True)
+            self.frames_panel.clearSelection()
+            self.planes_panel.clearSelection()
+            self.frames_panel.blockSignals(False)
+            self.planes_panel.blockSignals(False)
+
+    def _on_plane_selection_changed(self):
+        """Clear frame and axis selection when plane is selected"""
+        if self.planes_panel.currentItem():
+            self.frames_panel.blockSignals(True)
+            self.axis_panel.blockSignals(True)
+            self.frames_panel.clearSelection()
+            self.axis_panel.clearSelection()
+            self.frames_panel.blockSignals(False)
+            self.axis_panel.blockSignals(False)
+
+    def set_scene(self, scene_message: am_msgs.ObjectScene):
+        """Update scene data for constraint lookup"""
+        self.scene_message = scene_message
+        self.frames_panel.set_scene(scene_message)
+    
+    def clear_frame_highlighting(self):
+        """Clear any frame highlighting"""
+        for i in range(self.frames_panel.count()):
+            item = self.frames_panel.item(i)
+            item.setBackground(QColor("white"))
+            item.setForeground(QColor("black"))
+            font = item.font()
+            font.setBold(False)
+            item.setFont(font)
 
 
 class FramesElementPanel(QListWidget):
+    # Signal to notify when a frame is selected
+    frame_selected = pyqtSignal(str)  # Emits full frame name
+    
     def __init__(self, obj_message:am_msgs.Object, 
+                 scene_message: am_msgs.ObjectScene = None,
                  logger=None):
         super().__init__()
         self.logger = logger
         self.obj_message = obj_message   
-        self.obj_name = obj_message.obj_name     
+        self.obj_name = obj_message.obj_name
+        self.scene_message = scene_message or am_msgs.ObjectScene()
         self.populate()
+        
+        # Connect to item selection signal
+        self.itemSelectionChanged.connect(self._on_frame_selected)
+
+    def set_scene(self, scene_message: am_msgs.ObjectScene):
+        """Update scene data for constraint lookup"""
+        self.scene_message = scene_message
+
+    def _on_frame_selected(self):
+        """Handle frame selection and emit signal with full frame name"""
+        item = self.currentItem()
+        if item:
+            # Get the full frame name from the object's frames
+            for frame in self.obj_message.ref_frames:
+                display_text = frame.frame_name
+                if display_text.startswith(self.obj_name):
+                    display_text = display_text[len(self.obj_name)+1:]
+                if display_text == item.text():
+                    self.frame_selected.emit(frame.frame_name)
+                    break
 
     def populate(self):
         self.clear()
@@ -262,12 +341,31 @@ class FramesElementPanel(QListWidget):
  
 
 class AxisElementPanel(QListWidget):
+    # Signal to notify when an axis is selected
+    axis_selected = pyqtSignal(str)  # Emits full axis name
+    
     def __init__(self, obj_message:am_msgs.Object, logger=None):
         super().__init__()
         self.logger = logger
         self.obj_message = obj_message   
         self.obj_name = obj_message.obj_name
         self.populate()
+        
+        # Connect to item selection signal
+        self.itemSelectionChanged.connect(self._on_axis_selected)
+
+    def _on_axis_selected(self):
+        """Handle axis selection and emit signal with full axis name"""
+        item = self.currentItem()
+        if item:
+            # Get the full axis name from the object's axes
+            for axis in self.obj_message.ref_axis:
+                display_text = axis.axis_name
+                if display_text.startswith(self.obj_name):
+                    display_text = display_text[len(self.obj_name)+1:]
+                if display_text == item.text():
+                    self.axis_selected.emit(axis.axis_name)
+                    break
 
     def populate(self):
         self.clear()
@@ -280,12 +378,31 @@ class AxisElementPanel(QListWidget):
             self.addItem(item)
 
 class PlanesElementPanel(QListWidget):
+    # Signal to notify when a plane is selected
+    plane_selected = pyqtSignal(str)  # Emits full plane name
+    
     def __init__(self, obj_message:am_msgs.Object, logger=None):
         super().__init__()
         self.logger = logger
         self.obj_message = obj_message    
-        self.obj_name = obj_message.obj_name     
+        self.obj_name = obj_message.obj_name
         self.populate()
+        
+        # Connect to item selection signal
+        self.itemSelectionChanged.connect(self._on_plane_selected)
+
+    def _on_plane_selected(self):
+        """Handle plane selection and emit signal with full plane name"""
+        item = self.currentItem()
+        if item:
+            # Get the full plane name from the object's planes
+            for plane in self.obj_message.ref_planes:
+                display_text = plane.ref_plane_name
+                if display_text.startswith(self.obj_name):
+                    display_text = display_text[len(self.obj_name)+1:]
+                if display_text == item.text():
+                    self.plane_selected.emit(plane.ref_plane_name)
+                    break
 
     def populate(self):
         self.clear()
@@ -308,6 +425,10 @@ class AssemblyScenceViewerWidget(QWidget):
 
         self._current_panel = None
         self._current_item_text = None
+        self._current_element_panel = None  # Track the ObjectsElementPanel
+        self._current_selected_frame = None  # Track selected frame
+        self._current_selected_axis = None  # Track selected axis
+        self._current_selected_plane = None  # Track selected plane
 
         # Subscribe to /assembly_manager/scene
         self._scene_sub = self.ros_node.create_subscription(
@@ -362,6 +483,9 @@ class AssemblyScenceViewerWidget(QWidget):
         if not item:
             return
 
+        # Capture current selection before clearing
+        self._capture_element_selection()
+
         self.instructions_panel.list_widget.clearSelection()
         self.clear_middle_panel()
 
@@ -369,7 +493,20 @@ class AssemblyScenceViewerWidget(QWidget):
             (o for o in self._assembly_scene.objects_in_scene if o.obj_name == item.text()),
             am_msgs.Object()
         )
-        self.middle_layout.addWidget(ObjectsElementPanel(obj, logger=self.ros_node.get_logger()))
+        element_panel = ObjectsElementPanel(obj, 
+                                           scene_message=self._assembly_scene,
+                                           logger=self.ros_node.get_logger())
+        self._current_element_panel = element_panel
+        
+        # Connect frame selection signal to mark constraining frames
+        element_panel.frames_panel.frame_selected.connect(self.on_frame_selected)
+        element_panel.axis_panel.axis_selected.connect(self.on_axis_selected)
+        element_panel.planes_panel.plane_selected.connect(self.on_plane_selected)
+        
+        self.middle_layout.addWidget(element_panel)
+        
+        # Restore previous selection
+        self._restore_element_selection(element_panel)
 
         item_text = item.text()
 
@@ -379,6 +516,253 @@ class AssemblyScenceViewerWidget(QWidget):
         self.stl_viewer_widget.reset_stl_file(stl_path)
         self._current_item_text = item.text()
         self._current_panel = self.objects_panel
+
+    # ----------------------------------------------------------------------
+    # Frame selection handler - marks constraining frames
+    # ----------------------------------------------------------------------
+    def on_frame_selected(self, full_frame_name: str):
+        """
+        Called when a frame is clicked in the frames list.
+        Finds all frames that constrain the selected frame and highlights them.
+        """
+        if not self._current_element_panel:
+            return
+        
+        constraining_frames = self.find_constraining_frames(full_frame_name)
+        self.highlight_constraining_frames(constraining_frames)
+
+    # ----------------------------------------------------------------------
+    # Axis selection handler - marks defining frames and axes
+    # ----------------------------------------------------------------------
+    def on_axis_selected(self, full_axis_name: str):
+        """
+        Called when an axis is clicked in the axes list.
+        Finds all frames/axes that define the selected axis and highlights them.
+        """
+        if not self._current_element_panel:
+            return
+        
+        # Clear any previous highlighting
+        self._current_element_panel.clear_frame_highlighting()
+        
+        defining_items = self.find_defining_frames_and_axes_for_axis(full_axis_name)
+        self.highlight_defining_items(defining_items)
+
+    # ----------------------------------------------------------------------
+    # Plane selection handler - marks defining frames and axes
+    # ----------------------------------------------------------------------
+    def on_plane_selected(self, full_plane_name: str):
+        """
+        Called when a plane is clicked in the planes list.
+        Finds all frames/axes that define the selected plane and highlights them.
+        """
+        if not self._current_element_panel:
+            return
+        
+        # Clear any previous highlighting
+        self._current_element_panel.clear_frame_highlighting()
+        
+        defining_items = self.find_defining_frames_and_axes_for_plane(full_plane_name)
+        self.highlight_defining_items(defining_items)
+
+    def find_constraining_frames(self, frame_name: str) -> list:
+        """
+        Find all frames that define the given frame (i.e., frames used in the clicked frame's constraints).
+        Returns a list of full frame names that are referenced in the clicked frame's constraints.
+        """
+        defining_frames = []
+        
+        # Search through all objects in the scene to find the clicked frame
+        for obj in self._assembly_scene.objects_in_scene:
+            obj: am_msgs.Object
+            for ref_frame in obj.ref_frames:
+                ref_frame: am_msgs.RefFrame
+                
+                # Check if this is the frame we're looking for
+                if ref_frame.frame_name == frame_name:
+                    # Extract frames from centroid constraint
+                    if ref_frame.constraints.centroid.is_active:
+                        defining_frames.extend(ref_frame.constraints.centroid.ref_frame_names)
+                    
+                    # Extract frames from in-plane constraint
+                    if ref_frame.constraints.in_plane.is_active:
+                        defining_frames.extend(ref_frame.constraints.in_plane.ref_frame_names)
+                    
+                    # Extract frames from orthogonal constraint
+                    if ref_frame.constraints.orthogonal.is_active:
+                        frames_to_add = [
+                            ref_frame.constraints.orthogonal.frame_1,
+                            ref_frame.constraints.orthogonal.frame_2,
+                            ref_frame.constraints.orthogonal.frame_3
+                        ]
+                        # Add non-empty frame names
+                        defining_frames.extend([f for f in frames_to_add if f])
+                    
+                    return defining_frames
+        
+        return defining_frames
+
+    def highlight_constraining_frames(self, constraining_frames: list):
+        """
+        Highlight frames in the frames list that are constraining the selected frame.
+        """
+        if not self._current_element_panel:
+            return
+        
+        frames_panel = self._current_element_panel.frames_panel
+        obj_name = frames_panel.obj_name
+        
+        # Reset all items to normal formatting
+        for i in range(frames_panel.count()):
+            item = frames_panel.item(i)
+            item.setBackground(QColor("white"))
+            item.setForeground(QColor("black"))
+            font = item.font()
+            font.setBold(False)
+            item.setFont(font)
+        
+        # Highlight constraining frames
+        for frame_name in constraining_frames:
+            # Display name without object prefix
+            display_name = frame_name
+            if display_name.startswith(obj_name):
+                display_name = display_name[len(obj_name)+1:]
+            
+            # Find and highlight the item
+            for i in range(frames_panel.count()):
+                item = frames_panel.item(i)
+                if item.text() == display_name:
+                    item.setBackground(QColor("#90EE90"))  # Light green
+                    item.setForeground(QColor("darkgreen"))
+                    font = item.font()
+                    font.setBold(True)
+                    item.setFont(font)
+                    break
+
+    def find_defining_frames_and_axes_for_axis(self, axis_name: str) -> dict:
+        """
+        Find all frames and axes that define the given axis.
+        Returns a dict with 'frames' and 'axes' lists of full names.
+        """
+        defining_items = {'frames': [], 'axes': []}
+        
+        frames = self.anylzer.get_frames_for_axis(axis_name)
+
+        frame_names = [f.frame_name for f in frames]
+        defining_items['frames'].extend(frame_names)
+        
+        return defining_items
+
+    def find_defining_frames_and_axes_for_plane(self, plane_name: str) -> dict:
+        """
+        Find all frames and axes that define the given plane.
+        Returns a dict with 'frames' and 'axes' lists of full names.
+        """
+        defining_items = {'frames': [], 'axes': []}
+        
+        frames = self.anylzer.get_frames_for_plane(plane_name)
+        
+        try:
+            axis = self.anylzer.get_axis_name_for_plane(plane_name)
+        except RefAxisNotFoundError:
+            axis = None
+
+        if axis is not None:
+            defining_items['axes'].append(axis)
+
+        frame_names = [f.frame_name for f in frames]
+        defining_items['frames'].extend(frame_names)
+
+        return defining_items
+
+    def highlight_defining_items(self, defining_items: dict):
+        """
+        Highlight frames and axes in their respective lists.
+        defining_items should be a dict with 'frames' and 'axes' lists.
+        """
+        if not self._current_element_panel:
+            return
+        
+        frames_panel = self._current_element_panel.frames_panel
+        axis_panel = self._current_element_panel.axis_panel
+        obj_name = frames_panel.obj_name
+        
+        # Reset all items to normal formatting
+        for i in range(frames_panel.count()):
+            item = frames_panel.item(i)
+            item.setBackground(QColor("white"))
+            item.setForeground(QColor("black"))
+            font = item.font()
+            font.setBold(False)
+            item.setFont(font)
+        
+        for i in range(axis_panel.count()):
+            item = axis_panel.item(i)
+            item.setBackground(QColor("white"))
+            item.setForeground(QColor("black"))
+            font = item.font()
+            font.setBold(False)
+            item.setFont(font)
+        
+        # Highlight defining frames
+        for frame_name in defining_items.get('frames', []):
+            display_name = frame_name
+            # Strip object prefix if it exists
+            if display_name.startswith(obj_name + "_"):
+                display_name = display_name[len(obj_name)+1:]
+            
+            # Try to find and highlight the item
+            found = False
+            for i in range(frames_panel.count()):
+                item = frames_panel.item(i)
+                # Try exact match first
+                if item.text() == display_name:
+                    item.setBackground(QColor("#90EE90"))  # Light green
+                    item.setForeground(QColor("darkgreen"))
+                    font = item.font()
+                    font.setBold(True)
+                    item.setFont(font)
+                    found = True
+                    break
+                # Also try matching without any prefix
+                elif item.text() == frame_name:
+                    item.setBackground(QColor("#90EE90"))  # Light green
+                    item.setForeground(QColor("darkgreen"))
+                    font = item.font()
+                    font.setBold(True)
+                    item.setFont(font)
+                    found = True
+                    break
+        
+        # Highlight defining axes
+        for axis_name in defining_items.get('axes', []):
+            display_name = axis_name
+            # Strip object prefix if it exists
+            if display_name.startswith(obj_name + "_"):
+                display_name = display_name[len(obj_name)+1:]
+            
+            # Try to find and highlight the item
+            found = False
+            for i in range(axis_panel.count()):
+                item = axis_panel.item(i)
+                # Try exact match first
+                if item.text() == display_name:
+                    item.setBackground(QColor("#90EE90"))  # Light green
+                    item.setForeground(QColor("darkgreen"))
+                    font = item.font()
+                    font.setBold(True)
+                    item.setFont(font)
+                    found = True
+                    break
+                # Also try matching without any prefix
+                elif item.text() == axis_name:
+                    item.setBackground(QColor("#90EE90"))  # Light green
+                    item.setForeground(QColor("darkgreen"))
+                    font = item.font()
+                    font.setBold(True)
+                    item.setFont(font)
+                    found = True
+                    break
 
     # ----------------------------------------------------------------------
     # Instruction selection handler
@@ -464,3 +848,61 @@ class AssemblyScenceViewerWidget(QWidget):
 
         # If no match found
         #self.ros_node.get_logger().warn("Previous selection no longer exists.")
+
+    # ----------------------------------------------------------------------
+    # Capture element selection (frame/axis/plane) before panel recreation
+    # ----------------------------------------------------------------------
+    def _capture_element_selection(self):
+        """Capture currently selected frame, axis, or plane before panel is cleared"""
+        if not self._current_element_panel:
+            return
+        
+        # Only one can be selected at a time - clear all and find which one is selected
+        self._current_selected_frame = None
+        self._current_selected_axis = None
+        self._current_selected_plane = None
+        
+        # Check which one is selected
+        frame_item = self._current_element_panel.frames_panel.currentItem()
+        if frame_item:
+            self._current_selected_frame = frame_item.text()
+            return
+        
+        axis_item = self._current_element_panel.axis_panel.currentItem()
+        if axis_item:
+            self._current_selected_axis = axis_item.text()
+            return
+        
+        plane_item = self._current_element_panel.planes_panel.currentItem()
+        if plane_item:
+            self._current_selected_plane = plane_item.text()
+            return
+
+    # ----------------------------------------------------------------------
+    # Restore element selection (frame/axis/plane) after panel recreation
+    # ----------------------------------------------------------------------
+    def _restore_element_selection(self, element_panel: ObjectsElementPanel):
+        """Restore previously selected frame, axis, or plane in the new panel"""
+        # Restore selected frame
+        if self._current_selected_frame:
+            for i in range(element_panel.frames_panel.count()):
+                item = element_panel.frames_panel.item(i)
+                if item.text() == self._current_selected_frame:
+                    element_panel.frames_panel.setCurrentItem(item)
+                    return
+        
+        # Restore selected axis
+        if self._current_selected_axis:
+            for i in range(element_panel.axis_panel.count()):
+                item = element_panel.axis_panel.item(i)
+                if item.text() == self._current_selected_axis:
+                    element_panel.axis_panel.setCurrentItem(item)
+                    return
+        
+        # Restore selected plane
+        if self._current_selected_plane:
+            for i in range(element_panel.planes_panel.count()):
+                item = element_panel.planes_panel.item(i)
+                if item.text() == self._current_selected_plane:
+                    element_panel.planes_panel.setCurrentItem(item)
+                    return
