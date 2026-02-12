@@ -7,6 +7,12 @@ import time
 from copy import deepcopy
 from geometry_msgs.msg import Transform, Vector3, Quaternion, Pose
 from assembly_scene_publisher.py_modules.geometry_functions import multiply_ros_transforms, inverse_ros_transform
+
+import numpy as np
+from scipy.spatial.transform import Rotation as R
+from geometry_msgs.msg import Pose, Transform
+
+
 class AssemblyScenePositionCorrector:
     def __init__(self, node: Node, 
                  get_scene_callback,
@@ -230,8 +236,6 @@ class AssemblyScenePositionCorrector:
                                               b_T_k_1,
                                               output_type=Pose)
             
-
-            
             k_T_b_0 = inverse_ros_transform(b_T_k_0, output_type=Transform)
             # Compute the transform needed to correct the position
             # transform = multiply_ros_transforms(k_T_b_0, 
@@ -243,10 +247,34 @@ class AssemblyScenePositionCorrector:
             return o_T_b_1
 
         if len(frame_list) == 2:
-            return Transform()  # Placeholder for the actual transform calculation logic when there are two frames to consider
+            frame_1_initial_pose = self.internal_scene_analyzer.get_frame_from_scene(frame_list[0].frame_name)[1].pose
+            frame_2_initial_pose = self.internal_scene_analyzer.get_frame_from_scene(frame_list[1].frame_name)[1].pose
 
+            frame_1_current_pose = self.true_scene_analyzer.get_frame_from_scene(frame_list[0].frame_name)[1].pose
+            frame_2_current_pose = self.true_scene_analyzer.get_frame_from_scene(frame_list[1].frame_name)[1].pose
+
+            transform = best_fit_transform_two_poses(p1=frame_1_initial_pose,
+                                                     p2 = frame_2_initial_pose,
+                                                     p3 = frame_1_current_pose,
+                                                     p4 = frame_2_current_pose)
+
+            return transform 
+        
         if len(frame_list) > 2:
-            return Transform()  # Placeholder for the actual transform calculation logic when there are more than two frames to consider
+            
+            initial_pose_list = []
+            current_pose_list = []
+            for frame in frame_list:
+                frame:ami_msg.RefFrame
+                _pose_initial = self.internal_scene_analyzer.get_frame_from_scene(frame.frame_name)[1].pose
+                _pose_current = self.true_scene_analyzer.get_frame_from_scene(frame.frame_name)[1].pose
+                initial_pose_list.append(_pose_initial)
+                current_pose_list.append(_pose_current)
+            
+            transform  = best_fit_transform_from_poses(initial_poses=initial_pose_list,
+                                                       measured_poses=current_pose_list)
+            
+            return transform
         
     
     def clear_internal_scene(self):
@@ -291,3 +319,153 @@ class AssemblyScenePositionCorrector:
         self.logger.debug(f"Checking frame {frame_name}: Position match: {position_match}, Orientation match: {orientation_match}")
 
         return position_match and orientation_match
+    
+
+def best_fit_transform_two_poses(
+    p1: Pose,
+    p2: Pose,
+    q1: Pose,
+    q2: Pose
+    ) -> Transform:
+    """
+    Compute rigid transform (ROS Transform) that aligns
+    initial poses p1, p2 to measured poses q1, q2.
+
+    Uses positions only.
+    """
+
+    # --- Extract positions ---
+    P1 = np.array([p1.position.x, p1.position.y, p1.position.z])
+    P2 = np.array([p2.position.x, p2.position.y, p2.position.z])
+    Q1 = np.array([q1.position.x, q1.position.y, q1.position.z])
+    Q2 = np.array([q2.position.x, q2.position.y, q2.position.z])
+
+    # --- Direction vectors ---
+    v_p = P2 - P1
+    v_q = Q2 - Q1
+
+    norm_p = np.linalg.norm(v_p)
+    norm_q = np.linalg.norm(v_q)
+
+    if norm_p < 1e-8 or norm_q < 1e-8:
+        raise ValueError("Points must not be identical")
+
+    v_p_hat = v_p / norm_p
+    v_q_hat = v_q / norm_q
+
+    # --- Compute rotation ---
+    cross = np.cross(v_p_hat, v_q_hat)
+    dot = np.dot(v_p_hat, v_q_hat)
+    dot = np.clip(dot, -1.0, 1.0)
+
+    cross_norm = np.linalg.norm(cross)
+
+    if cross_norm < 1e-8:
+        # Parallel case
+        if dot > 0:
+            rot = R.identity()
+        else:
+            # 180° rotation around any perpendicular axis
+            axis = np.array([1.0, 0.0, 0.0])
+            if abs(v_p_hat[0]) > 0.9:
+                axis = np.array([0.0, 1.0, 0.0])
+            axis = axis - axis.dot(v_p_hat) * v_p_hat
+            axis /= np.linalg.norm(axis)
+            rot = R.from_rotvec(np.pi * axis)
+    else:
+        axis = cross / cross_norm
+        angle = np.arccos(dot)
+        rot = R.from_rotvec(axis * angle)
+
+    # --- Compute translation ---
+    t = Q1 - rot.apply(P1)
+
+    # --- Convert to ROS Transform ---
+    transform = Transform()
+
+    transform.translation.x = float(t[0])
+    transform.translation.y = float(t[1])
+    transform.translation.z = float(t[2])
+
+    qx, qy, qz, qw = rot.as_quat()
+
+    transform.rotation.x = float(qx)
+    transform.rotation.y = float(qy)
+    transform.rotation.z = float(qz)
+    transform.rotation.w = float(qw)
+
+    return transform
+
+
+
+def best_fit_transform_from_poses(
+    initial_poses: list[Pose],
+    measured_poses: list[Pose]
+) -> Transform:
+    """
+    Compute least-squares rigid transform aligning initial_poses to measured_poses.
+
+    Requires at least 3 pose pairs.
+    Uses Kabsch algorithm (SVD).
+    Returns ROS Transform.
+    """
+
+    if len(initial_poses) != len(measured_poses):
+        raise ValueError("Pose lists must have same length")
+
+    if len(initial_poses) < 3:
+        raise ValueError("At least 3 poses required")
+
+    # --- Extract position arrays ---
+    P = np.array([
+        [p.position.x, p.position.y, p.position.z]
+        for p in initial_poses
+    ])
+
+    Q = np.array([
+        [p.position.x, p.position.y, p.position.z]
+        for p in measured_poses
+    ])
+
+    # --- Compute centroids ---
+    centroid_P = np.mean(P, axis=0)
+    centroid_Q = np.mean(Q, axis=0)
+
+    # --- Center points ---
+    P_centered = P - centroid_P
+    Q_centered = Q - centroid_Q
+
+    # --- Covariance matrix ---
+    H = P_centered.T @ Q_centered
+
+    # --- SVD ---
+    U, S, Vt = np.linalg.svd(H)
+
+    # --- Compute rotation ---
+    R_mat = Vt.T @ U.T
+
+    # --- Reflection correction ---
+    if np.linalg.det(R_mat) < 0:
+        Vt[2, :] *= -1
+        R_mat = Vt.T @ U.T
+
+    rot = R.from_matrix(R_mat)
+
+    # --- Compute translation ---
+    t = centroid_Q - R_mat @ centroid_P
+
+    # --- Convert to ROS Transform ---
+    transform = Transform()
+
+    transform.translation.x = float(t[0])
+    transform.translation.y = float(t[1])
+    transform.translation.z = float(t[2])
+
+    qx, qy, qz, qw = rot.as_quat()
+
+    transform.rotation.x = float(qx)
+    transform.rotation.y = float(qy)
+    transform.rotation.z = float(qz)
+    transform.rotation.w = float(qw)
+
+    return transform

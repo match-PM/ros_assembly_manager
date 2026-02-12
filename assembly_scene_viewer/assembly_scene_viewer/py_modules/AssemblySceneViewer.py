@@ -32,10 +32,10 @@ from PyQt6.QtWidgets import (QScrollArea,
                             )
 
 from scipy.spatial.transform import Rotation as R
-from PyQt6.QtGui import QColor, QTextCursor, QFont, QAction
+from PyQt6.QtGui import QColor, QTextCursor, QFont, QAction, QIcon
 from functools import partial
 from rclpy.node import Node
-
+from ament_index_python.packages import get_package_share_directory
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 from tf2_ros import LookupException
@@ -48,6 +48,7 @@ from assembly_scene_publisher.py_modules.scene_errors import *
 from assembly_scene_publisher.py_modules.AssemblySceneAnalyzerAdv import AssemblySceneAnalyzerAdv
 from assembly_scene_publisher.py_modules.AssemblySceneAnalyzer import UnInitializedScene
 from assembly_scene_viewer.py_modules.STLViewerWidget import STLViewerWidget
+
 # import vtk
 # from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 
@@ -329,14 +330,49 @@ class FramesElementPanel(QListWidget):
 
     def populate(self):
         self.clear()
+        # Icon mapping for frame types
+        icon_map = {
+            'vision': QIcon(f"{get_package_share_directory('assembly_scene_viewer')}/media/vision.png"),
+            'glue': QIcon(f"{get_package_share_directory('assembly_scene_viewer')}/media/glue.png"),
+            'laser': QIcon(f"{get_package_share_directory('assembly_scene_viewer')}/media/laser.png"),
+            'grip': QIcon(f"{get_package_share_directory('assembly_scene_viewer')}/media/robotic-hand.png"),
+            'assembly': QIcon(f"{get_package_share_directory('assembly_scene_viewer')}/media/assembly.png"),
+            'target': QIcon(f"{get_package_share_directory('assembly_scene_viewer')}/media/target.png"),
+            'chain': QIcon(f"{get_package_share_directory('assembly_scene_viewer')}/media/chain.png"),
+            "default": QIcon(f"{get_package_share_directory('assembly_scene_viewer')}/media/default_frame.png"),
+        }
         for frame in self.obj_message.ref_frames:
             frame: am_msgs.RefFrame
             # strip the obj_name prefix if present
-            #
             item_text = frame.frame_name
             if item_text.startswith(self.obj_name):
                 item_text = item_text[len(self.obj_name)+1:]
-            item = QListWidgetItem(f"{item_text}")
+
+            # Determine frame type and select icon
+            icon = None
+            props = frame.properties
+            if props.vision_frame_properties.is_vision_frame:
+                icon = icon_map['vision']
+            elif props.glue_pt_frame_properties.is_glue_point:
+                icon = icon_map['glue']
+            elif props.laser_frame_properties.is_laser_frame:
+                icon = icon_map['laser']
+            elif props.gripping_frame_properties.is_gripping_frame:
+                icon = icon_map['grip']
+            elif props.assembly_frame_properties.is_assembly_frame:
+                icon = icon_map['assembly']
+            elif props.assembly_frame_properties.is_target_frame:
+                icon = icon_map['target']
+            elif frame.constraints.centroid.is_active or frame.constraints.in_plane.is_active or frame.constraints.orthogonal.is_active:
+                # If it's a constraining frame but doesn't have a specific type, use assembly icon
+                icon = icon_map['chain']
+            else:
+                icon = icon_map['default']
+
+
+            item = QListWidgetItem(item_text)
+            if icon:
+                item.setIcon(icon)
             self.addItem(item)
  
 
@@ -564,8 +600,8 @@ class AssemblyScenceViewerWidget(QWidget):
         # Create a container for properties and STL viewer (right side)
         right_container = QVBoxLayout()
         right_container.setContentsMargins(0, 0, 0, 0)
-        right_container.addWidget(self.properties_panel, 2)  # Properties takes 2/3
-        right_container.addWidget(self.stl_viewer_widget, 1)  # STL viewer takes 1/3
+        right_container.addWidget(self.properties_panel, 1)  # Properties takes 2/3
+        right_container.addWidget(self.stl_viewer_widget, 2)  # STL viewer takes 1/3
         
         right_widget = QWidget()
         right_widget.setLayout(right_container)
@@ -573,8 +609,8 @@ class AssemblyScenceViewerWidget(QWidget):
         # ----- Add panels to grid -----
         #(row, column, rowSpan, columnSpan[, alignment=Qt.Alignment()])
         self.layout.addWidget(self.objects_panel, 0, 0, 3, 1)             # full height left-side
-        self.layout.addLayout(self.middle_layout, 0, 1, 3, 1)             # middle, rows 0-2
-        self.layout.addWidget(right_widget, 0, 2, 3, 1)                   # right side, rows 0-2
+        self.layout.addLayout(self.middle_layout, 0, 1, 4, 1)             # middle, rows 0-2
+        self.layout.addWidget(right_widget, 0, 2, 4, 1)                   # right side, rows 0-2
         self.layout.addWidget(self.instructions_panel, 3, 0, 1, 1)        # instructions same width as objects    
         # ----- Column width proportions -----
         self.layout.setColumnStretch(0, 1)    # Objects panel
@@ -629,9 +665,19 @@ class AssemblyScenceViewerWidget(QWidget):
         comp:am_msgs.Object = self.anylzer.get_component_by_name(item_text)
 
         stl_path = comp.cad_data
+        
+        # Clear all visualizations when switching to a new object
+        if self.stl_viewer_widget:
+            self.stl_viewer_widget.clear_all_frames()
+        
         self.stl_viewer_widget.reset_stl_file(stl_path)
         self._current_item_text = item.text()
         self._current_panel = self.objects_panel
+        
+        # Reset selection tracking
+        self._current_selected_frame = None
+        self._current_selected_axis = None
+        self._current_selected_plane = None
 
     # ----------------------------------------------------------------------
     # Frame selection handler - marks constraining frames
@@ -705,6 +751,18 @@ class AssemblyScenceViewerWidget(QWidget):
         # Clear frame visualization when switching to axis
         if self.stl_viewer_widget:
             self.stl_viewer_widget.clear_all_frames()
+        
+        # Display axis visualization in STL viewer
+        if self.stl_viewer_widget and axis_obj:
+            # Get the two frames that define the axis
+            frames = self.anylzer.get_frames_for_axis(full_axis_name)
+            if len(frames) == 2 and frames[0].pose and frames[1].pose:
+                self.stl_viewer_widget.display_axis(
+                    full_axis_name,
+                    frames[0].pose.position,
+                    frames[1].pose.position,
+                    color_rgb=(1, 1, 0)  # Yellow
+                )
 
         self._current_element_panel.clear_frame_highlighting()
         defining_items = self.find_defining_frames_and_axes_for_axis(full_axis_name)
@@ -736,6 +794,82 @@ class AssemblyScenceViewerWidget(QWidget):
         # Clear frame visualization when switching to plane
         if self.stl_viewer_widget:
             self.stl_viewer_widget.clear_all_frames()
+        
+        # Display plane visualization in STL viewer
+        if self.stl_viewer_widget and plane_obj:
+            plane_data = {}
+            all_points = []  # For normal calculation
+            
+            # Case 1: Plane defined by three points
+            if plane_obj.axis_names[0] == '' and plane_obj.point_names[0] != '':
+                # Get the three frames
+                points = []
+                for point_name in plane_obj.point_names:
+                    if point_name != '':
+                        frame = self.anylzer.get_ref_frame_by_name(point_name)
+                        if frame and frame.pose:
+                            points.append(frame.pose.position)
+                            all_points.append(frame.pose.position)
+                
+                if len(points) >= 3:
+                    plane_data["points"] = points
+            
+            # Case 2: Plane defined by axis and one point
+            elif plane_obj.axis_names[0] != '' and plane_obj.point_names[0] != '':
+                # Get the two axis points
+                axis_frames = self.anylzer.get_frames_for_axis(plane_obj.axis_names[0])
+                if len(axis_frames) >= 2 and axis_frames[0].pose and axis_frames[1].pose:
+                    plane_data["axis"] = [axis_frames[0].pose.position, axis_frames[1].pose.position]
+                    all_points.append(axis_frames[0].pose.position)
+                    all_points.append(axis_frames[1].pose.position)
+                
+                # Get the support point
+                support_frame = self.anylzer.get_ref_frame_by_name(plane_obj.point_names[0])
+                if support_frame and support_frame.pose:
+                    plane_data["points"] = [support_frame.pose.position]
+                    all_points.append(support_frame.pose.position)
+            
+            # Display the plane if we have the required data
+            if plane_data:
+                self.stl_viewer_widget.display_plane(
+                    full_plane_name,
+                    plane_data,
+                    color_rgb=(0, 1, 1),  # Cyan
+                    alpha=0.3
+                )
+                
+                # Calculate and display plane normal
+                if len(all_points) >= 3:
+                    import numpy as np
+                    # Get three points
+                    p1 = np.array([all_points[0].x, all_points[0].y, all_points[0].z])
+                    p2 = np.array([all_points[1].x, all_points[1].y, all_points[1].z])
+                    p3 = np.array([all_points[2].x, all_points[2].y, all_points[2].z])
+                    
+                    # Calculate vectors
+                    v1 = p2 - p1
+                    v2 = p3 - p1
+                    
+                    # Calculate normal (cross product)
+                    normal = np.cross(v1, v2)
+                    normal_length = np.linalg.norm(normal)
+                    
+                    if normal_length > 1e-6:  # Check if not degenerate
+                        normal = normal / normal_length  # Normalize
+                        
+                        # Center of plane (centroid of all points)
+                        center = np.mean([p1, p2, p3], axis=0)
+                        from geometry_msgs.msg import Point
+                        center_point = Point(x=float(center[0]), y=float(center[1]), z=float(center[2]))
+                        
+                        # Display normal vector
+                        self.stl_viewer_widget.display_plane_normal(
+                            full_plane_name + "_normal",
+                            center_point,
+                            normal,
+                            scale=0.05,
+                            color_rgb=(1, 0, 0)  # Red
+                        )
 
         self._current_element_panel.clear_frame_highlighting()
         defining_items = self.find_defining_frames_and_axes_for_plane(full_plane_name)
@@ -969,10 +1103,14 @@ class AssemblyScenceViewerWidget(QWidget):
     def scene_callback(self, msg: am_msgs.ObjectScene):
         self._assembly_scene = msg
         self.anylzer.set_scene(msg)
-        self.update_panels()
-
-        # Delay restore_selection to next event loop iteration
-        QTimer.singleShot(0, self.restore_selection)
+        
+        # Update panels but preserve visualizations
+        # If we have a current element panel, update its scene data without clearing visualizations
+        if self._current_element_panel is not None:
+            self._current_element_panel.set_scene(self._assembly_scene)
+        
+        self.objects_panel.update_scene(self._assembly_scene)
+        self.instructions_panel.update_scene(self._assembly_scene)
 
 
     # ----------------------------------------------------------------------

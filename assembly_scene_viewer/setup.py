@@ -1,7 +1,9 @@
 from setuptools import find_packages, setup
-
+from glob import glob
+import os
 package_name = 'assembly_scene_viewer'
 submodules = 'assembly_scene_viewer/py_modules'
+media = 'assembly_scene_viewer/media'
 
 setup(
     name=package_name,
@@ -11,6 +13,10 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+            (
+            os.path.join('share', package_name, 'media'),
+            glob('assembly_scene_viewer/media/*')
+        ),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
