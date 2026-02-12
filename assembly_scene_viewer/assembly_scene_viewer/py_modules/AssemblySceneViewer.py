@@ -416,6 +416,112 @@ class PlanesElementPanel(QListWidget):
 
 
 # ---------------------------------------------------------------------------
+# Widget: Properties panel for displaying frame/axis/plane properties
+# ---------------------------------------------------------------------------
+class PropertiesPanel(QWidget):
+    def __init__(self, logger=None):
+        super().__init__()
+        self.logger = logger
+        
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Header
+        self.header_label = QLabel("Properties")
+        self.header_label.setStyleSheet("""
+            font-size: 12pt;
+            font-weight: bold;
+            padding: 4px;
+        """)
+        layout.addWidget(self.header_label)
+        
+        # Text display for properties
+        self.properties_text = QTextEdit()
+        self.properties_text.setReadOnly(True)
+        self.properties_text.setStyleSheet("""
+            QTextEdit {
+                font-family: monospace;
+                font-size: 10pt;
+            }
+        """)
+        layout.addWidget(self.properties_text)
+    
+    def display_frame_properties(self, frame: am_msgs.RefFrame):
+        """Display properties of a frame"""
+        text = f"<b>Frame: {frame.frame_name}</b><br>"
+        text += f"Parent Frame: {frame.parent_frame}<br>"
+        text += f"<br><b>Pose:</b><br>"
+        text += f"  Position: ({frame.pose.position.x:.4f}, {frame.pose.position.y:.4f}, {frame.pose.position.z:.4f})<br>"
+        text += f"  Orientation: ({frame.pose.orientation.x:.4f}, {frame.pose.orientation.y:.4f}, {frame.pose.orientation.z:.4f}, {frame.pose.orientation.w:.4f})<br>"
+        
+        text += f"<br><b>Constraints:</b><br>"
+        if frame.constraints.centroid.is_active:
+            text += f"  <b>Centroid:</b> Active<br>"
+            text += f"    Ref Frames: {', '.join(frame.constraints.centroid.ref_frame_names)}<br>"
+            text += f"    Dimensions: {frame.constraints.centroid.dim}<br>"
+            text += f"    Offsets: ({frame.constraints.centroid.offset_values.x:.4f}, {frame.constraints.centroid.offset_values.y:.4f}, {frame.constraints.centroid.offset_values.z:.4f})<br>"
+        
+        if frame.constraints.in_plane.is_active:
+            text += f"  <b>In-Plane:</b> Active<br>"
+            text += f"    Ref Frames: {', '.join(frame.constraints.in_plane.ref_frame_names)}<br>"
+            text += f"    Plane Offset: {frame.constraints.in_plane.plane_offset:.4f}<br>"
+            text += f"    Normal Axis: {frame.constraints.in_plane.normal_axis}<br>"
+        
+        if frame.constraints.orthogonal.is_active:
+            text += f"  <b>Orthogonal:</b> Active<br>"
+            text += f"    Frame 1: {frame.constraints.orthogonal.frame_1}<br>"
+            text += f"    Frame 2: {frame.constraints.orthogonal.frame_2}<br>"
+            text += f"    Frame 3: {frame.constraints.orthogonal.frame_3}<br>"
+        
+        text += f"<br><b>Frame Properties:</b><br>"
+        
+        if frame.properties.vision_frame_properties.is_vision_frame:
+            text += f"  <b>Vision Frame:</b><br>"
+            text += f"    Has Been Measured: {frame.properties.vision_frame_properties.has_been_measured}<br>"
+        
+        if frame.properties.glue_pt_frame_properties.is_glue_point:
+            text += f"  <b>Glue Point Frame:</b><br>"
+            text += f"    Has Been Placed: {frame.properties.glue_pt_frame_properties.has_been_placed}<br>"
+            text += f"    Dispense Offset (mm): {frame.properties.glue_pt_frame_properties.dispense_offset_mm}<br>"
+            text += f"    Curing Time (ms): {frame.properties.glue_pt_frame_properties.time_ms}<br>"
+            text += f"    Has Been Cured: {frame.properties.glue_pt_frame_properties.has_been_cured}<br>"
+        
+        if frame.properties.laser_frame_properties.is_laser_frame:
+            text += f"  <b>Laser Frame:</b><br>"
+            text += f"    Has Been Measured: {frame.properties.laser_frame_properties.has_been_measured}<br>"
+        
+        if frame.properties.gripping_frame_properties.is_gripping_frame:
+            text += f"  <b>Gripping Frame:</b><br>"
+            text += f"    Compatible Gripper Tips: {frame.properties.gripping_frame_properties.compatible_gripper_tips}<br>"
+            text += f"    Compatible Grippers: {frame.properties.gripping_frame_properties.compatible_grippers}<br>"
+
+        
+        if frame.properties.assembly_frame_properties.is_assembly_frame:
+            text += f"  <b>Assembly Frame:</b><br>"
+            text += f"    Associated Frame: {frame.properties.assembly_frame_properties.associated_frame}<br>"
+
+        if frame.properties.assembly_frame_properties.is_target_frame:
+            text += f"  <b>Assembly Target Frame:</b><br>"
+            text += f"    Associated Frame: {frame.properties.assembly_frame_properties.associated_frame}<br>"        
+        
+        self.properties_text.setHtml(text)
+    
+    def display_axis_properties(self, axis: am_msgs.Axis):
+        """Display properties of an axis"""
+        text = f"<b>Axis: {axis.axis_name}</b><br>"
+        self.properties_text.setHtml(text)
+    
+    def display_plane_properties(self, plane: am_msgs.Plane):
+        """Display properties of a plane"""
+        text = f"<b>Plane: {plane.ref_plane_name}</b><br>"
+        self.properties_text.setHtml(text)
+    
+    def clear(self):
+        """Clear the properties display"""
+        self.properties_text.clear()
+
+
+# ---------------------------------------------------------------------------
 # Main scene viewer widget
 # ---------------------------------------------------------------------------
 class AssemblyScenceViewerWidget(QWidget):
@@ -452,23 +558,34 @@ class AssemblyScenceViewerWidget(QWidget):
         self.anylzer = AssemblySceneAnalyzerAdv(scene_data=self._assembly_scene,
                                                 logger=self.ros_node.get_logger())
 
+        self.properties_panel = PropertiesPanel(logger=self.ros_node.get_logger())
         self.stl_viewer_widget = STLViewerWidget()
+        
+        # Create a container for properties and STL viewer (right side)
+        right_container = QVBoxLayout()
+        right_container.setContentsMargins(0, 0, 0, 0)
+        right_container.addWidget(self.properties_panel, 2)  # Properties takes 2/3
+        right_container.addWidget(self.stl_viewer_widget, 1)  # STL viewer takes 1/3
+        
+        right_widget = QWidget()
+        right_widget.setLayout(right_container)
+        
         # ----- Add panels to grid -----
         #(row, column, rowSpan, columnSpan[, alignment=Qt.Alignment()])
         self.layout.addWidget(self.objects_panel, 0, 0, 3, 1)             # full height left-side
-        self.layout.addLayout(self.middle_layout, 0, 1, 4, 1)      # spans columns 1–2 full height
-        self.layout.addWidget(self.instructions_panel, 3, 0, 1, 1)        # full height right-side
-
-        self.layout.addWidget(self.stl_viewer_widget, 2, 2, 2, 1)    
+        self.layout.addLayout(self.middle_layout, 0, 1, 3, 1)             # middle, rows 0-2
+        self.layout.addWidget(right_widget, 0, 2, 3, 1)                   # right side, rows 0-2
+        self.layout.addWidget(self.instructions_panel, 3, 0, 1, 1)        # instructions same width as objects    
         # ----- Column width proportions -----
-        self.layout.setColumnStretch(0, 1)    # 1/4 width
-        self.layout.setColumnStretch(1, 1)    # 1/2 width shared (col1 + col2)
-        self.layout.setColumnStretch(2, 1)
-        self.layout.setColumnStretch(3, 1)    # 1/4 width
+        self.layout.setColumnStretch(0, 1)    # Objects panel
+        self.layout.setColumnStretch(1, 1)    # Middle panel
+        self.layout.setColumnStretch(2, 2)    # Right panel (properties + STL) - bigger
 
-        # Full height for all rows
+        # Full height for rows 0-2
         self.layout.setRowStretch(0, 1)
         self.layout.setRowStretch(1, 1)
+        self.layout.setRowStretch(2, 1)
+        self.layout.setRowStretch(3, 0)       # Instructions panel minimal height
         # ----------------------------
         # Connect selection signals
         # ----------------------------
@@ -486,6 +603,7 @@ class AssemblyScenceViewerWidget(QWidget):
 
         self.instructions_panel.list_widget.clearSelection()
         self.clear_middle_panel()
+        self.properties_panel.clear()
 
         obj = next(
             (o for o in self._assembly_scene.objects_in_scene if o.obj_name == item.text()),
@@ -531,9 +649,35 @@ class AssemblyScenceViewerWidget(QWidget):
         self._current_selected_frame = display_name
         self._current_selected_axis = None
         self._current_selected_plane = None
+        
+        # Display frame properties
+        frame_obj = self.anylzer.get_ref_frame_by_name(full_frame_name)
+        self.properties_panel.display_frame_properties(frame_obj)
+
+        # Display frame visualization in STL viewer
+        if self.stl_viewer_widget and frame_obj:
+            self.stl_viewer_widget.clear_all_frames()
+            if frame_obj.pose:
+                self.stl_viewer_widget.display_frame(
+                    full_frame_name,
+                    frame_obj.pose.position,
+                    frame_obj.pose.orientation
+                )
 
         constraining_frames = self.find_constraining_frames(full_frame_name)
         self.highlight_constraining_frames(constraining_frames)
+        
+        # Display constraining frames with orange dots in STL viewer
+        if self.stl_viewer_widget and constraining_frames:
+            positions = {}
+            orientations = {}
+            for cf in constraining_frames:
+                cf_obj = self.anylzer.get_ref_frame_by_name(cf)
+                if cf_obj and cf_obj.pose:
+                    positions[cf] = cf_obj.pose.position
+                    orientations[cf] = cf_obj.pose.orientation
+            if positions:
+                self.stl_viewer_widget.display_constraining_frames(constraining_frames, positions, orientations)
 
 
 
@@ -553,6 +697,14 @@ class AssemblyScenceViewerWidget(QWidget):
         self._current_selected_axis = display_name
         self._current_selected_frame = None
         self._current_selected_plane = None
+        
+        # Display axis properties
+        axis_obj = self.anylzer.get_axis_from_scene(full_axis_name)
+        self.properties_panel.display_axis_properties(axis_obj)
+
+        # Clear frame visualization when switching to axis
+        if self.stl_viewer_widget:
+            self.stl_viewer_widget.clear_all_frames()
 
         self._current_element_panel.clear_frame_highlighting()
         defining_items = self.find_defining_frames_and_axes_for_axis(full_axis_name)
@@ -576,6 +728,14 @@ class AssemblyScenceViewerWidget(QWidget):
         self._current_selected_plane = display_name
         self._current_selected_frame = None
         self._current_selected_axis = None
+        
+        # Display plane properties
+        plane_obj = self.anylzer.get_plane_from_scene(full_plane_name)
+        self.properties_panel.display_plane_properties(plane_obj)
+
+        # Clear frame visualization when switching to plane
+        if self.stl_viewer_widget:
+            self.stl_viewer_widget.clear_all_frames()
 
         self._current_element_panel.clear_frame_highlighting()
         defining_items = self.find_defining_frames_and_axes_for_plane(full_plane_name)
@@ -853,7 +1013,7 @@ class AssemblyScenceViewerWidget(QWidget):
         """Restore previously selected frame, axis, or plane in the new panel"""
         # Restore selected frame
         if self._current_selected_frame:
-            self.ros_node.get_logger().warn(f"Restoring selected frame: {self._current_selected_frame}")
+            #self.ros_node.get_logger().warn(f"Restoring selected frame: {self._current_selected_frame}")
             for i in range(element_panel.frames_panel.count()):
                 item = element_panel.frames_panel.item(i)
                 if item.text() == self._current_selected_frame:
@@ -863,7 +1023,7 @@ class AssemblyScenceViewerWidget(QWidget):
         
         # Restore selected axis
         if self._current_selected_axis:
-            self.ros_node.get_logger().warn(f"Restoring selected axis: {self._current_selected_axis}")
+            #self.ros_node.get_logger().warn(f"Restoring selected axis: {self._current_selected_axis}")
             for i in range(element_panel.axis_panel.count()):
                 item = element_panel.axis_panel.item(i)
                 if item.text() == self._current_selected_axis:
@@ -872,7 +1032,7 @@ class AssemblyScenceViewerWidget(QWidget):
         
         # Restore selected plane
         if self._current_selected_plane:
-            self.ros_node.get_logger().warn(f"Restoring selected plane: {self._current_selected_plane}")
+            #self.ros_node.get_logger().warn(f"Restoring selected plane: {self._current_selected_plane}")
             for i in range(element_panel.planes_panel.count()):
                 item = element_panel.planes_panel.item(i)
                 if item.text() == self._current_selected_plane:
