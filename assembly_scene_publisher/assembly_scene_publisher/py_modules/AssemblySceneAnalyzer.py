@@ -957,8 +957,59 @@ class AssemblySceneAnalyzer():
         if len(target_frames) == 0:
             raise TargetFrameNotFoundError(component_name)
 
-        return target_frames    
+        return target_frames
+
+    def get_assembly_frame_for_instruction(self, instruction_name:str)->ami_msg.RefFrame:
+        """
+        Returns the assembly frame name for the given instruction ID.
+        parameters:
+        - instruction_id: ID of the instruction to get the assembly frame for
+        raises:
+        - InstructionNotFoundError: if the instruction is not found in the scene
+        - AssemblyFrameNotFoundError: if no assembly frame is found for the given instruction
+        returns:
+        - assembly frame name for the given instruction or None if no assembly frame is found
+        """
+
+        # check if instruction exists
+        instruction = self.get_assembly_instruction_by_name(instruction_name)
+
+        component_1_name = instruction.component_1
+        component_2_name = instruction.component_2
+                
+        if instruction.component_1_is_moving_part:
+            moving_component_name = component_1_name
+        else:
+            moving_component_name = component_2_name
+
+        # Find the assembly frame for the moving component
+        assembly_frame_name = self.get_assembly_frame_for_component(moving_component_name)
     
+        return self.get_ref_frame_by_name(assembly_frame_name)
+    
+    def get_target_frame_for_instruction(self, instruction_name:str)->ami_msg.RefFrame:
+        """Returns the target frame for the given instruction.
+
+        Args:
+            instruction_name (str): The name of the instruction to get the target frame for.
+
+        Returns:
+            ami_msg.RefFrame: The target frame for the given instruction.
+        """
+        instruction = self.get_assembly_instruction_by_name(instruction_name)
+        
+        component_1_name = instruction.component_1
+        component_2_name = instruction.component_2
+        
+        if instruction.component_1_is_moving_part:
+            moving_component_name = component_1_name
+        else:
+            moving_component_name = component_2_name
+
+        target_frame_name = self.get_target_frame_for_component(moving_component_name)
+        
+        return self.get_ref_frame_by_name(target_frame_name)
+
     # def get_assembly_frame_for_target_frame(self, target_frame_name:str)-> str:
     #     """
     #     Returns the assembly frame name associated with the given target frame name.

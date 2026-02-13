@@ -29,6 +29,7 @@ from PyQt6.QtWidgets import (QScrollArea,
                              QTableWidgetItem,
                             QTableWidget,
                             QGroupBox,
+                            QStackedWidget,
                             QStyledItemDelegate,
                             )
 
@@ -530,6 +531,322 @@ class PlanesElementPanel(QListWidget):
 
 
 # ---------------------------------------------------------------------------
+# Widget: Instruction Detail Panel with properties
+# ---------------------------------------------------------------------------
+class InstructionDetailPanel(QWidget):
+    def __init__(self, instruction: am_msgs.AssemblyInstruction, analyzer, logger=None):
+        super().__init__()
+        self.logger = logger
+        self.instruction = instruction
+        self.analyzer = analyzer
+        
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Header with instruction ID
+        header_label = QLabel(f"Instruction: {instruction.id}")
+        header_label.setStyleSheet("""
+            font-size: 14pt;
+            font-weight: bold;
+            padding: 4px;
+            background-color: #f0f0f0;
+        """)
+        layout.addWidget(header_label)
+        
+        # ---- Properties Section ----
+        properties_label = QLabel("Instruction Details")
+        properties_label.setStyleSheet("""
+            font-size: 12pt;
+            font-weight: bold;
+            padding: 4px;
+        """)
+        layout.addWidget(properties_label)
+        
+        # Properties text display
+        self.properties_text = QTextEdit()
+        self.properties_text.setReadOnly(True)
+        self.properties_text.setStyleSheet("""
+            QTextEdit {
+                font-family: monospace;
+                font-size: 10pt;
+            }
+        """)
+        layout.addWidget(self.properties_text, 1)
+        
+        # Populate the panel
+        self._display_instruction_properties()
+    
+    def _display_instruction_properties(self):
+        """Display all instruction details in the properties text box"""
+        try:
+            moving_part = "Component 1" if self.instruction.component_1_is_moving_part else "Component 2"
+            
+            html = f"""
+            <b>Instruction ID:</b> {self.instruction.id}<br>
+            <br>
+            <b>Components:</b><br>
+            &nbsp;&nbsp;<b>Component 1:</b> {self.instruction.component_1 or 'N/A'}<br>
+            &nbsp;&nbsp;<b>Component 2:</b> {self.instruction.component_2 or 'N/A'}<br>
+            &nbsp;&nbsp;<b>Moving Part:</b> {moving_part}<br>
+            <br>
+
+            """
+            
+            self.properties_text.setHtml(html)
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error displaying instruction properties: {e}")
+            self.properties_text.setHtml(f"<b>Error:</b> {str(e)}")
+
+
+class InstructionStlPanel(QWidget):
+    """Right-side panel for instruction view: two STL viewers (component 1 and component 2)."""
+
+    def __init__(self, logger=None):
+        super().__init__()
+        self.logger = logger
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        label = QLabel("Instruction Components")
+        label.setStyleSheet("font-size: 12pt; font-weight: bold; padding: 4px;")
+        layout.addWidget(label)
+
+        # Reset buttons container
+        buttons_layout = QHBoxLayout()
+        reset_top_btn = QPushButton("Reset Top View")
+        reset_top_btn.setMaximumHeight(25)
+        reset_top_btn.clicked.connect(self._on_reset_top_view)
+        
+        reset_bottom_btn = QPushButton("Reset Bottom View")
+        reset_bottom_btn.setMaximumHeight(25)
+        reset_bottom_btn.clicked.connect(self._on_reset_bottom_view)
+        
+        buttons_layout.addWidget(reset_top_btn)
+        buttons_layout.addWidget(reset_bottom_btn)
+        layout.addLayout(buttons_layout)
+
+        self.viewer_top = STLViewerWidget()
+        self.viewer_bottom = STLViewerWidget()
+
+        layout.addWidget(self.viewer_top, 1)
+        layout.addWidget(self.viewer_bottom, 1)
+
+    def _on_reset_top_view(self):
+        """Reset the top STL viewer camera."""
+        try:
+            self.viewer_top.reset_camera()
+        except Exception as e:
+            if self.logger:
+                self.logger.warn(f"Error resetting top view: {e}")
+
+    def _on_reset_bottom_view(self):
+        """Reset the bottom STL viewer camera."""
+        try:
+            self.viewer_bottom.reset_camera()
+        except Exception as e:
+            if self.logger:
+                self.logger.warn(f"Error resetting bottom view: {e}")
+
+    def clear(self):
+        try:
+            self.viewer_top.clear_all_frames()
+        except Exception:
+            pass
+        try:
+            self.viewer_bottom.clear_all_frames()
+        except Exception:
+            pass
+
+    def _get_plane_data(self, plane_obj: am_msgs.Plane, analyzer: AssemblySceneAnalyzerAdv) -> dict:
+        """
+        Extract plane data from a Plane message.
+        Returns dict with 'points' and/or 'axis' keys, or empty dict if plane cannot be constructed.
+        """
+        plane_data = {}
+        
+        # Case 1: Plane defined by three points
+        if plane_obj.axis_names[0] == '' and plane_obj.point_names[0] != '':
+            points = []
+            for point_name in plane_obj.point_names:
+                if point_name != '':
+                    try:
+                        frame = analyzer.get_ref_frame_by_name(point_name)
+                        if frame and frame.pose:
+                            points.append(frame.pose.position)
+                    except Exception:
+                        pass
+            if len(points) >= 3:
+                plane_data["points"] = points
+        
+        # Case 2: Plane defined by axis and one point
+        elif plane_obj.axis_names[0] != '' and plane_obj.point_names[0] != '':
+            try:
+                axis_frames = analyzer.get_frames_for_axis(plane_obj.axis_names[0])
+                if len(axis_frames) >= 2 and axis_frames[0].pose and axis_frames[1].pose:
+                    plane_data["axis"] = [axis_frames[0].pose.position, axis_frames[1].pose.position]
+                
+                # Get the support point
+                support_frame = analyzer.get_ref_frame_by_name(plane_obj.point_names[0])
+                if support_frame and support_frame.pose:
+                    plane_data["points"] = [support_frame.pose.position]
+            except Exception:
+                pass
+        
+        return plane_data
+
+    def set_instruction(self, inst: am_msgs.AssemblyInstruction, analyzer: AssemblySceneAnalyzerAdv):
+        """Load STL files for the two components and draw planes from all plane matches."""
+        self.clear()
+
+        comp1_name = inst.component_1
+        comp2_name = inst.component_2
+
+        if not comp1_name or not comp2_name:
+            if self.logger:
+                self.logger.warn(f"Instruction has missing component names: comp1={comp1_name}, comp2={comp2_name}")
+            return
+
+        try:
+            if inst.component_1_is_moving_part:
+                moving_component = comp1_name
+                stationary_component = comp2_name
+                frame_top = analyzer.get_assembly_frame_for_instruction(inst.id)
+                frame_bottom = analyzer.get_target_frame_for_instruction(inst.id)
+            else:
+                moving_component = comp2_name
+                stationary_component = comp1_name
+                frame_top = analyzer.get_target_frame_for_instruction(inst.id)
+                frame_bottom = analyzer.get_assembly_frame_for_instruction(inst.id)
+        except Exception as e:
+            if self.logger:
+                self.logger.warn(f"Could not retrieve assembly/target frames for instruction {inst.id}: {e}")
+            frame_top = None
+            frame_bottom = None
+
+        # Color palette for plane matches (3 distinct colors)
+        plane_colors = [
+            (1.0, 0.0, 0.0),    # Red
+            (0.0, 1.0, 0.0),    # Green
+            (0.0, 0.0, 1.0),    # Blue
+        ]
+
+        # Load STL files
+        if comp1_name:
+            try:
+                comp1 = analyzer.get_component_by_name(comp1_name)
+                if comp1 and comp1.cad_data:
+                    self.viewer_top.reset_stl_file(comp1.cad_data)
+            except Exception as e:
+                if self.logger:
+                    self.logger.warn(f"Could not load STL for component '{comp1_name}': {e}")
+
+        if comp2_name:
+            try:
+                comp2 = analyzer.get_component_by_name(comp2_name)
+                if comp2 and comp2.cad_data:
+                    self.viewer_bottom.reset_stl_file(comp2.cad_data)
+            except Exception as e:
+                if self.logger:
+                    self.logger.warn(f"Could not load STL for component '{comp2_name}': {e}")
+
+        # Draw planes for all three plane matches
+        # Each plane_match_* is a ConstraintPlanes object with plane_name_component_1 and plane_name_component_2
+        plane_match_attrs = ["plane_match_1", "plane_match_2", "plane_match_3"]
+        for match_idx, plane_match_attr in enumerate(plane_match_attrs):
+            if match_idx >= len(plane_colors):
+                break
+            
+            constraint_planes = getattr(inst, plane_match_attr, None)
+            if not constraint_planes:
+                continue
+            
+            plane_name_comp1 = getattr(constraint_planes, "plane_name_component_1", "")
+            plane_name_comp2 = getattr(constraint_planes, "plane_name_component_2", "")
+            
+            color_rgb = plane_colors[match_idx]
+            
+            # Draw plane for component 1
+            if plane_name_comp1:
+                try:
+                    plane_obj = analyzer.get_plane_from_scene(plane_name_comp1)
+                    plane_data = self._get_plane_data(plane_obj, analyzer)
+                    
+                    if plane_data:
+                        self.viewer_top.display_plane(
+                            f"{plane_name_comp1}",
+                            plane_data,
+                            color_rgb=color_rgb,
+                            alpha=0.3
+                        )
+                except Exception as e:
+                    if self.logger:
+                        self.logger.warn(f"Could not draw plane '{plane_name_comp1}': {e}")
+            
+            # Draw plane for component 2
+            if plane_name_comp2:
+                try:
+                    plane_obj = analyzer.get_plane_from_scene(plane_name_comp2)
+                    plane_data = self._get_plane_data(plane_obj, analyzer)
+                    
+                    if plane_data:
+                        self.viewer_bottom.display_plane(
+                            f"{plane_name_comp2}",
+                            plane_data,
+                            color_rgb=color_rgb,
+                            alpha=0.3
+                        )
+                except Exception as e:
+                    if self.logger:
+                        self.logger.warn(f"Could not draw plane '{plane_name_comp2}': {e}")
+        
+        # Draw assembly and target frames for both components
+        try:
+            if frame_top and frame_bottom:
+                is_top_assembly = inst.component_1_is_moving_part
+                self._draw_assembly_and_target_frames(frame_top, frame_bottom, frame_top_is_assembly=is_top_assembly)
+        except Exception as e:
+            if self.logger:
+                self.logger.warn(f"Could not draw assembly/target frames: {e}")
+
+    def _draw_assembly_and_target_frames(self, frame_top: am_msgs.RefFrame, 
+                                         frame_bottom: am_msgs.RefFrame,
+                                         frame_top_is_assembly: bool = True):
+        """Draw assembly and target frames for the two components.
+        
+        Args:
+            frame_top: Frame to draw in top viewer
+            frame_bottom: Frame to draw in bottom viewer
+            frame_top_is_assembly: If True, frame_top is assembly (orange) and frame_bottom is target (cyan).
+                                   If False, frame_top is target (cyan) and frame_bottom is assembly (orange).
+        """
+        # Frame type colors
+        assembly_frame_color = (1.0, 0.8, 0.0)    # Orange for assembly frames
+        target_frame_color = (0.0, 1.0, 1.0)      # Cyan for target frames
+
+        if frame_top:
+            top_color = assembly_frame_color if frame_top_is_assembly else target_frame_color
+            self.viewer_top.display_frame(
+                frame_top.frame_name,
+                frame_top.pose.position,
+                frame_top.pose.orientation,
+                scale=0.02,
+                color_rgb=top_color
+            )
+            
+        if frame_bottom:
+            bottom_color = target_frame_color if frame_top_is_assembly else assembly_frame_color
+            self.viewer_bottom.display_frame(
+                frame_bottom.frame_name,
+                frame_bottom.pose.position,
+                frame_bottom.pose.orientation,
+                scale=0.02,
+                color_rgb=bottom_color
+            )
+
+
+# ---------------------------------------------------------------------------
 # Widget: Properties panel for displaying frame/axis/plane properties
 # ---------------------------------------------------------------------------
 class PropertiesPanel(QWidget):
@@ -667,52 +984,73 @@ class AssemblyScenceViewerWidget(QWidget):
         self.objects_panel = ObjectsListPanel(logger=self.ros_node.get_logger())
         self.instructions_panel = InstructionListPanel(logger=self.ros_node.get_logger())
 
-        self.middle_layout = QVBoxLayout()
+        # Middle column: we'll switch between object details (frames/axis/planes)
+        # and instruction properties.
+        self.middle_stack = QStackedWidget()
+        self._middle_object_container = QWidget()
+        self.middle_layout = QVBoxLayout(self._middle_object_container)
+        self.middle_layout.setContentsMargins(0, 0, 0, 0)
+        self._middle_object_container.setLayout(self.middle_layout)
 
-        self.anylzer = AssemblySceneAnalyzerAdv(scene_data=self._assembly_scene,
-                                                logger=self.ros_node.get_logger())
+        self.instruction_properties_panel = InstructionDetailPanel(
+            am_msgs.AssemblyInstruction(),
+            analyzer=None,
+            logger=self.ros_node.get_logger(),
+        )
+        self.middle_stack.addWidget(self._middle_object_container)        # index 0
+        self.middle_stack.addWidget(self.instruction_properties_panel)    # index 1
 
-        self.properties_panel = PropertiesPanel(logger=self.ros_node.get_logger())
+        # Right column: Create stacked views for object vs instruction mode
+        self.right_stack = QStackedWidget()
+        
+        # Object mode right side: STL viewer (top) + properties panel (bottom)
+        self.object_right_container = QWidget()
+        object_right_layout = QVBoxLayout(self.object_right_container)
+        object_right_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Add reset view button
+        reset_button = QPushButton("Reset View")
+        reset_button.setMaximumHeight(30)
+        reset_button.clicked.connect(self._on_reset_view_clicked)
+        object_right_layout.addWidget(reset_button)
+        
         self.stl_viewer_widget = STLViewerWidget()
+        self.properties_panel = PropertiesPanel(logger=self.ros_node.get_logger())
+        object_right_layout.addWidget(self.stl_viewer_widget, 3)      # STL takes 3/4 of space
+        object_right_layout.addWidget(self.properties_panel, 1)       # Properties takes 1/4 of space
         
-        # Create a container for properties and STL viewer (right side)
-        right_container = QVBoxLayout()
-        right_container.setContentsMargins(0, 0, 0, 0)
-        right_container.addWidget(self.properties_panel, 1)  # Properties takes 2/3
-        right_container.addWidget(self.stl_viewer_widget, 2)  # STL viewer takes 1/3
+        # Instruction mode right side: two STL viewers (full width)
+        self.instruction_stl_panel = InstructionStlPanel(logger=self.ros_node.get_logger())
         
-        right_widget = QWidget()
-        right_widget.setLayout(right_container)
-        
-        # ----- Add panels to grid -----
-        #(row, column, rowSpan, columnSpan[, alignment=Qt.Alignment()])
-        self.layout.addWidget(self.objects_panel, 0, 0, 3, 1)             # full height left-side
-        self.layout.addLayout(self.middle_layout, 0, 1, 4, 1)             # middle, rows 0-2
-        self.layout.addWidget(right_widget, 0, 2, 4, 1)                   # right side, rows 0-2
-        self.layout.addWidget(self.instructions_panel, 3, 0, 1, 1)        # instructions same width as objects    
-        # ----- Column width proportions -----
-        self.layout.setColumnStretch(0, 1)    # Objects panel
-        self.layout.setColumnStretch(1, 1)    # Middle panel
-        self.layout.setColumnStretch(2, 2)    # Right panel (properties + STL) - bigger
+        self.right_stack.addWidget(self.object_right_container)       # index 0: object mode
+        self.right_stack.addWidget(self.instruction_stl_panel)        # index 1: instruction mode
 
-        # Full height for rows 0-2
-        self.layout.setRowStretch(0, 1)
-        self.layout.setRowStretch(1, 1)
-        self.layout.setRowStretch(2, 1)
-        self.layout.setRowStretch(3, 0)       # Instructions panel minimal height
-        # ----------------------------
-        # Connect selection signals
-        # ----------------------------
+        # Layout setup
+        self.layout.addWidget(self.objects_panel, 0, 0, 2, 1)              # Left: objects (2 rows)
+        self.layout.addWidget(self.instructions_panel, 2, 0, 2, 1)         # Left: instructions (2 rows)
+        self.layout.addWidget(self.middle_stack, 0, 1, 4, 1)               # Middle: object/instruction details
+        self.layout.addWidget(self.right_stack, 0, 2, 4, 1)                # Right: takes all 4 rows
+
+        # Connect signals
         self.objects_panel.list_widget.itemSelectionChanged.connect(self.on_object_selected)
         self.instructions_panel.list_widget.itemSelectionChanged.connect(self.on_instruction_selected)
 
-    # ----------------------------------------------------------------------
-    # Object selection handler
-    # ----------------------------------------------------------------------
+        # Initialize analyzer with empty scene
+        self.anylzer = AssemblySceneAnalyzerAdv(scene_data=self._assembly_scene,
+                                                logger=self.ros_node.get_logger())
+
     def on_object_selected(self):
         item = self.objects_panel.list_widget.currentItem()
         if not item:
             return
+
+
+        # Switch UI to object view
+        try:
+            self.middle_stack.setCurrentIndex(0)
+            self.right_stack.setCurrentIndex(0)
+        except Exception:
+            pass
 
 
         self.instructions_panel.list_widget.clearSelection()
@@ -756,6 +1094,14 @@ class AssemblyScenceViewerWidget(QWidget):
         self._current_selected_frame = None
         self._current_selected_axis = None
         self._current_selected_plane = None
+
+    # ----------------------------------------------------------------------
+    # Reset view button handler
+    # ----------------------------------------------------------------------
+    def _on_reset_view_clicked(self):
+        """Reset the STL viewer camera to default view."""
+        if self.stl_viewer_widget:
+            self.stl_viewer_widget.reset_camera()
 
     # ----------------------------------------------------------------------
     # Frame selection handler - marks constraining frames
@@ -1140,30 +1486,46 @@ class AssemblyScenceViewerWidget(QWidget):
 
         self.ros_node.get_logger().warn(f"Selected instruction: {item.text()}")
 
-        # Deselect object list
+        # Deselect object list (avoid recursion)
+        self.objects_panel.list_widget.blockSignals(True)
         self.objects_panel.list_widget.clearSelection()
+        self.objects_panel.list_widget.blockSignals(False)
 
-        # Clear middle panel and show instruction (placeholder)
+        # Switch UI to instruction view (middle: instruction properties, right: two STL viewers)
+        try:
+            self.middle_stack.setCurrentIndex(1)
+            self.right_stack.setCurrentIndex(1)
+        except Exception:
+            pass
+
+        # Clear middle panel content (object details), keep PropertiesPanel for frame/axis/plane
         self.clear_middle_panel()
+        self.properties_panel.clear()
 
-        placeholder_panel = QLabel(f"Instruction selected: {item.text()}")
-        placeholder_panel.setStyleSheet("font-size: 16pt; padding: 10px;")
-        self.middle_layout.addWidget(placeholder_panel)
-        
         item_text = item.text()
+        try:
+            inst: am_msgs.AssemblyInstruction = self.anylzer.get_assembly_instruction_by_name(item_text)
+        except Exception as e:
+            self.ros_node.get_logger().error(f"Failed to get instruction '{item_text}': {e}")
+            return
 
-        inst:am_msgs.AssemblyInstruction = self.anylzer.get_assembly_instruction_by_name(item_text)
+        # Update middle instruction properties panel
+        try:
+            self.instruction_properties_panel.instruction = inst
+            self.instruction_properties_panel.analyzer = self.anylzer
+            self.instruction_properties_panel._display_instruction_properties()
+        except Exception as e:
+            self.ros_node.get_logger().error(f"Error updating instruction properties panel: {e}")
 
-        # This is currently emphty
-        stl_path = inst.parent_file_path
-        #self.stl_viewer_widget.reset_stl_file(stl_path)
-        
-        self._current_item_text = item.text()
-        self._current_panel = self.objects_panel
+        # Update right-side STL viewers
+        try:
+            self.instruction_stl_panel.set_instruction(inst, self.anylzer)
+        except Exception as e:
+            self.ros_node.get_logger().warn(f"Error updating instruction STL panel: {e}")
 
-        # Track current selection
         self._current_item_text = item.text()
         self._current_panel = self.instructions_panel
+
 
     # ----------------------------------------------------------------------
     # Clear middle panel safely

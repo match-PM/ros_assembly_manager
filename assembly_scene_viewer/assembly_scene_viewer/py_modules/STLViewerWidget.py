@@ -76,6 +76,11 @@ class STLViewerWidget(QWidget):
             self.clear_stl()
             self.load_stl(stl_file_path)
     
+    def reset_camera(self):
+        """Reset the camera view to default (fits all actors in view)."""
+        self.renderer.ResetCamera()
+        self.vtk_widget.GetRenderWindow().Render()
+    
     def display_frame(self, 
                       frame_name: str, 
                       position, 
