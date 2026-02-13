@@ -1,4 +1,4 @@
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, pyqtSlot, QRunnable, QObject, QThreadPool
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, pyqtSlot, QRunnable, QObject, QThreadPool, QSize
 from PyQt6.QtWidgets import (QScrollArea, 
                              QMessageBox, 
                              QDialog, 
@@ -29,10 +29,11 @@ from PyQt6.QtWidgets import (QScrollArea,
                              QTableWidgetItem,
                             QTableWidget,
                             QGroupBox,
+                            QStyledItemDelegate,
                             )
 
 from scipy.spatial.transform import Rotation as R
-from PyQt6.QtGui import QColor, QTextCursor, QFont, QAction, QIcon
+from PyQt6.QtGui import QColor, QTextCursor, QFont, QAction, QIcon, QPainter
 from functools import partial
 from rclpy.node import Node
 from ament_index_python.packages import get_package_share_directory
@@ -306,6 +307,10 @@ class FramesElementPanel(QListWidget):
         self.obj_message = obj_message   
         self.obj_name = obj_message.obj_name
         self.scene_message = scene_message or am_msgs.ObjectScene()
+        
+        # Set custom delegate for rendering status indicator
+        self.setItemDelegate(FrameListItemDelegate(self))
+        
         self.populate()
         
         # Connect to item selection signal
@@ -327,6 +332,43 @@ class FramesElementPanel(QListWidget):
                 if display_text == item.text():
                     self.frame_selected.emit(frame.frame_name)
                     break
+
+    def _get_constraint_status(self, frame: am_msgs.RefFrame) -> tuple:
+        """
+        Determine constraint status based on frame properties: (color, description)
+        Only shows status for glue, vision, or laser frames.
+        Green: Property action completed
+        Yellow: Property action pending
+        Red: Property action failed or not started
+        Returns (None, None) if frame doesn't have these properties.
+        """
+        props = frame.properties
+        
+        # Check if this is a glue point frame
+        if props.glue_pt_frame_properties.is_glue_point:
+            if props.glue_pt_frame_properties.has_been_cured:
+                return (QColor("green"), "Glue cured")
+            elif props.glue_pt_frame_properties.has_been_placed:
+                return (QColor("orange"), "Glue placed, curing...")
+            else:
+                return (QColor("red"), "Glue not placed")
+        
+        # Check if this is a vision frame
+        if props.vision_frame_properties.is_vision_frame:
+            if props.vision_frame_properties.has_been_measured:
+                return (QColor("green"), "Vision measured")
+            else:
+                return (QColor("red"), "Vision not measured")
+        
+        # Check if this is a laser frame
+        if props.laser_frame_properties.is_laser_frame:
+            if props.laser_frame_properties.has_been_measured:
+                return (QColor("green"), "Laser measured")
+            else:
+                return (QColor("red"), "Laser not measured")
+        
+        # No relevant properties
+        return (None, None)
 
     def populate(self):
         self.clear()
@@ -364,16 +406,52 @@ class FramesElementPanel(QListWidget):
             elif props.assembly_frame_properties.is_target_frame:
                 icon = icon_map['target']
             elif frame.constraints.centroid.is_active or frame.constraints.in_plane.is_active or frame.constraints.orthogonal.is_active:
-                # If it's a constraining frame but doesn't have a specific type, use assembly icon
                 icon = icon_map['chain']
             else:
                 icon = icon_map['default']
 
-
+            # Get status indicator (color and tooltip)
+            status_color, status_tooltip = self._get_constraint_status(frame)
+            
+            # Create item with just the text (no status circle in text)
             item = QListWidgetItem(item_text)
             if icon:
                 item.setIcon(icon)
+            
+            # Store status color in item data for delegate to render
+            if status_color:
+                item.setData(Qt.ItemDataRole.UserRole, status_color.name())
+                item.setToolTip(status_tooltip)
+            else:
+                item.setData(Qt.ItemDataRole.UserRole, None)
+            
             self.addItem(item)
+ 
+
+class FrameListItemDelegate(QStyledItemDelegate):
+    """Custom delegate to render status indicator circle without affecting text styling"""
+    
+    def paint(self, painter: QPainter, option, index):
+        # Call parent paint to render icon and text normally
+        super().paint(painter, option, index)
+        
+        # Get status color from item data
+        status_color_name = index.data(Qt.ItemDataRole.UserRole)
+        if status_color_name:
+            status_color = QColor(status_color_name)
+            
+            # Draw indicator circle on the right side of the item
+            circle_radius = 5
+            circle_x = option.rect.right() - circle_radius - 8
+            circle_y = option.rect.center().y()
+            
+            painter.setBrush(status_color)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawEllipse(int(circle_x - circle_radius), 
+                              int(circle_y - circle_radius), 
+                              circle_radius * 2, 
+                              circle_radius * 2)
+
  
 
 class AxisElementPanel(QListWidget):
@@ -1176,4 +1254,4 @@ class AssemblyScenceViewerWidget(QWidget):
                 if item.text() == self._current_selected_plane:
                     element_panel.planes_panel.setCurrentItem(item)
                     return
-                
+

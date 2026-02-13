@@ -190,6 +190,9 @@ class AssemblyManagerScene():
 
         if 'Laser' in new_ref_frame.frame_name or 'laser' in new_ref_frame.frame_name:
             new_ref_frame.properties.laser_frame_properties.is_laser_frame = True
+
+        if 'Glue' in new_ref_frame.frame_name or 'glue' in new_ref_frame.frame_name:
+            new_ref_frame.properties.glue_pt_frame_properties.is_glue_point = True
         
         # Check if the new ref frame should be connected to an existing object or not.
         frame_is_obj_frame = self.check_object_exists(new_ref_frame.parent_frame)
