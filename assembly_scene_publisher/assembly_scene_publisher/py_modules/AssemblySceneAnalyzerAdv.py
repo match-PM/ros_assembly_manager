@@ -99,5 +99,19 @@ class AssemblySceneAnalyzerAdv(AssemblySceneAnalyzer):
             return False
         except ComponentNotFoundError as e:
             return False
-        
-        
+
+
+    def check_is_any_frame_measured(self) -> bool:
+        """
+        Check if any frame in the scene is being measured.
+
+        Returns:
+            bool: True if any frame is being measured, False otherwise.
+        """
+        for obj in self._get_scene().objects_in_scene:
+            obj: ami_msg.Object
+            for frame in obj.ref_frames:
+                frame: ami_msg.RefFrame
+                if frame.properties.laser_frame_properties.has_been_measured or frame.properties.vision_frame_properties.has_been_measured:
+                    return True
+        return False

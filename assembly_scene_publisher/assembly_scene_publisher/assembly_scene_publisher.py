@@ -18,6 +18,8 @@ from typing import Union
 from assembly_scene_publisher.py_modules.AssemblyScene import AssemblyManagerScene
 from assembly_scene_publisher.py_modules.scene_errors import *
 from assembly_scene_publisher.py_modules.AssemblyScenePositionCorrector import AssemblyScenePositionCorrector
+from assembly_scene_publisher.py_modules.LineOfSightManager import LineOfSightManager
+
 class AssemblyScenePublisherNode(Node):
     def __init__(self):
         super().__init__("assembly_scene_publisher")
@@ -33,6 +35,9 @@ class AssemblyScenePublisherNode(Node):
                                                                  get_scene_callback = self.object_scene.get_scene,
                                                                  assembly_scene_topic=assembly_scene_topic,
                                                                  update_scene_with_constraints_callback=self.object_scene.update_scene_with_constraints)
+        
+        self.line_of_sight_manager = LineOfSightManager(node=self, 
+                                                        assembly_scene_topic=assembly_scene_topic)
         
         mng_str = "assembly_manager" 
         pub_str = "assembly_scene_publisher"
@@ -75,6 +80,8 @@ class AssemblyScenePublisherNode(Node):
 
         self.set_component_uuid_srv = self.create_service(ami_srv.SetComponentUuid,f'{mng_str}/set_component_uuid', self.set_component_uuid,callback_group=self.callback_group)
         #self.timer = self.create_timer(5.0, self.object_scene.publish_information,callback_group=self.callback_group)
+
+        self.check_line_of_sight_srv = self.create_service(ami_srv.CheckLineOfSight,f'{mng_str}/check_line_of_sight', self.check_line_of_sight,callback_group=self.callback_group)
         
         self.correct_component_position_srv = self.create_service(ami_srv.CorrectComponentPosition,f'{mng_str}/correct_component_position', self.correct_component_position,callback_group=self.callback_group)
         self.get_logger().info("Assembly scene publisher started!")
@@ -283,7 +290,11 @@ class AssemblyScenePublisherNode(Node):
             self.get_logger().error(f"Error correcting component position: {e}")
             response.success = False
         return response
-    
+
+    def check_line_of_sight(self, request: ami_srv.CheckLineOfSight.Request, response: ami_srv.CheckLineOfSight.Response):
+        response = self.line_of_sight_manager.check_line_of_sight(request)
+        return response
+
 def main(args=None):
     rclpy.init(args=args)
     node = AssemblyScenePublisherNode()

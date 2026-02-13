@@ -40,6 +40,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/SetFrameProperties.srv"
   "srv/SetComponentUuid.srv"
   "srv/CorrectComponentPosition.srv"
+  "srv/CheckLineOfSight.srv"
 
   "msg/AssemblyInstruction.msg"
   "msg/Object.msg"

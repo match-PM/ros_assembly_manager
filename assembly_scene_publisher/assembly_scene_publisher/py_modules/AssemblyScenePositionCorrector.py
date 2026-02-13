@@ -63,7 +63,7 @@ class AssemblyScenePositionCorrector:
             return
         
         start = time.perf_counter()
-
+        
         # get the current scene from the callback
         self.external_scene_analyzer.set_scene(msg)  # Update the analyzer with the new scene
 
@@ -76,7 +76,7 @@ class AssemblyScenePositionCorrector:
                 new_component = deepcopy(component)
                 new_component.ref_frames = []  # Clear frames to be added separately to avoid shared-state issues
                 self.internal_scene.objects_in_scene.append(new_component)
-                self.logger.debug(f"Component {component.obj_name} missing in internal scene, adding it.")
+                #self.logger.debug(f"Component {component.obj_name} missing in internal scene, adding it.")
             else:
                 existing_component = self.internal_scene_analyzer.get_component_by_name(component.obj_name)
                 # copy properties to avoid aliasing with the incoming message
@@ -99,12 +99,12 @@ class AssemblyScenePositionCorrector:
                 else:
                     internal_component = self.internal_scene_analyzer.get_component_by_name(component.obj_name)
                     if internal_component is None:
-                        self.logger.debug(f"internal component {component.obj_name} not found when adding frame {frame.frame_name}")
+                        #self.logger.debug(f"internal component {component.obj_name} not found when adding frame {frame.frame_name}")
                         continue
                     
                     # append a deep copy of the frame to avoid shared-state with incoming message
                     internal_component.ref_frames.append(deepcopy(frame))
-                    self.logger.warn(f"Frame {frame.frame_name} missing in internal scene, adding it.")
+                    #self.logger.warn(f"Frame {frame.frame_name} missing in internal scene, adding it.")
 
         duration_ms = (time.perf_counter() - start) * 1000
         self.counter += 1
