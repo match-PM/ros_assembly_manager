@@ -233,10 +233,15 @@ class AssemblyManagerNode(Node):
         return object_publish_success
 
     def spawn_component_from_description_callback(self, request: ami_srv.SpawnComponentFromDescription.Request, response: ami_srv.SpawnComponentFromDescription.Response):
-        response.success = self.spawn_component_from_description(request)
+        response.success, response.message = self.spawn_component_from_description(request)
         return response
         
-    def spawn_component_from_description(self, request: ami_srv.SpawnComponentFromDescription.Request, component_name_override = None)->bool:
+    def spawn_component_from_description(self, request: ami_srv.SpawnComponentFromDescription.Request, component_name_override = None)->tuple:
+        """Spawn a component from a JSON description file.
+        
+        Returns:
+            tuple: (success: bool, message: str)
+        """
         self.logger.info("Spawning component from description!")
         try:
             file_data = None
@@ -245,16 +250,19 @@ class AssemblyManagerNode(Node):
                 file_data = json.load(file)
 
         except FileNotFoundError:
-            self.logger.error(f"Error: File not found at path '{request.file_path}'.")
-            return False
+            msg = f"Error: File not found at path '{request.file_path}'."
+            self.logger.error(msg)
+            return False, msg
 
         except json.JSONDecodeError as e:
-            self.logger.error(f"Error decoding JSON: {e}")
-            return False
+            msg = f"Error decoding JSON: {e}"
+            self.logger.error(msg)
+            return False, msg
 
         except Exception as e:
-            self.logger.error(f"An unexpected error occurred: {e}")
-            return False
+            msg = f"An unexpected error occurred: {e}"
+            self.logger.error(msg)
+            return False, msg
         try:
             if component_name_override is not None:
                 comp_name = component_name_override
@@ -313,8 +321,9 @@ class AssemblyManagerNode(Node):
             spawn_success = self.spawn_component(spawn_request)
 
             if not spawn_success:
-                self.logger.error(f"Error while spawning component {spawn_request.obj_name}!")
-                return False
+                msg = f"Error while spawning component {spawn_request.obj_name}!"
+                self.logger.error(msg)
+                return False, msg
 
             self.logger.info(f"Start processing ref frames for '{spawn_request.obj_name}'...")
             # This is needed for tf to update
@@ -355,8 +364,9 @@ class AssemblyManagerNode(Node):
                 spawn_ref_frame_success = self.create_ref_frame(create_ref_frame_request)
 
                 if not spawn_ref_frame_success:
-                    self.logger.error(f"Error while spawning ref frame {create_ref_frame_request.ref_frame.frame_name}!")
-                    return False
+                    msg = f"Error while spawning ref frame {create_ref_frame_request.ref_frame.frame_name}!"
+                    self.logger.error(msg)
+                    return False, msg
                 
             self.logger.info(f"Start processing ref axis for '{spawn_request.obj_name}'...")    
             for axis in ref_axis:
@@ -368,8 +378,9 @@ class AssemblyManagerNode(Node):
                         create_axis_request.axis.point_names[index] = frame
                 spawn_axis_success = self.create_ref_axis(create_axis_request)
                 if not spawn_axis_success:
-                    self.logger.error(f"Error while spawning axis {create_axis_request.axis.axis_name}!")
-                    return False
+                    msg = f"Error while spawning axis {create_axis_request.axis.axis_name}!"
+                    self.logger.error(msg)
+                    return False, msg
                 
             self.logger.info(f"Start processing ref planes for '{spawn_request.obj_name}'...")    
             for plane in ref_planes:
@@ -388,13 +399,15 @@ class AssemblyManagerNode(Node):
                 create_plane_request.ref_plane.ideal_norm_vector.z = plane.get("normalVector").get("Z")
                 spawn_plane_success = self.create_ref_plane(create_plane_request)
                 if not spawn_plane_success:
-                    self.logger.error(f"Error while spawning plane {create_plane_request.ref_plane.ref_plane_name}!")
-                    return False
+                    msg = f"Error while spawning plane {create_plane_request.ref_plane.ref_plane_name}!"
+                    self.logger.error(msg)
+                    return False, msg
             
-            return True
+            return True, f"Component '{comp_name}' spawned successfully from description."
         except Exception as e:
-            self.logger.error(f"Error while spawning component '{comp_name}' from description: {e}")
-            return False
+            msg = f"Error while spawning component '{comp_name}' from description: {e}"
+            self.logger.error(msg)
+            return False, msg
    
     def create_assembly_instruction_from_description_callback(self, request: ami_srv.CreateAssemblyInstructionFromDescription.Request, response: ami_srv.CreateAssemblyInstructionFromDescription.Response):
         self.logger.info("Creating assembly instructions!")
@@ -448,9 +461,9 @@ class AssemblyManagerNode(Node):
                     request = ami_srv.SpawnComponentFromDescription.Request()
                     #self.logger.debug(f"Spawning component from description: {component_path}")
                     request.file_path = component_path
-                    spawn_success = self.spawn_component_from_description(request, component_name_override = component_name)
+                    spawn_success, spawn_msg = self.spawn_component_from_description(request, component_name_override = component_name)
                     if not spawn_success:
-                        self.logger.error(f"Error while spawning component from description!")
+                        self.logger.error(f"Error while spawning component from description: {spawn_msg}")
                         response.success = False
                         return response
                     

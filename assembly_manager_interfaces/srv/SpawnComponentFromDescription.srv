@@ -3,4 +3,5 @@ string component_name_override
 string uuid_override
 ---
 bool success
+string message
 string uuid
