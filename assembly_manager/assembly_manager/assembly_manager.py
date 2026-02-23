@@ -228,7 +228,7 @@ class AssemblyManagerNode(Node):
                 response = self.object_topic_publisher_client_spawn.call(SpawnRequest)
                 object_publish_success = response.success
 
-        self.logger.info(f"Object publish success: {object_publish_success}. Gazebo running: {self.is_gazebo_running()}")
+        self.logger.info(f"Object publish success: {object_publish_success}.")
         
         return object_publish_success
 
@@ -529,7 +529,7 @@ class AssemblyManagerNode(Node):
         response = self.create_ref_plane_client.call(request)
 
         return response.success
-
+    
     def create_assembly_instructions(self, request: ami_srv.CreateAssemblyInstructions.Request)->bool:
         if not self.create_assembly_instructions_client.wait_for_service(timeout_sec=2.0):
             self.get_logger().error('Create Assembly Instruction Service not available!')
@@ -539,20 +539,6 @@ class AssemblyManagerNode(Node):
 
         return response.success
 
-    def is_gazebo_running(self):
-        """Check if the Gazebo node is active."""
-        node_names = self.get_node_names()
-        if 'gazebo' in node_names:
-            return True
-        return False
-
-    def is_unity_running(self)->bool:
-        """Check if the Unity node is active."""
-        node_names = self.get_node_names()
-        if 'ROS2UnityCam1Publisher' in node_names:
-            return True
-        return False
-    
 def main(args=None):
     rclpy.init(args=args)
     node = AssemblyManagerNode()

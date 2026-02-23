@@ -21,6 +21,8 @@ import string
 # import plt
 import matplotlib.pyplot as plt
 from assembly_scene_publisher.py_modules.AssemblySceneAnalyzer import AssemblySceneAnalyzer
+from assembly_scene_publisher.py_modules.AssemblySceneModifier import AssemblySceneModifier
+
 from scipy.optimize import minimize, least_squares
 from assembly_scene_publisher.py_modules.frame_constraints import (FrameConstraintsHandler, 
                                                                     calculate_constraints_for_component,
@@ -30,8 +32,6 @@ from copy import deepcopy,copy
 
 # substite all these imports by using the AssemblySceneAnalyzer class
 from assembly_scene_publisher.py_modules.scene_functions import (get_parent_frame_for_ref_frame,
-                                                                 get_ref_frame_by_name,
-                                                                 is_frame_from_scene,
                                                                  get_axis_from_scene,
                                                                  get_plane_from_scene,
                                                                  get_component_for_frame_name,
@@ -84,6 +84,8 @@ class AssemblyManagerScene():
                  assembly_scene_topic: str = '/assembly_manager/scene'):
         self.scene:ami_msg.ObjectScene = ami_msg.ObjectScene()
         self.assembly_scene_analyzer = AssemblySceneAnalyzer(self.scene, node.get_logger())
+        self.assembly_scene_modifier = AssemblySceneModifier(self.scene, node.get_logger())
+
         self.node = node
         self.callback_group_pub = ReentrantCallbackGroup()
         self._scene_publisher = node.create_publisher(ami_msg.ObjectScene,assembly_scene_topic,10,callback_group=self.callback_group_pub)
@@ -108,6 +110,10 @@ class AssemblyManagerScene():
     
     def add_obj_to_scene(self, new_comp:ami_msg.Object)-> bool:
         
+        if self.assembly_scene_analyzer.check_frame_in_occupied_frames(new_comp.parent_frame):
+            self.logger.error(f"Parent frame '{new_comp.parent_frame}' is marked as occupied frame. Object '{new_comp.obj_name}' can not be spawned!")
+            return False
+        
         # Generate a new UUID if not set
         if new_comp.uuid == "":
             new_comp.uuid = self.generate_id()
@@ -116,19 +122,25 @@ class AssemblyManagerScene():
             self.logger.error(f"Name of the component should not be empty. Aboarted!")
             return False
         
-        name_conflict, _ = self.check_ref_frame_exists(new_comp.obj_name)
+        name_conflict = self.assembly_scene_analyzer.check_frames_exist_in_scene([new_comp.obj_name])
 
         if name_conflict:
             self.logger.error(f'Object can not have the same name as an existing reference frame!')
             return False
 
-        parent_frame_exists = self.check_ref_frame_exists(new_comp.parent_frame)
+        parent_frame_exists = self.check_if_frame_exists(new_comp.parent_frame)
 
         if not parent_frame_exists:
-            self.logger.warn(f"Tried to spawn component {new_comp.obj_name}, but parent frame '{new_comp.parent_frame}' does not exist!")
+            self.logger.error(f"Tried to spawn component {new_comp.obj_name}, but parent frame '{new_comp.parent_frame}' does not exist!")
             return False
 
-        obj_existend = self.check_object_exists(new_comp.obj_name)
+        parent_is_comp = self.assembly_scene_analyzer.check_component_exists(new_comp.parent_frame)
+
+        # only if parent is not a component. 
+        if not parent_is_comp:
+            self.assembly_scene_modifier.set_to_occupied_frames(new_comp.parent_frame)
+
+        obj_existend = self.assembly_scene_analyzer.check_component_exists(new_comp.obj_name)
 
         if not obj_existend:
             self.scene.objects_in_scene.append(new_comp)
@@ -164,7 +176,7 @@ class AssemblyManagerScene():
         ref_frame_existend, parent_frame = self.check_ref_frame_exists(new_ref_frame.frame_name)
 
         # checks if object with same name exists
-        name_conflict_1 = self.check_object_exists(new_ref_frame.frame_name)
+        name_conflict_1 = self.assembly_scene_analyzer.check_component_exists(new_ref_frame.frame_name)
 
         # checks if tf frame exists
         name_conflict_2 = self.check_if_frame_exists(new_ref_frame.frame_name)
@@ -195,12 +207,12 @@ class AssemblyManagerScene():
             new_ref_frame.properties.glue_pt_frame_properties.is_glue_point = True
         
         # Check if the new ref frame should be connected to an existing object or not.
-        frame_is_obj_frame = self.check_object_exists(new_ref_frame.parent_frame)
+        frame_is_obj_frame = self.assembly_scene_analyzer.check_component_exists(new_ref_frame.parent_frame)
 
         frame_list_to_append_to = []
 
         if frame_is_obj_frame:
-            frame_list_to_append_to = self.get_obj_by_name(new_ref_frame.parent_frame).ref_frames
+            frame_list_to_append_to = self.assembly_scene_analyzer.get_component_by_name(new_ref_frame.parent_frame).ref_frames
         else:
             frame_list_to_append_to = self.scene.ref_frames_in_scene
 
@@ -209,7 +221,7 @@ class AssemblyManagerScene():
         else:
             if parent_frame != new_ref_frame.parent_frame:
                 if frame_is_obj_frame:
-                    frame_list_to_delete = self.get_obj_by_name(parent_frame).ref_frames
+                    frame_list_to_delete = self.assembly_scene_analyzer.get_component_by_name(parent_frame).ref_frames
                 else:
                     frame_list_to_delete = self.scene.ref_frames_in_scene
                 for index, frame in enumerate(frame_list_to_delete):
@@ -362,33 +374,27 @@ class AssemblyManagerScene():
         self.logger().error(f"Frame '{frame_id}' could not be deleted! Frame does not exist!")
         return False
  
-    def get_obj_by_name(self, obj_name:str) -> ami_msg.Object:
-        """
-        Returns the object from the objects list by the given obj name
-        """
-        for obj in self.scene.objects_in_scene:
-            obj:ami_msg.Object
-            if obj.obj_name == obj_name:
-                return obj
-        return None
-
     def change_obj_parent_frame(self, obj_id: str, new_parent_frame:str) -> bool :
-        if obj_id == new_parent_frame:
-            self.logger.error(f'Parent and child frame can not be the same! parent_frame = child_frame ')
-            return False
-        
-        new_parent_frame_exists = self.check_if_frame_exists(new_parent_frame)
-        if not new_parent_frame_exists:
-            self.logger.error(f"The given parent frame '{new_parent_frame}' does not exist! Frame could not be changed!")
-            return False
-        
-        obj_to_change = self.get_obj_by_name(obj_name=obj_id)   # returns not if not found
+        try:
+            if obj_id == new_parent_frame:
+                self.logger.error(f'Parent and child frame can not be the same! parent_frame = child_frame ')
+                return False
+            
+            new_parent_frame_exists = self.check_if_frame_exists(new_parent_frame)
 
-        # if obj is not None
-        if obj_to_change is not None:
+            if not new_parent_frame_exists:
+                self.logger.error(f"The given parent frame '{new_parent_frame}' does not exist! Frame could not be changed!")
+                return False
+            
+            obj_to_change = self.assembly_scene_analyzer.get_component_by_name(obj_name=obj_id)   # returns not if not found
+
+            old_parent = obj_to_change.parent_frame
+
+            # if obj is not None
             if obj_to_change.parent_frame == new_parent_frame:
                 self.logger.warn(f'Parent frame is already set!')
                 return True
+            
             new_trans, new_rot = adapt_transform_for_new_parent_frame(  child_frame=obj_to_change.obj_name,
                                                                         new_parent_frame=new_parent_frame,
                                                                         tf_buffer=self.tf_buffer)
@@ -399,9 +405,16 @@ class AssemblyManagerScene():
             obj_to_change.parent_frame = new_parent_frame
             self.logger.info(f'Parent Frame updated!') 
             self.publish_information()
+            self.assembly_scene_modifier.del_from_occupied_frames(old_parent)
+
+            # only if its not a component
+            if not self.assembly_scene_analyzer.check_component_exists(new_parent_frame):
+                self.assembly_scene_modifier.set_to_occupied_frames(new_parent_frame)
+
             return True
-        else:
-            self.logger.error(f'Given obj_id is not an existing object!')
+
+        except ComponentNotFoundError as e:
+            self.logger.error(f"Error while changing parent frame: {str(e)}")
             return False
             
     def publish_to_tf(self):
@@ -452,14 +465,6 @@ class AssemblyManagerScene():
         except Exception as e:
             print(e)
             return False
-
-    def check_object_exists(self,name_new_obj:str) -> bool:
-        # this function checks if an object is in the objects list
-        for obj in self.scene.objects_in_scene:
-            obj: ami_msg.Object
-            if obj.obj_name == name_new_obj:
-                return True
-        return False
     
     def check_ref_frame_exists(self,name_frame:str) -> Union[bool,str]:
         """
@@ -515,7 +520,7 @@ class AssemblyManagerScene():
             list_to_append_axis= []
 
             # try to get parent object of ref frame 
-            obj = self.get_obj_by_name(parent_frame_1)
+            obj = self.assembly_scene_analyzer.get_component_by_name(parent_frame_1)
             
             if obj is None:
                 list_to_append_axis = self.scene.axis_in_scene
@@ -590,7 +595,7 @@ class AssemblyManagerScene():
             list_to_append_plane = []
 
             # try to get parent object of ref frame 
-            obj = self.get_obj_by_name(parent_frame_1)
+            obj = self.assembly_scene_analyzer.get_component_by_name(parent_frame_1)
             
             if obj is None:
                 list_to_append_plane = self.scene.planes_in_scene
@@ -660,12 +665,13 @@ class AssemblyManagerScene():
             self.logger.warn(f"Pose could not be updated. Frame '{frame_obj_name}' not found!")
             return False
 
-    def modify_frame_relative(self,frame_name:str, 
-                              translation: Point, 
-                              rotation: Quaternion,
-                              not_relativ_to_parent_but_child:bool = False)-> bool:
+    def modify_frame_relative(self,request:ami_srv.ModifyPoseRelative.Request)-> bool:
         #self.logger.warn(f"Pose of frame '{frame_name}' will be updated relative to its parent frame!")
         pose_to_modify: Pose = None
+        frame_name = request.frame_name
+        not_relativ_to_parent_but_child = request.not_relativ_to_parent_but_child
+        translation = request.rel_position
+        rotation = request.rel_rotation
 
         if not self.check_if_frame_exists(frame_name):
             self.logger.error(f"Error modifing frame position. Frame '{frame_name}' does not exist")
@@ -673,7 +679,8 @@ class AssemblyManagerScene():
         
         # Find the parent Frame
         parent_frame = get_parent_frame_for_ref_frame(scene=self.scene, frame_name=frame_name, logger=self.logger)
-        pose_to_modify = get_ref_frame_by_name(self.scene, frame_name, logger=self.logger).pose
+        frame_to_modify = self.assembly_scene_analyzer.get_ref_frame_by_name(frame_name)
+        pose_to_modify = frame_to_modify.pose
         
         component_name = get_component_for_frame_name(self.scene, frame_name)
         
@@ -703,6 +710,14 @@ class AssemblyManagerScene():
             pose_to_modify.position.z += translation.z
             pose_to_modify.orientation = quaternion_multiply(pose_to_modify.orientation,rotation)
             
+        if request.set_laser_measured:
+            frame_to_modify.properties.laser_frame_properties.is_laser_frame = True
+            frame_to_modify.properties.laser_frame_properties.has_been_measured = True
+        
+        if request.set_vision_measured:
+            frame_to_modify.properties.vision_frame_properties.is_vision_frame = True
+            frame_to_modify.properties.vision_frame_properties.has_been_measured = True
+
         if component_name is not None:
             calculate_constraints_for_component(scene=self.scene,
                                 component_name=component_name,
@@ -710,14 +725,16 @@ class AssemblyManagerScene():
             self.publish_information()
         else:
             self.update_scene_with_constraints()
-        
+                    
         self.logger.info(f'Pose for object {frame_name} updated!')
         return True
 
 
-    def modify_frame_absolut(self,frame_name:str, new_world_pose: Pose)-> bool:
+    def modify_frame_absolut(self,request:ami_srv.ModifyPoseAbsolut.Request)-> bool:
         # Give pose in world coordinates
         pose_to_modify: Pose = Pose()
+        frame_name = request.frame_name
+        new_world_pose = request.pose
         if not self.check_if_frame_exists(frame_name):
             self.logger.error(f"Error modifing frame position. Frame '{frame_name}' does not exist")
             return False
@@ -750,16 +767,24 @@ class AssemblyManagerScene():
 
             #self.logger.info(f'Frame {frame_name} updated!') 
             
-            frame = get_ref_frame_by_name(self.scene, frame_name, logger=self.logger)
-
+            frame_to_modify = self.assembly_scene_analyzer.get_ref_frame_by_name(frame_name)
             # only modify the position !!!!
-            frame.pose.position = pose_to_modify.position
+            frame_to_modify.pose.position = pose_to_modify.position
 
             # right now there is an error with the orientation. Beside that, the question is, how we would like to handle the orientation (should it actually be modified).
             # frame.pose = pose_to_modify
             
             component_name = get_component_for_frame_name(self.scene, frame_name)
             
+            if request.set_laser_measured:
+                frame_to_modify.properties.laser_frame_properties.is_laser_frame = True
+                frame_to_modify.properties.laser_frame_properties.has_been_measured = True
+            
+            if request.set_vision_measured:
+                frame_to_modify.properties.vision_frame_properties.is_vision_frame = True
+                frame_to_modify.properties.vision_frame_properties.has_been_measured = True
+
+
             if component_name is not None:
                 calculate_constraints_for_component(scene=self.scene,
                                     component_name=component_name,
@@ -772,9 +797,11 @@ class AssemblyManagerScene():
         else:
             return False
 
-    def modify_frame_set_to_frame(self, frame_to_set: str, from_frame: str)-> bool:
+    def modify_frame_set_to_frame(self, request:ami_srv.ModifyPoseFromFrame.Request)-> bool:
+        frame_to_set = request.frame_to_set
+        from_frame = request.from_frame
         
-        if not is_frame_from_scene(self.scene, frame_to_set):
+        if not self.assembly_scene_analyzer.is_frame_from_scene(frame_to_set):
             self.logger.error(f"Frame '{frame_to_set}' does not exist in the scene!")
             return False
         
@@ -787,7 +814,7 @@ class AssemblyManagerScene():
             self.logger.error(f"Frame '{from_frame}' does not exist in the tf buffer!")
             return False
                
-        ref_frame = get_ref_frame_by_name(self.scene, frame_to_set, logger=self.logger)
+        ref_frame = self.assembly_scene_analyzer.get_ref_frame_by_name(frame_to_set)
         
         ref_frame.pose.position.x = transform.transform.translation.x
         ref_frame.pose.position.y = transform.transform.translation.y
@@ -797,6 +824,14 @@ class AssemblyManagerScene():
         ref_frame.pose.orientation.z = transform.transform.rotation.z
         ref_frame.pose.orientation.w = transform.transform.rotation.w
           
+        if request.set_laser_measured:
+                ref_frame.properties.laser_frame_properties.is_laser_frame = True
+                ref_frame.properties.laser_frame_properties.has_been_measured = True
+            
+        if request.set_vision_measured:
+            ref_frame.properties.vision_frame_properties.is_vision_frame = True
+            ref_frame.properties.vision_frame_properties.has_been_measured = True
+
         component_name = get_component_for_frame_name(self.scene, frame_to_set)
         
         if component_name is not None:
@@ -806,7 +841,7 @@ class AssemblyManagerScene():
             self.publish_information()
         else:
             self.update_scene_with_constraints()
-            
+        
         return True
 
 
@@ -1323,13 +1358,6 @@ class AssemblyManagerScene():
             self.logger.warn(f"Object: {obj.obj_name}")
             self.logger.warn(f"Pose: {obj.obj_pose}")
             self.logger.warn(f"Ref Frames: {obj.ref_frames}")
-            #self.logger.info(f"Ref Planes: {obj.ref_planes}")
-            #self.logger.info(f"Ref Axes: {obj.ref_axis}")
-            #self.logger.info(f"Ref Points: {obj.ref_points}")
-            #self.logger.info(f"Ref Lines: {obj.ref_lines}")
-            #self.logger.info(f"Ref Planes: {obj.ref_planes}")
-            #self.logger.info(f"Ref Planes: {obj.ref_planes}")
-
 
     def get_plane_from_axis_and_frame(self, axis_name: str, frame_name: str, parent_frame:str = None)-> sp.Plane:
         axis_msg = get_axis_from_scene(scene=self.scene, 
@@ -1380,7 +1408,7 @@ class AssemblyManagerScene():
         return True
         
     def get_core_frames_for_component(self, component_name:str)->list[str]:
-        if not self.check_object_exists(component_name):
+        if not self.assembly_scene_analyzer.check_component_exists(component_name):
             self.logger.error("Object does not exist")
             return []
         
@@ -1536,6 +1564,19 @@ class AssemblyManagerScene():
             return response
         return response
     
+    def set_component_properties(self, request: ami_srv.SetComponentProperties.Request):
+        response = ami_srv.SetComponentProperties.Response()
+        try:
+            component = self.assembly_scene_analyzer.get_component_by_name(request.component_name)
+            component:ami_msg.Component
+            component.properties = request.properties
+            response.success = True
+        except ComponentNotFoundError as e:
+            self.logger.error(f"Failed to get component {request.component_name}: {e}")
+            response.success = False
+            return response
+        return response
+    
     def set_component_uuid(self, request: ami_srv.SetComponentUuid.Request):
         response = ami_srv.SetComponentUuid.Response()
         try:
@@ -1548,7 +1589,7 @@ class AssemblyManagerScene():
             response.success = False
             return response
         return response
-    
+                
     @staticmethod
     def generate_id(length:int=7)-> str:
         chars = string.ascii_letters + string.digits

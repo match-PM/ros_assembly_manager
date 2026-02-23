@@ -1,0 +1,3 @@
+bool is_gripped
+bool is_assembled
+bool is_on_chuck

@@ -61,3 +61,7 @@ class AssemblyInstructionCalculationError(Exception):
         self.message = f"Assembly instruction calculation error for components '{assembly_component}' and '{target_component}'."
         super().__init__(self.message)
 
+class OccupiedFrameError(Exception):
+    def __init__(self, message:str):
+        self.message = message
+        super().__init__(self.message)

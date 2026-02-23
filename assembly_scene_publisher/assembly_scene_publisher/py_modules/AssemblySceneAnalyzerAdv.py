@@ -15,22 +15,20 @@ from typing import Union
 import time
 from assembly_scene_publisher.py_modules.frame_constraints import CentroidConstraintHandler
 
-PM_ROBOT_GRIPPER_FRAME = 'PM_Robot_Tool_TCP'
 PM_ROBOT_GONIO_LEFT_FRAME_INDICATOR = 'Gonio_Left_Part'
 PM_ROBOT_GONIO_RIGHT_FRAME_INDICATOR = 'Gonio_Right_Part'
 
 class AssemblySceneAnalyzerAdv(AssemblySceneAnalyzer):
     def __init__(self, scene_data: ObjectScene, logger: RcutilsLogger = None):
         super().__init__(scene_data, logger)
-
-
-    def get_gripped_component(self)-> str:
-        for obj in self._get_scene().objects_in_scene:
-            obj:ami_msg.Object
-            if obj.parent_frame == PM_ROBOT_GRIPPER_FRAME:
-                return obj.obj_name
-        return None
     
+    def get_gripped_component(self)->str:
+        for comp in self._get_scene().objects_in_scene:
+            comp:ami_msg.Object
+            if comp.properties.is_gripped:
+                return comp.obj_name
+        
+        raise ComponentNotFoundError("No gripped component found in the scene.")    
 
     def get_assembly_target_frame_gripped_component(self)->list[str]:
         """
@@ -46,12 +44,9 @@ class AssemblySceneAnalyzerAdv(AssemblySceneAnalyzer):
         return frames
 
     def is_gripper_empty(self)-> bool:
-        
-        for obj in self._get_scene().objects_in_scene:
-            if self.logger is not None:
-                self.logger.warn(f"Object: {obj.obj_name}, Parent Frame: {obj.parent_frame}")
-            obj:ami_msg.Object
-            if obj.parent_frame == PM_ROBOT_GRIPPER_FRAME:
+        for comp in self._get_scene().objects_in_scene:
+            comp:ami_msg.Object
+            if comp.properties.is_gripped:
                 return False
         return True
     

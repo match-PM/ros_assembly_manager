@@ -34,7 +34,7 @@ from PyQt6.QtWidgets import (QScrollArea,
                             )
 
 from scipy.spatial.transform import Rotation as R
-from PyQt6.QtGui import QColor, QTextCursor, QFont, QAction, QIcon, QPainter
+from PyQt6.QtGui import QColor, QTextCursor, QFont, QAction, QIcon, QPainter, QPixmap
 from functools import partial
 from rclpy.node import Node
 from ament_index_python.packages import get_package_share_directory
@@ -103,9 +103,10 @@ class AssemblySceneViewerMainWindow(QMainWindow):
 # Widget: A clean header + QListWidget panel for objects
 # ---------------------------------------------------------------------------
 class ObjectsListPanel(QWidget):
-    def __init__(self, logger=None):
+    def __init__(self, analyzer:AssemblySceneAnalyzerAdv, logger=None):
         super().__init__()
         self.logger = logger
+        self.analyzer = analyzer
         self.scene_message = am_msgs.ObjectScene()
 
         layout = QVBoxLayout(self)
@@ -121,6 +122,8 @@ class ObjectsListPanel(QWidget):
 
         # List widget
         self.list_widget = QListWidget()
+        # Set custom delegate for rendering status indicator
+        self.list_widget.setItemDelegate(ObjectListItemDelegate(self.list_widget))
 
         layout.addWidget(self.header_label)
         layout.addWidget(self.list_widget)
@@ -137,8 +140,53 @@ class ObjectsListPanel(QWidget):
         self.list_widget.clear()
         for obj in self.scene_message.objects_in_scene:
             obj: am_msgs.Object
-            item = QListWidgetItem(f"{obj.obj_name}")
+            
+            # Create item with object name
+            item = QListWidgetItem(obj.obj_name)
+            
+            # Set icon if gripped
+            if obj.properties.is_gripped:
+                gripped_icon = QIcon(f"{get_package_share_directory('assembly_scene_viewer')}/media/robotic-hand.png")
+                item.setIcon(gripped_icon)
+            
+            # Determine assembled status and store as item data for delegate to render
+            try:
+                is_assembled = self.analyzer.check_component_assembled_adv(obj.obj_name)
+            except:
+                is_assembled = obj.properties.is_assembled
+            
+            # Store status color in item data for delegate to render
+            if is_assembled:
+                item.setData(Qt.ItemDataRole.UserRole, "green")
+            else:
+                item.setData(Qt.ItemDataRole.UserRole, "red")
+            
             self.list_widget.addItem(item)
+
+
+class ObjectListItemDelegate(QStyledItemDelegate):
+    """Custom delegate to render status indicator circle without affecting text styling"""
+    
+    def paint(self, painter: QPainter, option, index):
+        # Call parent paint to render icon and text normally
+        super().paint(painter, option, index)
+        
+        # Get status color from item data
+        status_color_name = index.data(Qt.ItemDataRole.UserRole)
+        if status_color_name:
+            status_color = QColor(status_color_name)
+            
+            # Draw indicator circle on the right side of the item
+            circle_radius = 5
+            circle_x = option.rect.right() - circle_radius - 8
+            circle_y = option.rect.center().y()
+            
+            painter.setBrush(status_color)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawEllipse(int(circle_x - circle_radius), 
+                              int(circle_y - circle_radius), 
+                              circle_radius * 2, 
+                              circle_radius * 2)
 
 # ---------------------------------------------------------------------------
 # Widget: Clean header + QListWidget for instructions
@@ -977,11 +1025,17 @@ class AssemblyScenceViewerWidget(QWidget):
 
         self._assembly_scene = am_msgs.ObjectScene()
 
+        # Initialize analyzer with empty scene
+        self.anylzer = AssemblySceneAnalyzerAdv(scene_data=self._assembly_scene,
+                                                logger=self.ros_node.get_logger())
+        
         # Main grid layout
         self.layout = QGridLayout(self)
 
         # ----- Panels -----
-        self.objects_panel = ObjectsListPanel(logger=self.ros_node.get_logger())
+        self.objects_panel = ObjectsListPanel(analyzer=self.anylzer, 
+                                              logger=self.ros_node.get_logger())
+        
         self.instructions_panel = InstructionListPanel(logger=self.ros_node.get_logger())
 
         # Middle column: we'll switch between object details (frames/axis/planes)
@@ -1035,9 +1089,6 @@ class AssemblyScenceViewerWidget(QWidget):
         self.objects_panel.list_widget.itemSelectionChanged.connect(self.on_object_selected)
         self.instructions_panel.list_widget.itemSelectionChanged.connect(self.on_instruction_selected)
 
-        # Initialize analyzer with empty scene
-        self.anylzer = AssemblySceneAnalyzerAdv(scene_data=self._assembly_scene,
-                                                logger=self.ros_node.get_logger())
 
     def on_object_selected(self):
         item = self.objects_panel.list_widget.currentItem()

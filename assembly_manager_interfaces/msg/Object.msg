@@ -10,3 +10,4 @@ RefFrame[] ref_frames
 Axis[] ref_axis
 Plane[] ref_planes
 std_msgs/ColorRGBA apperance_color
+ComponentProperties properties

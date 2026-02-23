@@ -9,7 +9,7 @@ import time
 from copy import deepcopy
 from geometry_msgs.msg import Transform, Vector3, Quaternion, Pose
 from assembly_scene_publisher.py_modules.geometry_functions import multiply_ros_transforms, inverse_ros_transform
-
+from assembly_scene_publisher.py_modules.LineOfSightChecker import LineOfSightChecker
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from geometry_msgs.msg import Pose, Transform
@@ -40,27 +40,48 @@ class LineOfSightManager:
         self.incoming_scene_analyzer.set_scene(msg)
 
         if self.incoming_scene_analyzer.check_is_any_frame_measured():
-            #self.logger.warn("Measured frames detected in the scene, skipping LOS correction and updating internal scene directly.")    
+            #self.logger.warn("Not updating as at least one frame has been measured.")
             return  # If any frame is measured, skip LOS correction
         else:
             #self.logger.warn("No measured frames in the scene, updating internal scene without LOS correction.")
-            self.incoming_scene.objects_in_scene = msg.objects_in_scene
+            self.internal_scene.objects_in_scene = msg.objects_in_scene
+            self.internal_scene_analyzer.set_scene(self.internal_scene)
+            #self.logger.warn("OVERWRITING")
 
 
     def check_line_of_sight(self, request: ami_srv.CheckLineOfSight.Request):
         
         response = ami_srv.CheckLineOfSight.Response()
         try:
-            self.logger.info(f"Checking line of sight for request: {request}")
             # Implement line of sight checking logic here
-            
+            component_name = self.internal_scene_analyzer.get_component_for_frame_name(request.frame_name)
+            component = self.internal_scene_analyzer.get_component_by_name(component_name)
+
             frame = self.internal_scene_analyzer.get_ref_frame_by_name(request.frame_name)
             endeffector_pose = multiply_ros_transforms(frame.pose, request.transform_from_frame)
 
-            response.success = True
+            checker = LineOfSightChecker(mesh_filepath=component.cad_data,
+                                         viewpoint=endeffector_pose,
+                                         target_point=frame.pose,
+                                         logger=self.logger)
             
-        except RefFrameNotFoundError as e:
+            points, collision_detected = checker.check_line_of_sight()
+            
+            if collision_detected:
+                self.logger.error(f"Line of sight blocked for frame '{request.frame_name}'.")
+                checker.visualize(timeout_seconds=10)
+            else:
+                self.logger.info(f"Line of sight clear for frame '{request.frame_name}'.")
+                checker.visualize(timeout_seconds=10)
+
+            response.success = not collision_detected
+            
+        except (RefFrameNotFoundError, ComponentNotFoundError) as e:
             self.logger.error(f"Reference frame not found: {e}")
+            response.success = False
+        
+        except Exception as e:
+            self.logger.error(f"Error during line of sight check: {e}")
             response.success = False
         
         return response

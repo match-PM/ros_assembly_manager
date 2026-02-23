@@ -40,45 +40,6 @@ class AssemblySceneAnalyzer():
     def set_scene(self, scene: ObjectScene):
         """Sets the current scene."""
         self._scene = scene
-
-    # def _check_scene(self):
-    #     """Checks if the scene is set, raises an error otherwise."""
-    #     counter = 10
-
-    # def _check_scene(self):
-    #     """Checks if the scene is set, raises an error otherwise."""
-    #     counter = 10
-
-    #     if self.logger is not None:
-    #         self.logger.warning(f"The assembly scene has not been initialized. Timeout after {counter} seconds.")
-
-    #     while isinstance(object.__getattribute__(self, "scene"), UnInitializedScene) and counter > 0:
-    #         if self.logger is not None:
-    #             self.logger.warning("Waiting for scene to initialize. Make sure the assembly manager is available!")
-    #         time.sleep(1)
-    #         counter -= 1
-
-    #     if isinstance(object.__getattribute__(self, "scene"), UnInitializedScene):
-    #         raise RuntimeError("Scene was never initialized within timeout!")
-
-    # def __getattribute__(self, name):
-    #     """Wraps public methods to check scene before executing."""
-    #     attr = object.__getattribute__(self, name)
-
-    #     # Exclude methods that must NEVER be wrapped
-    #     excluded = {
-    #         "_check_scene", "_scene_is_empty", "__getattribute__", "__init__"
-    #     }
-
-    #     # Don't wrap attributes or excluded functions
-    #     if callable(attr) and not name.startswith("__") and name not in excluded:
-    #         def wrapper(*args, **kwargs):
-    #             # Check the scene before calling
-    #             self._check_scene()
-    #             return attr(*args, **kwargs)
-    #         return wrapper
-
-    #     return attr
     
     def wait_for_initial_scene_update(self):
         while self._get_scene() is None:
@@ -649,71 +610,47 @@ class AssemblySceneAnalyzer():
 
         return is_stationary
 
-    def is_component_assembled(self, component_name:str)-> bool:
-        """
-        Checks if the given component is assembled in the assembly instructions.
-        A component is considered assembled if it is a part of any assembly instruction.
-        parameters:
-        - component_name: name of the component to check
-        raises:
-        - ComponentNotFoundError: if the component is not found in the scene
-        returns:
-        - True if the component is assembled, False otherwise
-        """
+    # def find_matches_for_component(self, component_name:str, only_unassembled = True) -> list[str]:
+    #     """
+    #     Finds all components that match the given component name in the assembly instructions.
+    #     parameters:
+    #     - component_name: name of the component to find matches for
+    #     - only_unassembled: if True, only unassembled components are considered
+    #     raises:
+    #     - ComponentNotFoundError: if the component is not found in the scene
+    #     returns:
+    #     - list of component names that match the given component name
+    #     """
 
-        for instruction in self._get_scene().assembly_instructions:
-            instruction:ami_msg.AssemblyInstruction
-            parent = self.get_parent_of_component(self._get_scene(), component_name)
+    #     # check if component exists
+    #     self.get_component_by_name(component_name)
 
-            if (component_name == instruction.component_1 and instruction.component_2 == parent) or \
-            (component_name == instruction.component_2 and instruction.component_1 == parent):
-                return True
-        
-        return False
+    #     matches = []
+    #     for instruction in self._get_scene().assembly_instructions:
+    #         instruction:ami_msg.AssemblyInstruction
 
+    #             # if self.logger is not None:
+    #             #     self.logger.warn(f"Instruction: {instruction.component_1} -> {instruction.component_2}")
 
+    #         test = self.is_component_assembled(instruction.component_2)
 
-    def find_matches_for_component(self, component_name:str, only_unassembled = True) -> list[str]:
-        """
-        Finds all components that match the given component name in the assembly instructions.
-        parameters:
-        - component_name: name of the component to find matches for
-        - only_unassembled: if True, only unassembled components are considered
-        raises:
-        - ComponentNotFoundError: if the component is not found in the scene
-        returns:
-        - list of component names that match the given component name
-        """
+    #             # if self.logger is not None:
+    #             #     self.logger.warn(f"Is component {instruction.component_2} assembled: {test}")
 
-        # check if component exists
-        self.get_component_by_name(component_name)
+    #         if component_name == instruction.component_1:
+    #             if ((not only_unassembled or self.is_component_assembled(instruction.component_2)) and 
+    #                 not instruction.component_1_is_moving_part):
+    #                 #not instruction.component_2 == self.get_global_statonary_component()):
 
-        matches = []
-        for instruction in self._get_scene().assembly_instructions:
-            instruction:ami_msg.AssemblyInstruction
+    #                 matches.append(instruction.component_2)
 
-                # if self.logger is not None:
-                #     self.logger.warn(f"Instruction: {instruction.component_1} -> {instruction.component_2}")
+    #         if component_name == instruction.component_2:
+    #             if ((not only_unassembled or self.is_component_assembled(instruction.component_1)) and 
+    #                 instruction.component_1_is_moving_part):
+    #                 #not instruction.component_1 == self.get_global_statonary_component()):
 
-            test = self.is_component_assembled(instruction.component_2)
-
-                # if self.logger is not None:
-                #     self.logger.warn(f"Is component {instruction.component_2} assembled: {test}")
-
-            if component_name == instruction.component_1:
-                if ((not only_unassembled or self.is_component_assembled(instruction.component_2)) and 
-                    not instruction.component_1_is_moving_part):
-                    #not instruction.component_2 == self.get_global_statonary_component()):
-
-                    matches.append(instruction.component_2)
-
-            if component_name == instruction.component_2:
-                if ((not only_unassembled or self.is_component_assembled(instruction.component_1)) and 
-                    instruction.component_1_is_moving_part):
-                    #not instruction.component_1 == self.get_global_statonary_component()):
-
-                    matches.append(instruction.component_1)
-        return matches
+    #                 matches.append(instruction.component_1)
+    #     return matches
 
     def get_global_stationary_component(self)-> str:
         """
@@ -731,8 +668,6 @@ class AssemblySceneAnalyzer():
             
         return None
     
-
-
     def get_components_to_assemble(self)-> list[str]:
         """
         Returns a list of components that need to be assembled.
@@ -774,9 +709,9 @@ class AssemblySceneAnalyzer():
             obj:ami_msg.Object
             for frame in obj.ref_frames:
                 frame:ami_msg.RefFrame
-                if AssemblyConstants.ASSEMBLY_FRAME_INDICATOR in frame.frame_name:
+                if frame.properties.assembly_frame_properties.is_assembly_frame:
                     frames.append((obj.obj_name,frame.frame_name))
-                if AssemblyConstants.TARGET_FRAME_INDICATOR in frame.frame_name:
+                if frame.properties.assembly_frame_properties.is_target_frame:
                     frames.append((obj.obj_name,frame.frame_name))
         return frames
 
@@ -805,46 +740,6 @@ class AssemblySceneAnalyzer():
 
         return frames
 
-    # def get_target_frame_for_component(self, component_name:str)-> str:
-    #     """
-    #     Returns the target frame name for the given component name.
-    #     That means the target frame to which the component should be assembled.
-    #     This should be unique as a component can only be assembled once.
-    #     parameters:
-    #     - component_name: name of the component to get the target frame for
-    #     raises:
-    #     - ComponentNotFoundError: if the component is not found in the scene
-    #     returns:
-    #     - target frame name for the given component or None if no target frame is found
-    #     """
-
-    #     target_frame = None
-
-    #     component_t_a_frames = self.get_all_assembly_and_target_frames_for_component(component_name=component_name)
-
-    #     if len(component_t_a_frames) == 0:
-    #         raise AssemblyFrameNotFoundError(component_name)
-
-    #     all_involved_frames_tuples: list[tuple[str,str]] = self.get_all_assembly_and_target_frames()
-
-    #     # iterate over all assembly and target frames of the component
-    #     for component_frame in component_t_a_frames:
-    #             # if the frame is an assembly frame
-    #             if self.ASSEMBLY_FRAME_INDICATOR in component_frame:
-    #                 # get the assembly description from the frame name
-    #                 # strip indicator from frame name
-    #                 assembly_description = component_frame.replace(self.ASSEMBLY_FRAME_INDICATOR, '')
-
-    #                 for frame_tuple in all_involved_frames_tuples:
-    #                     if assembly_description in frame_tuple[1] and frame_tuple[0] != component_name:
-    #                         target_frame = frame_tuple[1]
-    #                         break
-        
-    #     if target_frame is None:
-    #         raise TargetFrameNotFoundError(component_name)
-
-    #     return target_frame
-
     def get_target_frame_for_component(self, component_name:str)-> str:
         """
         Returns the target frame name for the given component name.
@@ -869,34 +764,6 @@ class AssemblySceneAnalyzer():
 
         return target_frame
 
-
-    # def get_assembly_frame_for_component(self, component_name:str)-> str:
-    #     """
-    #     Returns the assembly frame name for the given component name.
-    #     That means the assembly frame which is used to assemble the component.
-    #     This should be unique as a component can only have one assembly frame.
-    #     parameters:
-    #     - component_name: name of the component to get the assembly frame for
-    #     raises:
-    #     - ComponentNotFoundError: if the component is not found in the scene
-    #     returns:
-    #     - assembly frame name for the given component or None if no assembly frame is found
-    #     """
-
-    #     component_t_a_frames = self.get_all_assembly_and_target_frames_for_component(component_name=component_name)
-
-    #     if len(component_t_a_frames) == 0:
-    #         raise AssemblyFrameNotFoundError(component_name)
-
-    #     all_involved_frames_tuples: list[tuple[str,str]] = self.get_all_assembly_and_target_frames()
-
-    #     # iterate over all assembly and target frames of the component
-    #     for component_frame in component_t_a_frames:
-    #             # if the frame is an assembly frame
-    #             if self.ASSEMBLY_FRAME_INDICATOR in component_frame:
-    #                 return component_frame
-        
-    #     raise AssemblyFrameNotFoundError(component_name)
 
     def get_assembly_frame_for_component(self, component_name:str)-> str:
         """
@@ -1010,36 +877,6 @@ class AssemblySceneAnalyzer():
         
         return self.get_ref_frame_by_name(target_frame_name)
 
-    # def get_assembly_frame_for_target_frame(self, target_frame_name:str)-> str:
-    #     """
-    #     Returns the assembly frame name associated with the given target frame name.
-    #     parameters:
-    #     - target_frame_name: name of the target frame to get the assembly frame for
-    #     raises:
-    #     - RefFrameNotFoundError: if the target frame is not found in the scene
-    #     - AssemblyFrameNotFoundError: if no assembly frame is found for the given target frame
-    #     returns:
-    #     - assembly frame name associated with the target frame
-    #     """
-
-    #     # check if target frame exists
-    #     self.get_ref_frame_by_name(target_frame_name)
-
-    #     all_involved_frames_tuples: list[tuple[str,str]] = self.get_all_assembly_and_target_frames()
-
-    #     assembly_target_frames = [t[1] for t in all_involved_frames_tuples]
-
-    #     assembly_description = target_frame_name.replace(self.TARGET_FRAME_INDICATOR, '')
-
-    #     # iterate over all assembly and target frames of the component
-    #     for frame in assembly_target_frames:
-    #         if assembly_description in frame and frame != target_frame_name:
-    #             return frame
-
-    #     raise AssemblyFrameNotFoundError(target_frame_name)
-    
-
-
     def get_assembly_frame_for_target_frame(self, target_frame_name:str)-> str:
         
         target_frame = self.get_ref_frame_by_name(target_frame_name)
@@ -1066,34 +903,6 @@ class AssemblySceneAnalyzer():
         
         return associated_assembly_frame
 
-    # def get_target_frame_for_assembly_frame(self, assembly_frame_name:str)-> str:
-    #     """
-    #     Returns the target frame name associated with the given assembly frame name.
-    #     parameters:
-    #     - assembly_frame_name: name of the assembly frame to get the target frame for
-    #     raises:
-    #     - RefFrameNotFoundError: if the target frame is not found in the scene
-    #     - AssemblyFrameNotFoundError: if no assembly frame is found for the given target frame
-    #     returns:
-    #     - assembly frame name associated with the target frame
-    #     """
-
-    #     # check if target frame exists
-    #     self.get_ref_frame_by_name(assembly_frame_name)
-
-    #     all_involved_frames_tuples: list[tuple[str,str]] = self.get_all_assembly_and_target_frames()
-
-    #     assembly_target_frames = [t[1] for t in all_involved_frames_tuples]
-
-    #     assembly_description = assembly_frame_name.replace(self.ASSEMBLY_FRAME_INDICATOR, '')
-
-    #     # iterate over all assembly and target frames of the component
-    #     for frame in assembly_target_frames:
-    #         if assembly_description in frame and frame != assembly_frame_name:
-    #             return frame
-
-    #     raise AssemblyFrameNotFoundError(assembly_frame_name)
-
     def get_target_frame_for_assembly_frame(self, assembly_frame_name:str)-> str:
         
         assembly_frame = self.get_ref_frame_by_name(assembly_frame_name)
@@ -1119,41 +928,6 @@ class AssemblySceneAnalyzer():
             raise TargetFrameNotFoundError(f"The associated frame {associated_target_frame} for assembly frame {assembly_frame_name} is not marked as target frame.")
         
         return associated_target_frame
-
-
-    # def get_target_frames_of_component(self,component_name:str)-> list[str]:
-    #     """
-    #     Returns a list of the target frame names for the given component name.
-    #     parameters:
-    #     - component_name: name of the component to get the target frames for
-    #     raises:
-    #     - ComponentNotFoundError: if the component is not found in the scene
-    #     returns:
-    #     - list of target frame names for the given component
-    #     """
-
-    #     # check if component exists
-    #     self.get_component_by_name(component_name)
-
-    #     target_frames = []
-
-    #     component_t_a_frames = self.get_all_assembly_and_target_frames_for_component(component_name=component_name)
-
-    #     if len(component_t_a_frames) == 0:
-    #         raise AssemblyFrameNotFoundError(component_name)
-
-    #     all_involved_frames_tuples: list[tuple[str,str]] = self.get_all_assembly_and_target_frames()
-
-    #     # iterate over all assembly and target frames of the component
-    #     for component_frame in component_t_a_frames:
-    #             # if the frame is an assembly frame
-    #             if self.TARGET_FRAME_INDICATOR in component_frame:
-    #                 target_frames.append(component_frame)
-        
-    #     if len(target_frames) == 0:
-    #         raise TargetFrameNotFoundError(component_name)
-
-    #     return target_frames
 
     def get_assembly_instruction(self, assembly_component: str, target_component: str) -> ami_msg.AssemblyInstruction:
         """
@@ -1384,120 +1158,65 @@ class AssemblySceneAnalyzer():
 
         iterate_frames(frames, tree, set())  # Start with an empty ancestry set
         return tree    
-    
-    def update_ref_frame_by_constraint(self,
-                                        ref_frame:ami_msg.RefFrame, 
-                                        component_name:str
-                                        )-> bool:
-        """Updates the reference frame by applying constraints.
 
-        Args:
-            ref_frame (ami_msg.RefFrame): The reference frame to update.
-            component_name (str): The name of the component to update the constraints for.
-
-        Returns:
-            bool: True if the update was successful, False otherwise.
+    def check_component_assembled(self, component_name:str)-> bool:
+        """
+        Checks if the given component is assembled in the assembly instructions.
+        A component is considered assembled if it is a part of any assembly instruction.
+        parameters:
+        - component_name: name of the component to check
+        raises:
+        - ComponentNotFoundError: if the component is not found in the scene
+        returns:
+        - True if the component is assembled, False otherwise
         """
 
+        component = self.get_component_by_name(component_name)
+        return component.properties.is_assembled
+
+    def check_component_assembled_adv(self, component_name:str)-> bool:
+        """
+        Checks if the given component is considered as assembled.
+        This advanced version checks if the component is assembled by looking for an assembly frame and checking the
+        is_assembled property of the component. If no assembly frame is found, it is assumed that the component is assembled."""
         try:
-            # make a deep copy just to be sure that the original ref frame is not modified
-            # this is just for safety reasons
-            copy_ref_frame = deepcopy(ref_frame)
-            scene_copy = deepcopy(self._get_scene())
 
-            #self.logger.warn(f"Update ref frame constraints for frame '{ref_frame.frame_name}'")
-            
-            frame_constraints_handler:FrameConstraintsHandler = FrameConstraintsHandler.return_handler_from_msg(msg=copy_ref_frame.constraints,
-                                                                                                                scene=scene_copy)
-            
-            pose = frame_constraints_handler.calculate_frame_constraints(initial_pose = copy_ref_frame.pose, 
-                                                                            scene=scene_copy,
-                                                                            frame_name=copy_ref_frame.frame_name,
-                                                                            component_name = component_name,
-                                                                            logger=self.logger)
-            
-            ref_frame.pose = pose
+            assembly_frame = self.get_assembly_frame_for_component(component_name)
+            return self.check_component_assembled(component_name)
 
+        except AssemblyFrameNotFoundError as e:
             return True
-        
-        except Exception as e:
-            self.logger.error(str(e))
-            self.logger.error(f"Unknown Error. Constraint could not be updated!")
-            return False
-
-    def calculate_frame_constraints_for_frame_list(self,
-                                                frame_list: list[ami_msg.RefFrame],
-                                                component_name: str = None)-> bool:
-        """
-        This function calculates the frame constraints for a list of frames.
-        """
-        def get_dict_depth(d: dict) -> int:
-            """Recursively calculates the depth of a nested dictionary."""
-            if not isinstance(d, dict) or not d:  # Base case: empty or non-dict
-                return 0
-            return 1 + max(get_dict_depth(v) for v in d.values())
-
-        def get_unique_elements_at_depth(d: dict, depth: int) -> list:
-            """Returns unique keys at a specific depth in a nested dictionary."""
-            if depth < 1:
-                return []
-            
-            if depth == 1:
-                return list(set(d.keys()))  # Base case: return unique keys at the current level
-            
-            elements = set()  # Use a set to store unique elements
-            for v in d.values():
-                if isinstance(v, dict):
-                    elements.update(get_unique_elements_at_depth(v, depth - 1))  # Recurse deeper
-
-            return list(elements)  # Convert back to a list for the final output
     
-        reference_tree = self.build_frame_reference_tree(frame_list)
-        max_depth = get_dict_depth(reference_tree)
-        calculated_frames=[]
-
-        for depth in range(max_depth, 0, -1):
-            unique_elements = get_unique_elements_at_depth(reference_tree, depth)
-            #logger.warn(f"unique_elements{unique_elements}")
-            for frame_name in unique_elements:
-                if frame_name not in calculated_frames:
-
-
-                    frame = self.get_ref_frame_by_name(frame_name)
-                    self.update_ref_frame_by_constraint(frame, component_name=component_name)
-                    calculated_frames.append(frame_name)
-        return True
-
-    def calculate_constraints_for_component(self,
-                                            component_name: str = None)-> bool:
+    def check_frame_in_occupied_frames(self, frame_name:str)-> bool:
         """
-        This function calculates the frame constraints for a component.
+        Checks if the given frame name is in the list of occupied frames in the scene.
+        parameters:
+        - frame_name: name of the frame to check
+        returns:
+        - True if the frame name is in the list of occupied frames, False otherwise
         """
-        frame_list = []
-        if component_name is None:
-            frame_list = self._get_scene().ref_frames_in_scene
+        for occupied_frame in self._get_scene().occupied_spawning_frames:
+            if occupied_frame == frame_name:
+                return True
+        return False
+
+    def check_frame_measured(self, frame_name:str)-> bool:
+        """
+        Checks if the given frame name is in the list of measured frames in the scene.
+        parameters:
+        - frame_name: name of the frame to check
+        returns:
+        - True if the frame name is in the list of measured frames, False otherwise
+        """
+
+        frame = self.get_ref_frame_by_name(frame_name)
+        
+        if (frame.properties.vision_frame_properties.has_been_measured or 
+            frame.properties.laser_frame_properties.has_been_measured):
+            return True
         else:
-            comp = self.get_component_by_name(component_name)
-
-        return self.calculate_frame_constraints_for_frame_list(frame_list, component_name=component_name)
-
-
-    def calculate_constraints_for_scene(self)-> bool:
-        """
-        This function calculates the frame constraints for the whole scene.
-        """
-        #logger.warn(f"initial_scene{str(scene)}")
-        # calculate the constraints for all components in the scene
-        for component in self._get_scene().objects_in_scene:
-            component: ami_msg.Object
-            self.calculate_constraints_for_component(component.obj_name)
-
-        # calculate the constraints for frames not associated with any component
-        self.calculate_constraints_for_component()
-
-        #logger.warn(f"final_scene{str(scene)}")
-        return True
-
+            return False
+    
     # def get_identification_order(scene: ami_msg.ObjectScene,
     #                             frame_list: list[ami_msg.RefFrame],
     #                             logger: RcutilsLogger = None)->ConstraintRestrictionList:

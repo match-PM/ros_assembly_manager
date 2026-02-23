@@ -1,4 +1,6 @@
 string frame_to_set
 string from_frame
+bool set_laser_measured
+bool set_vision_measured
 ---
 bool success

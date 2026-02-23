@@ -83,6 +83,8 @@ class AssemblyScenePublisherNode(Node):
 
         self.check_line_of_sight_srv = self.create_service(ami_srv.CheckLineOfSight,f'{mng_str}/check_line_of_sight', self.check_line_of_sight,callback_group=self.callback_group)
         
+        self.set_component_properties_srv = self.create_service(ami_srv.SetComponentProperties,f'{mng_str}/set_component_properties', self.set_component_properties,callback_group=self.callback_group)
+        
         self.correct_component_position_srv = self.create_service(ami_srv.CorrectComponentPosition,f'{mng_str}/correct_component_position', self.correct_component_position,callback_group=self.callback_group)
         self.get_logger().info("Assembly scene publisher started!")
 
@@ -157,15 +159,12 @@ class AssemblyScenePublisherNode(Node):
         return response
 
     def modify_frame_absolut(self, request: ami_srv.ModifyPoseAbsolut.Request, response: ami_srv.ModifyPoseAbsolut.Response):
-        modify_success = self.object_scene.modify_frame_absolut(request.frame_name, new_world_pose=request.pose)
+        modify_success = self.object_scene.modify_frame_absolut(request = request)
         response.success = modify_success
         return response
 
     def modify_frame_relative(self, request: ami_srv.ModifyPoseRelative.Request, response: ami_srv.ModifyPoseRelative.Response):
-        modify_success = self.object_scene.modify_frame_relative(request.frame_name, 
-                                                                 translation=request.rel_position, 
-                                                                 rotation=request.rel_rotation,
-                                                                 not_relativ_to_parent_but_child=request.not_relativ_to_parent_but_child)
+        modify_success = self.object_scene.modify_frame_relative(request = request)
         response.success = modify_success
         return response
         
@@ -203,8 +202,7 @@ class AssemblyScenePublisherNode(Node):
         return response
     
     def modify_frame_from_frame(self, request: ami_srv.ModifyPoseFromFrame.Request, response: ami_srv.ModifyPoseFromFrame.Response):
-        modify_success = self.object_scene.modify_frame_set_to_frame(frame_to_set=request.frame_to_set,
-                                                                frame_to_set_to=request.from_frame)
+        modify_success = self.object_scene.modify_frame_set_to_frame(request = request)
         response.success = modify_success
         return response
     
@@ -280,6 +278,14 @@ class AssemblyScenePublisherNode(Node):
 
     def set_component_uuid(self, request: ami_srv.SetComponentUuid.Request, response: ami_srv.SetComponentUuid.Response):
         response = self.object_scene.set_component_uuid(request)
+        return response
+
+    def set_component_properties(self, request: ami_srv.SetComponentProperties.Request, response: ami_srv.SetComponentProperties.Response):
+        response = self.object_scene.set_component_properties(request)
+        return response
+
+    def set_frame_properties(self, request: ami_srv.SetFrameProperties.Request, response: ami_srv.SetFrameProperties.Response):
+        response = self.object_scene.set_frame_properties(request)
         return response
     
     def correct_component_position(self, request: ami_srv.CorrectComponentPosition.Request, response: ami_srv.CorrectComponentPosition.Response):
