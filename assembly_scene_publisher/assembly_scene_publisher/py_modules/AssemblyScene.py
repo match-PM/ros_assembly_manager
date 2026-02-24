@@ -1403,6 +1403,7 @@ class AssemblyManagerScene():
         
         self.destroy_all_ref_frames()
         self.scene = ami_msg.ObjectScene()
+        self.assembly_scene_analyzer.set_scene(self.scene)
         self.publish_information()
         
         return True
@@ -1432,8 +1433,19 @@ class AssemblyManagerScene():
         
         component = get_component_by_name(self.scene, component_name)
         
-        list_res = get_identification_order(self.scene, component.ref_frames, self.logger)
+        #list_res = get_identification_order(self.scene, component.ref_frames, self.logger)
         
+        #frame_reference_tree = self.assembly_scene_analyzer.build_frame_reference_tree(component.ref_frames)
+        
+        #instruction_tree = self.assembly_scene_analyzer.get_instructions_element_tree(component_name)
+
+        #self.logger.warn(f"Reference tree: {frame_reference_tree}")
+        #self.logger.warn(f"Instruction tree: {instruction_tree}")
+
+        self.assembly_scene_analyzer.get_instructions_graph_for_component(component_name)
+        self.assembly_scene_analyzer.get_frame_graph_for_component(component_name)
+        self.assembly_scene_analyzer.get_plane_graph_for_component(component_name)
+
         # for frame in frames:
         #     frame: ami_msg.RefFrame
         #     constraints_handler = FrameConstraintsHandler()

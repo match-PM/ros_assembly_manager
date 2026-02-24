@@ -5,7 +5,9 @@ import assembly_manager_interfaces.msg as ami_msg
 from geometry_msgs.msg import Pose, Transform
 from assembly_scene_publisher.py_modules.frame_constraints import FrameConstraintsHandler
 from assembly_scene_publisher.py_modules.scene_errors import *
-
+from assembly_scene_publisher.py_modules.helper_functions import (extract_graph, 
+                                                                  render_graph, 
+                                                                  strip_substring_from_keys)
 from copy import copy, deepcopy
 from typing import Union
 import time
@@ -86,7 +88,7 @@ class AssemblySceneAnalyzer():
                 
         return frame_list
     
-    def get_axis_name_for_plane(self, plane_name: str)-> list[str]:
+    def get_axis_name_for_plane(self, plane_name: str)-> str:
         """
         Returns the axis names associated with the given plane name.
         parameters:
@@ -707,16 +709,13 @@ class AssemblySceneAnalyzer():
         frames = []
         for obj in self._get_scene().objects_in_scene:
             obj:ami_msg.Object
-            for frame in obj.ref_frames:
-                frame:ami_msg.RefFrame
-                if frame.properties.assembly_frame_properties.is_assembly_frame:
-                    frames.append((obj.obj_name,frame.frame_name))
-                if frame.properties.assembly_frame_properties.is_target_frame:
-                    frames.append((obj.obj_name,frame.frame_name))
+            for fr in obj.ref_frames:
+                fr:ami_msg.RefFrame
+                if fr.properties.assembly_frame_properties.is_assembly_frame or fr.properties.assembly_frame_properties.is_target_frame:
+                    frames.append((obj.obj_name, fr.frame_name))
         return frames
 
-    # rework!
-    def get_all_assembly_and_target_frames_for_component(self, component_name:str)-> list[str]:
+    def get_all_assembly_and_target_frames_of_component(self, component_name:str)-> list[str]:
         """
         Returns a list of assembly and target frame names for the given component name.
         parameters:
@@ -728,15 +727,12 @@ class AssemblySceneAnalyzer():
         """
 
         # check if component exists
-        self.get_component_by_name(component_name)
-
-        frames_tuple = self.get_all_assembly_and_target_frames()
-
+        component = self.get_component_by_name(component_name)
         frames = []
-
-        for frame_tuple in frames_tuple:
-            if frame_tuple[0] == component_name:
-                frames.append(frame_tuple[1])
+        for fr in component.ref_frames:
+            fr:ami_msg.RefFrame
+            if fr.properties.assembly_frame_properties.is_assembly_frame or fr.properties.assembly_frame_properties.is_target_frame:
+                frames.append(fr.frame_name)
 
         return frames
 
@@ -1217,6 +1213,222 @@ class AssemblySceneAnalyzer():
         else:
             return False
     
+    def get_assembly_component_for_instruction(self, instruction_name:str)-> str:
+        """
+        Returns the component name for the given assembly instruction name.
+        parameters:
+        - instruction_name: name of the assembly instruction
+        raises:
+        - AssemblyInstructionNotFoundError: if no assembly instruction is found for the given name
+        returns:
+        - component name for the given assembly instruction
+        """
+        instruction = self.get_assembly_instruction_by_name(instruction_name)
+        if instruction.component_1_is_moving_part:
+            return instruction.component_1
+        else:
+            return instruction.component_2
+    
+    def get_instructions_for_component(self, component_name:str)-> list[ami_msg.AssemblyInstruction]: 
+        """
+        Returns the assembly instructions for the given component name.
+        parameters:
+        - component_name: name of the component to get the instruction for
+        raises:
+        - ComponentNotFoundError: if the component is not found in the scene
+        - AssemblyInstructionNotFoundError: if no assembly instruction is found for the given component
+        returns:
+        - assembly instruction for the given component
+        """
+
+        # check if component exists
+        self.get_component_by_name(component_name)
+        instructions = []
+        for instruction in self._get_scene().assembly_instructions:
+            instruction:ami_msg.AssemblyInstruction
+
+            if instruction.component_1 == component_name or instruction.component_2 == component_name:
+                instructions.append(instruction)
+        
+        if len(instructions) == 0:
+            raise AssemblyInstructionNotFoundError(component_name)
+        
+        return instructions
+    
+    def get_planes_for_instruction(self, instruction_name:str, component_name:str = None)-> list[str]:
+        """
+        Returns the plane names for the given instruction name and component name.
+        If the component name is None, the plane names for both components of the instruction are returned.
+        parameters:
+        - instruction_name: name of the instruction to get the plane names for
+        - component_name: name of the component to get the plane names for (optional)
+        raises:
+        - AssemblyInstructionNotFoundError: if no assembly instruction is found for the given name
+        returns:- list of plane names for the given instruction and component name
+        """
+
+        # check if instruction exists
+        instruction = self.get_assembly_instruction_by_name(instruction_name)
+
+        planes = []
+        if (component_name is None 
+            or instruction.component_1 == component_name):
+
+            planes.append(instruction.plane_match_1.plane_name_component_1)
+            planes.append(instruction.plane_match_2.plane_name_component_1)
+            planes.append(instruction.plane_match_3.plane_name_component_1)
+
+        if (component_name is None 
+            or instruction.component_2 == component_name):
+
+            planes.append(instruction.plane_match_1.plane_name_component_2)
+            planes.append(instruction.plane_match_2.plane_name_component_2)
+            planes.append(instruction.plane_match_3.plane_name_component_2)
+
+        return planes   
+    
+    def get_plane_defining_tree(self, plane_name: str) -> dict:
+        """
+        Returns hierarchical structure describing how a plane is defined.
+        """
+
+        tree_dict = {}
+
+        plane = self.get_plane_from_scene(plane_name)
+
+        try:
+            # ---- Case 1: Plane defined by axis + supporting point ----
+            axis_name = self.get_axis_name_for_plane(plane_name)
+
+            axis_frames = self.get_frames_for_axis(axis_name)  # 2 frames
+            supporting_point = plane.point_names[0]            # 1 frame
+
+            tree_dict[plane_name] = {
+                supporting_point: {},           # Supporting frame
+                axis_name: {
+                    axis_frames[0].frame_name: {},
+                    axis_frames[1].frame_name: {}
+                }
+            }
+
+        except RefAxisNotFoundError:
+            # ---- Case 2: Plane defined by 3 points ----
+            plane_frames = self.get_frames_for_plane(plane_name)
+
+            tree_dict[plane_name] = {
+                plane_frames[0].frame_name: {},
+                plane_frames[1].frame_name: {},
+                plane_frames[2].frame_name: {}
+            }
+
+        return tree_dict
+
+    def get_instructions_element_tree(self, component_name: str) -> dict:
+        """
+        Returns a hierarchical structure of assembly instructions and their associated planes for the given component.
+        The top level of the hierarchy consists of assembly instructions that involve the specified component.
+        Each instruction node contains child nodes for the planes associated with that instruction and component.
+        Args:
+        component_name (str): The name of the component for which to build the instruction tree.
+        Returns:
+        dict: A nested dictionary representing the hierarchical structure of assembly instructions and their associated planes for the specified component.
+        Raises:
+        ComponentNotFoundError: If the specified component is not found in the scene.
+        AssemblyInstructionNotFoundError: If no assembly instructions are found for the specified component.
+        """
+
+        instructions = self.get_instructions_for_component(component_name)
+        tree_dict = {}
+
+        for instruction in instructions:
+
+            if component_name == self.get_assembly_component_for_instruction(instruction.id):
+                string_type = 'assembly'
+            else:
+                string_type = 'target'
+
+            instruction_key = f"{instruction.id}_({string_type})"
+            tree_dict[instruction_key] = {}
+
+            planes = self.get_planes_for_instruction(instruction.id, component_name)
+
+            for plane in planes:
+                plane_dict = self.get_plane_defining_tree(plane)
+                tree_dict[instruction_key].update(plane_dict)
+
+        return tree_dict
+
+    def get_plane_tree_for_component(self, component_name: str) -> dict:
+        """
+        Returns a dictionary representing the hierarchy of all planes
+        for a given component.
+        Each plane is expanded using get_plane_defining_tree.
+        """
+        component = self.get_component_by_name(component_name)
+        planes = component.ref_planes
+
+        plane_tree_dict = {}
+        for plane in planes:
+            plane: ami_msg.Plane
+            # Get the hierarchical tree for this plane
+            single_plane_tree = self.get_plane_defining_tree(plane.ref_plane_name)
+            # Merge into the main dict
+            plane_tree_dict.update(single_plane_tree)
+
+        return plane_tree_dict
+
+    
+    def get_frame_graph_for_component(self, component_name:str)-> bytes:
+        """
+        Get a graph representation of the reference frames for a given component.
+
+        Args:
+            component_name (str): The name of the component to get the frame graph for.
+
+        Returns:
+            bytes: A PNG image representation of the frame graph.
+        """
+        frame_dict = self.build_frame_reference_tree(self.get_component_by_name(component_name).ref_frames)
+        _frame_dict = strip_substring_from_keys(frame_dict, f"{component_name}_")
+
+        nodes, edges = extract_graph(_frame_dict)
+
+        return render_graph(nodes, edges, output_filename=f"frame_graph_{component_name}")
+    
+    def get_instructions_graph_for_component(self, component_name:str)-> bytes:
+        """
+        Get a graph representation of the assembly instructions and their associated planes for a given component.
+        Args:
+            component_name (str): The name of the component to get the instruction graph for.
+        Returns:
+            bytes: A PNG image representation of the instruction graph.
+        Raises:
+            ComponentNotFoundError: If the specified component is not found in the scene.
+            AssemblyInstructionNotFoundError: If no assembly instructions are found for the specified component.
+        """
+        instructions_dict = self.get_instructions_element_tree(component_name)
+        _instructions_dict = strip_substring_from_keys(instructions_dict, f"{component_name}_")
+        nodes, edges = extract_graph(_instructions_dict)
+
+        return render_graph(nodes, edges, output_filename=f"instructions_graph_{component_name}")
+
+
+    def get_plane_graph_for_component(self, component_name:str)-> bytes:
+        """
+        Get a graph representation of the planes associated with the assembly instructions for a given component.
+
+        Args:
+            component_name (str): The name of the component to get the plane graph for.
+
+        Returns:
+            bytes: A PNG image representation of the plane graph.
+        """
+        plane_tree = self.get_plane_tree_for_component(component_name)
+        _plane_tree = strip_substring_from_keys(plane_tree, f"{component_name}_")
+        nodes, edges = extract_graph(_plane_tree)
+
+        return render_graph(nodes, edges, output_filename=f"planes_graph_{component_name}")
+
     # def get_identification_order(scene: ami_msg.ObjectScene,
     #                             frame_list: list[ami_msg.RefFrame],
     #                             logger: RcutilsLogger = None)->ConstraintRestrictionList:

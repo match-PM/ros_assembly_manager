@@ -39,7 +39,7 @@ class AssemblySceneAnalyzerAdv(AssemblySceneAnalyzer):
         """
         gripped_component = self.get_gripped_component()
         
-        frames = self.get_all_assembly_and_target_frames_for_component(gripped_component)
+        frames = self.get_all_assembly_and_target_frames_of_component(gripped_component)
 
         return frames
 
