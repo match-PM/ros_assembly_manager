@@ -52,8 +52,8 @@ class TargetFrameNotFoundError(Exception):
 
 
 class AssemblyInstructionNotFoundError(Exception):
-    def __init__(self, assembly_component:str, target_component:str):
-        self.message = f"Assembly instruction for components '{assembly_component}' and '{target_component}' not found in the scene."
+    def __init__(self, message:str):
+        self.message = message
         super().__init__(self.message)
 
 class AssemblyInstructionCalculationError(Exception):

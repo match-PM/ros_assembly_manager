@@ -1,4 +1,3 @@
-from loguru import logger
 from assembly_manager_interfaces.msg import ObjectScene
 from rclpy.impl.rcutils_logger import RcutilsLogger
 import assembly_manager_interfaces.msg as ami_msg
@@ -11,19 +10,11 @@ from assembly_scene_publisher.py_modules.helper_functions import (extract_graph,
 from copy import copy, deepcopy
 from typing import Union
 import time
-from typing import Union
-
-class AssemblyConstants:
-    ASSEMBLY_FRAME_INDICATOR = 'assembly_frame_Description'
-    TARGET_FRAME_INDICATOR = 'target_frame_Description'
 
 class UnInitializedScene():
     def __init__(self):
         self.scene = None
-
 class AssemblySceneAnalyzer():
-    ASSEMBLY_FRAME_INDICATOR = 'assembly_frame_Description'
-    TARGET_FRAME_INDICATOR = 'target_frame_Description'
 
     def __init__(self,  scene: Union[ami_msg.ObjectScene, UnInitializedScene], 
                         logger: RcutilsLogger = None):
@@ -331,32 +322,34 @@ class AssemblySceneAnalyzer():
         return True
 
 
-    def check_frames_exist_in_scene(self, frame_names: list[list])->bool:
+    def check_frames_exist_in_scene(self, frame_names: list[str])->bool:
         """
         This function checks if all given ref frames exist in the scene.
+        Uses set operations for O(n+m) performance instead of O(n*m).
         parameters:
         - frame_names: list of strings with the names of the ref frames to check
         returns:
         - True if all ref frames exist in the scene, False otherwise
         """
 
-        frame_names_copy = copy(frame_names)
+        frame_names_set = set(frame_names)
+        found_frames = set()
+        
+        # Collect all frame names in scene
         for obj in self._get_scene().objects_in_scene:
             obj: ami_msg.Object
             for frame in obj.ref_frames:
                 frame: ami_msg.RefFrame
-                if frame.frame_name in frame_names:
-                    frame_names_copy.remove(frame.frame_name)
-
+                if frame.frame_name in frame_names_set:
+                    found_frames.add(frame.frame_name)
+        
         for frame in self._get_scene().ref_frames_in_scene:
             frame: ami_msg.RefFrame
-            if frame.frame_name in frame_names:
-                frame_names_copy.remove(frame.frame_name)                       
-
-        if len(frame_names_copy) > 0:
-            return False
-        else:
-            return True
+            if frame.frame_name in frame_names_set:
+                found_frames.add(frame.frame_name)
+        
+        # Check if all requested frames were found
+        return frame_names_set == found_frames
 
     def check_for_duplicate_frames(self, frame_names: list[str])->bool:
         """
@@ -947,7 +940,7 @@ class AssemblySceneAnalyzer():
                 if instruction.component_2 == assembly_component and instruction.component_1 == target_component:
                     return instruction
 
-        raise AssemblyInstructionNotFoundError(assembly_component, target_component)
+        raise AssemblyInstructionNotFoundError(f"Assembly instruction for components '{assembly_component}' and '{target_component}' not found in the scene.")
         
     def get_assembly_instruction_by_name(self, instruction_name: str) -> ami_msg.AssemblyInstruction:
         """
@@ -966,7 +959,7 @@ class AssemblySceneAnalyzer():
             if instruction.id == instruction_name:
                 return instruction
 
-        raise AssemblyInstructionNotFoundError(instruction_name)
+        raise AssemblyInstructionNotFoundError(f"Assembly instruction with name '{instruction_name}' not found in the scene.")
 
     def get_gripping_frame_of_component(self, component_name:str)-> str:
         """
@@ -1251,7 +1244,7 @@ class AssemblySceneAnalyzer():
                 instructions.append(instruction)
         
         if len(instructions) == 0:
-            raise AssemblyInstructionNotFoundError(component_name)
+            raise AssemblyInstructionNotFoundError(f"No assembly instructions found for component '{component_name}'")
         
         return instructions
     
@@ -1388,13 +1381,21 @@ class AssemblySceneAnalyzer():
         Returns:
             bytes: A PNG image representation of the frame graph.
         """
-        frame_dict = self.build_frame_reference_tree(self.get_component_by_name(component_name).ref_frames)
-        _frame_dict = strip_substring_from_keys(frame_dict, f"{component_name}_")
+        try:
+            frame_dict = self.build_frame_reference_tree(self.get_component_by_name(component_name).ref_frames)
+            _frame_dict = strip_substring_from_keys(frame_dict, f"{component_name}_")
 
-        nodes, edges = extract_graph(_frame_dict)
+            nodes, edges = extract_graph(_frame_dict)
 
-        return render_graph(nodes, edges, output_filename=f"frame_graph_{component_name}")
-    
+            return render_graph(nodes, 
+                                edges, 
+                                output_filename=f"frame_graph_{component_name}",
+                                logger=self.logger)
+        
+        except ComponentNotFoundError as e:
+            self.logger.error(f"Error: Could not create frame graph for component '{component_name}': {e}")
+            return None
+
     def get_instructions_graph_for_component(self, component_name:str)-> bytes:
         """
         Get a graph representation of the assembly instructions and their associated planes for a given component.
@@ -1406,13 +1407,23 @@ class AssemblySceneAnalyzer():
             ComponentNotFoundError: If the specified component is not found in the scene.
             AssemblyInstructionNotFoundError: If no assembly instructions are found for the specified component.
         """
-        instructions_dict = self.get_instructions_element_tree(component_name)
-        _instructions_dict = strip_substring_from_keys(instructions_dict, f"{component_name}_")
-        nodes, edges = extract_graph(_instructions_dict)
+        try:
+            instructions_dict = self.get_instructions_element_tree(component_name)
+            _instructions_dict = strip_substring_from_keys(instructions_dict, f"{component_name}_")
+            nodes, edges = extract_graph(_instructions_dict)
 
-        return render_graph(nodes, edges, output_filename=f"instructions_graph_{component_name}")
-
-
+            return render_graph(nodes, 
+                                edges, 
+                                output_filename=f"instructions_graph_{component_name}",
+                                logger=self.logger)
+        
+        except ComponentNotFoundError as e:
+            self.logger.error(f"Error: Could not create instructions graph for component '{component_name}': {e}")
+            return None
+        except AssemblyInstructionNotFoundError as e:
+            self.logger.error(f"Error: Could not create instructions graph for component '{component_name}': {e}")
+            return None
+        
     def get_plane_graph_for_component(self, component_name:str)-> bytes:
         """
         Get a graph representation of the planes associated with the assembly instructions for a given component.
@@ -1423,12 +1434,20 @@ class AssemblySceneAnalyzer():
         Returns:
             bytes: A PNG image representation of the plane graph.
         """
-        plane_tree = self.get_plane_tree_for_component(component_name)
-        _plane_tree = strip_substring_from_keys(plane_tree, f"{component_name}_")
-        nodes, edges = extract_graph(_plane_tree)
+        try:
+            plane_tree = self.get_plane_tree_for_component(component_name)
+            _plane_tree = strip_substring_from_keys(plane_tree, f"{component_name}_")
+            nodes, edges = extract_graph(_plane_tree)
 
-        return render_graph(nodes, edges, output_filename=f"planes_graph_{component_name}")
-
+            return render_graph(nodes, 
+                                edges, 
+                                output_filename=f"planes_graph_{component_name}",
+                                logger=self.logger)
+        
+        except ComponentNotFoundError as e:
+            self.logger.error(f"Error: Could not create plane graph for component '{component_name}': {e}")
+            return None
+        
     # def get_identification_order(scene: ami_msg.ObjectScene,
     #                             frame_list: list[ami_msg.RefFrame],
     #                             logger: RcutilsLogger = None)->ConstraintRestrictionList:

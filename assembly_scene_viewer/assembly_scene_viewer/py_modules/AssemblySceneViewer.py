@@ -31,7 +31,12 @@ from PyQt6.QtWidgets import (QScrollArea,
                             QGroupBox,
                             QStackedWidget,
                             QStyledItemDelegate,
+                            QScrollArea as QScrollAreaImport,
+                            QGraphicsView,
+                            QGraphicsScene,
+                            QGraphicsPixmapItem,
                             )
+
 
 from scipy.spatial.transform import Rotation as R
 from PyQt6.QtGui import QColor, QTextCursor, QFont, QAction, QIcon, QPainter, QPixmap
@@ -53,6 +58,137 @@ from assembly_scene_viewer.py_modules.STLViewerWidget import STLViewerWidget
 
 # import vtk
 # from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+
+# ---------------------------------------------------------------------------
+# Widget: Zoomable image viewer
+# ---------------------------------------------------------------------------
+class ZoomableImageViewer(QGraphicsView):
+    """A graphics view widget that allows zooming in/out of images"""
+    
+    def __init__(self, pixmap: QPixmap):
+        super().__init__()
+        self.zoom_level = 1.0
+        self.min_zoom = 0.1
+        self.max_zoom = 5.0
+        self.zoom_step = 1.05  # 5% change per scroll wheel - very smooth
+        
+        # Create scene and add pixmap
+        self.scene = QGraphicsScene()
+        self.pixmap_item = QGraphicsPixmapItem(pixmap)
+        self.scene.addItem(self.pixmap_item)
+        
+        self.setScene(self.scene)
+        self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
+        
+        # **PyQt6 fix for render hint**
+        self.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+        
+        # Fit to view initially
+        self.fitInView(self.scene.itemsBoundingRect(), Qt.AspectRatioMode.KeepAspectRatio)
+        # Reset zoom level after fit
+        self.zoom_level = 1.0
+    
+    def wheelEvent(self, event):
+        """Handle mouse wheel for zooming"""
+        if event.angleDelta().y() > 0:
+            # Zoom in
+            self.zoom_level = min(self.zoom_level * self.zoom_step, self.max_zoom)
+        else:
+            # Zoom out
+            self.zoom_level = max(self.zoom_level / self.zoom_step, self.min_zoom)
+        
+        # Apply zoom by resetting transform and applying new scale
+        self.resetTransform()
+        self.scale(self.zoom_level, self.zoom_level)
+
+# ---------------------------------------------------------------------------
+# Dialog: Images display dialog for showing multiple images
+# ---------------------------------------------------------------------------
+class ImagesDialog(QDialog):
+    """Dialog to display multiple images related to an object"""
+    
+    def __init__(self, parent=None, images=None):
+        super().__init__(parent)
+        self.setWindowTitle("Analysis Graphs")
+        self.setGeometry(200, 200, 900, 700)
+        
+        # Enable maximize button in title bar with proper flags
+        self.setWindowFlags(
+            Qt.WindowType.Window |                      # regular window
+            Qt.WindowType.WindowMinimizeButtonHint |    # enable minimize
+            Qt.WindowType.WindowMaximizeButtonHint |    # enable maximize
+            Qt.WindowType.WindowCloseButtonHint         # enable close
+        )
+        
+        layout = QVBoxLayout(self)
+        
+        # Scroll area for images
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        
+        # Container for images
+        images_container = QWidget()
+        images_layout = QVBoxLayout(images_container)
+        images_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Add images
+        if images and len(images) > 0:
+            for title, image_data in images:
+                # Create a container for each image with title
+                img_frame = QWidget()
+                img_frame_layout = QVBoxLayout(img_frame)
+                img_frame_layout.setContentsMargins(4, 4, 4, 4)
+                
+                # Image title
+                img_title = QLabel(title)
+                img_title.setStyleSheet("""
+                    font-size: 11pt;
+                    font-weight: bold;
+                    padding: 4px;
+                    background-color: #f0f0f0;
+                """)
+                img_frame_layout.addWidget(img_title)
+                
+                # Convert image bytes to QPixmap and display
+                if isinstance(image_data, bytes):
+                    pixmap = QPixmap()
+                    pixmap.loadFromData(image_data)
+                    
+                    if not pixmap.isNull():
+                        # Use zoomable viewer
+                        viewer = ZoomableImageViewer(pixmap)
+                        viewer.setMinimumHeight(700)
+                        img_frame_layout.addWidget(viewer)
+                    else:
+                        error_label = QLabel("Error: Could not load image data")
+                        error_label.setStyleSheet("color: red; padding: 8px;")
+                        img_frame_layout.addWidget(error_label)
+                else:
+                    error_label = QLabel("Error: Invalid image data format")
+                    error_label.setStyleSheet("color: red; padding: 8px;")
+                    img_frame_layout.addWidget(error_label)
+                
+                img_frame.setStyleSheet("border: 1px solid #ccc; margin: 4px;")
+                images_layout.addWidget(img_frame)
+        else:
+            placeholder = QLabel("No images available")
+            placeholder.setStyleSheet("padding: 8px; color: #999;")
+            images_layout.addWidget(placeholder)
+        
+        images_layout.addStretch()
+        scroll_area.setWidget(images_container)
+        layout.addWidget(scroll_area)
+        
+        # Button layout (close button)
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        
+        close_button = QPushButton("Close")
+        close_button.setMaximumWidth(100)
+        close_button.clicked.connect(self.accept)
+        button_layout.addWidget(close_button)
+        button_layout.addStretch()
+        layout.addLayout(button_layout)
 
 class AssemblySceneViewerMainWindow(QMainWindow):
     def __init__(self, ros_node:Node):
@@ -108,7 +244,7 @@ class ObjectsListPanel(QWidget):
         self.logger = logger
         self.analyzer = analyzer
         self.scene_message = am_msgs.ObjectScene()
-
+        self._current_selected_object = None
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
@@ -132,10 +268,16 @@ class ObjectsListPanel(QWidget):
         if self.logger:
             self.logger.warn(str(msg))
 
+    def get_current_selected_object(self)->str:
+        return self._current_selected_object
+
+    def set_current_selected_object(self, obj_name:str):
+        self._current_selected_object = obj_name
+
     def update_scene(self, msg: am_msgs.ObjectScene):
         self.scene_message = msg
         self.populate()
-
+    
     def populate(self):
         self.list_widget.clear()
         for obj in self.scene_message.objects_in_scene:
@@ -1057,7 +1199,7 @@ class AssemblyScenceViewerWidget(QWidget):
         # Right column: Create stacked views for object vs instruction mode
         self.right_stack = QStackedWidget()
         
-        # Object mode right side: STL viewer (top) + properties panel (bottom)
+        # Object mode right side: STL viewer (top) + button + properties panel (bottom)
         self.object_right_container = QWidget()
         object_right_layout = QVBoxLayout(self.object_right_container)
         object_right_layout.setContentsMargins(0, 0, 0, 0)
@@ -1069,8 +1211,29 @@ class AssemblyScenceViewerWidget(QWidget):
         object_right_layout.addWidget(reset_button)
         
         self.stl_viewer_widget = STLViewerWidget()
+        
+        # Add images button
+        self.images_button = QPushButton("View Images")
+        self.images_button.setMaximumHeight(35)
+        self.images_button.setStyleSheet("""
+            QPushButton {
+                background-color: #e8f4f8;
+                border: 1px solid #4da6b5;
+                padding: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #d0e8f0;
+            }
+            QPushButton:pressed {
+                background-color: #b8dce8;
+            }
+        """)
+        self.images_button.clicked.connect(self._on_images_button_clicked)
+        
         self.properties_panel = PropertiesPanel(logger=self.ros_node.get_logger())
         object_right_layout.addWidget(self.stl_viewer_widget, 3)      # STL takes 3/4 of space
+        object_right_layout.addWidget(self.images_button, 0)           # Button takes minimal space
         object_right_layout.addWidget(self.properties_panel, 1)       # Properties takes 1/4 of space
         
         # Instruction mode right side: two STL viewers (full width)
@@ -1112,6 +1275,9 @@ class AssemblyScenceViewerWidget(QWidget):
             (o for o in self._assembly_scene.objects_in_scene if o.obj_name == item.text()),
             am_msgs.Object()
         )
+        
+        self.objects_panel.set_current_selected_object(obj.obj_name)
+
         element_panel = ObjectsElementPanel(obj, 
                                            scene_message=self._assembly_scene,
                                            logger=self.ros_node.get_logger())
@@ -1153,6 +1319,36 @@ class AssemblyScenceViewerWidget(QWidget):
         """Reset the STL viewer camera to default view."""
         if self.stl_viewer_widget:
             self.stl_viewer_widget.reset_camera()
+
+    # ----------------------------------------------------------------------
+    # Images button handler
+    # ----------------------------------------------------------------------
+    def _on_images_button_clicked(self):
+        """Open the images dialog for the current object."""
+        # Get currently selected object
+        obj_name = self.objects_panel.get_current_selected_object()
+
+        if not obj_name:
+            QMessageBox.warning(self, "No Object Selected", "Please select an object first.")
+            return
+                
+        # For now, pass an empty list of images
+        # In the future, this will be populated with actual images from the object
+        images_list = []
+        frame_graph = self.anylzer.get_frame_graph_for_component(obj_name)
+        instructions_graph = self.anylzer.get_instructions_graph_for_component(obj_name)
+        plane_graph = self.anylzer.get_plane_graph_for_component(obj_name)
+        
+        if frame_graph:
+            images_list.append(("Frame Constraints Graph", frame_graph))
+        if instructions_graph:
+            images_list.append(("Instructions Graph", instructions_graph))
+        if plane_graph:
+            images_list.append(("Plane Constraints Graph", plane_graph))
+
+        # Open the images dialog
+        dialog = ImagesDialog(self, images=images_list)
+        dialog.exec()
 
     # ----------------------------------------------------------------------
     # Frame selection handler - marks constraining frames

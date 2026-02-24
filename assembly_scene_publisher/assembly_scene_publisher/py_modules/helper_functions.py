@@ -1,6 +1,7 @@
 from graphviz import Digraph
 
 from ament_index_python import get_package_share_directory
+from rclpy.impl.rcutils_logger import RcutilsLogger
 
 def extract_graph(tree: dict):
     """
@@ -24,7 +25,11 @@ def extract_graph(tree: dict):
     return nodes, edges
 
 
-def render_graph(nodes, edges, output_filename=None):
+def render_graph(nodes, 
+                 edges, 
+                 output_filename=None,
+                 logger: RcutilsLogger=None):
+    
     path = get_package_share_directory("assembly_scene_publisher")
     dot = Digraph(comment="Reference Tree")
     output_filename = f"{path}/image_renders/{output_filename}" if output_filename else None
@@ -41,6 +46,8 @@ def render_graph(nodes, edges, output_filename=None):
 
     if output_filename:
         dot.render(output_filename, format="png", cleanup=True)
+        if logger:
+            logger.info(f"Graph rendered and saved to {output_filename}.png")
 
     # Return PNG as bytes
     return dot.pipe(format="png")

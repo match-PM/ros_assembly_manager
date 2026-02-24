@@ -1,0 +1,26 @@
+# External Python packages required for ros_assembly_manager
+# ROS 2 Humble packages (geometry_msgs, rclpy, etc.) are excluded as they come with ROS 2 installation
+# pip install -r requirements.txt
+
+# Scientific Computing
+numpy
+scipy
+sympy
+
+# Visualization
+matplotlib
+vtk
+graphviz
+
+# GUI
+PyQt6
+
+# Data Processing
+PyYAML
+
+# Curve Fitting
+fitter
+
+# Development/Testing
+pytest
+setuptools
