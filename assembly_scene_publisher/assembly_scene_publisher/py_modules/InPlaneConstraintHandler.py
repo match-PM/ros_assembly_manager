@@ -83,7 +83,11 @@ class InPlaneConstraintHandler(ami_msg.FrConstraintInPlane):
             if self.logger is not None:
                 self.logger.error('Reference frames do not have the same parent frame!')
             return
-        
+    
+    def get_info(self)->str:
+        info_str = f'InPlane constraint:\n\t Reference frames: {self.ref_frame_names} \n\tnormal axis: {self.normal_axis}\n\t plane offset: {self.plane_offset}'
+        return info_str
+    
     def get_frame_references(self)->list[str]:
         
         frame_names = self.ref_frame_names

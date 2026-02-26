@@ -19,11 +19,13 @@ from assembly_scene_publisher.py_modules.scene_functions import     (check_frame
 from assembly_scene_publisher.py_modules.CentroidConstraintHandler import CentroidConstraintHandler
 from assembly_scene_publisher.py_modules.OrthogonalConstraintHandler import OrthogonalConstraintHandler
 from assembly_scene_publisher.py_modules.InPlaneConstraintHandler import InPlaneConstraintHandler
+from assembly_scene_publisher.py_modules.TransformConstraintHandler import TransformConstraintHandler
 
 
 class FrameConstraintsHandler(ami_msg.FrConstraints):
     
-    CALCULATION_ORDER = ['centroid',                 
+    CALCULATION_ORDER = ['centroid', 
+                         'transform',                
                          'in_plane',
                          'orthogonal']
     
@@ -33,7 +35,8 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
         self.centroid_handler = CentroidConstraintHandler(logger=logger)
         self.orthogonal_handler = OrthogonalConstraintHandler(logger=logger)
         self.in_plane_handler = InPlaneConstraintHandler(logger=logger)
-
+        self.transform_handler = TransformConstraintHandler(logger=logger)
+    
     @staticmethod
     def return_handler_from_dict(dictionary: dict, 
                                     component_name: str = None,
@@ -77,9 +80,21 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
         
         frame_constraints.in_plane = in_plane_handler.return_as_msg()
         frame_constraints.in_plane_handler = in_plane_handler
+
+        transform_handler = TransformConstraintHandler.return_handler_from_dict(dictionary.get('transform',{}),
+                                                                                unique_identifier = unique_identifier,
+                                                                                component_name=component_name,
+                                                                                logger=logger)
+        
+        transform_handler.set_is_active(scene=scene,
+                                       component_name=component_name)
+        
+        frame_constraints.transform = transform_handler.return_as_msg()
+        frame_constraints.transform_handler = transform_handler
         
         return frame_constraints
     
+                                          
     @staticmethod
     def return_handler_from_msg(msg: ami_msg.FrConstraints, 
                                 scene: ami_msg.ObjectScene = None, 
@@ -104,6 +119,11 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
         in_plane_handler.set_is_active(scene,component_name=component_name)
         handler.in_plane = in_plane_handler.return_as_msg()
         handler.in_plane_handler = in_plane_handler
+
+        transform_handler = TransformConstraintHandler.return_handler_from_msg(msg_copy.transform, logger)
+        transform_handler.set_is_active(scene,component_name=component_name)
+        handler.transform = transform_handler.return_as_msg()
+        handler.transform_handler = transform_handler
         
         return handler
     
@@ -113,8 +133,15 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
         msg.centroid = self.centroid
         msg.orthogonal = self.orthogonal
         msg.in_plane = self.in_plane
+        msg.transform = self.transform
         return msg
     
+    def set_activations(self, scene: ami_msg.ObjectScene, component_name: str = None):
+        self.centroid_handler.set_is_active(scene=scene, component_name=component_name)
+        self.orthogonal_handler.set_is_active(scene=scene, component_name=component_name)
+        self.in_plane_handler.set_is_active(scene=scene, component_name=component_name)
+        self.transform_handler.set_is_active(scene=scene, component_name=component_name)   
+
     def set_from_msg(self, msg: ami_msg.FrConstraints):
         msg_copy = deepcopy(msg)
         self.unit = msg_copy.unit
@@ -124,6 +151,8 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
         self.orthogonal_handler = OrthogonalConstraintHandler.return_handler_from_msg(msg_copy.orthogonal, self.logger)
         self.in_plane = msg_copy.in_plane
         self.in_plane_handler = InPlaneConstraintHandler.return_handler_from_msg(msg_copy.in_plane, self.logger)
+        self.transform = msg_copy.transform
+        self.transform_handler = TransformConstraintHandler.return_handler_from_msg(msg_copy.transform, self.logger)
     
     def get_frame_references(self)->list[str]:
         # get all the frames used in the constraints for this frame
@@ -135,6 +164,8 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
             frame_references.extend(self.orthogonal_handler.get_frame_references())
         if self.in_plane.is_active:
             frame_references.extend(self.in_plane_handler.get_frame_references())
+        if self.transform.is_active:
+            frame_references.extend(self.transform_handler.get_frame_references())
             
         return frame_references
     
@@ -153,8 +184,11 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
             
             ref_list.add_list_to_list(self.in_plane_handler.get_frame_references_const(scene=scene))
         
+        if self.transform.is_active:
+            ref_list.add_list_to_list(self.transform_handler.get_frame_references_const(scene=scene))
+        
         return ref_list
-    
+
     def calculate_frame_constraints(self, 
                                     initial_pose: Pose,
                                     scene: ami_msg.ObjectScene, 
@@ -164,7 +198,6 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
         """
         This function calculates the frame constraints and returns the pose of the frame.
         """
-        result_pose = Pose()
         
         for constraint in self.CALCULATION_ORDER:
             if constraint == 'centroid':
@@ -195,9 +228,31 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
                                                                     component_name=component_name,
                                                                     unit=self.unit,
                                                                     frame_name=frame_name)
+
+            if constraint == 'transform':
+                # calculate the transform constraint
+                transform_handler = TransformConstraintHandler(logger=self.logger)
+                transform_handler.set_from_msg(self.transform)
+                initial_pose = transform_handler.calculate_constraint(initial_frame_pose=initial_pose,
+                                                                    scene=scene,
+                                                                    component_name=component_name,
+                                                                    unit=self.unit,
+                                                                    frame_name=frame_name)
         return initial_pose
     
     
+    def get_info(self)->str:
+        result_str = ''
+        if self.centroid is not None and self.centroid_handler.is_active:
+            result_str += self.centroid_handler.get_info()
+        if self.in_plane is not None and self.in_plane_handler.is_active:
+            result_str += self.in_plane_handler.get_info()
+        if self.orthogonal is not None and self.orthogonal_handler.is_active:
+            result_str += self.orthogonal_handler.get_info()
+        if self.transform is not None and self.transform_handler.is_active:
+            result_str += self.transform_handler.get_info()
+        return result_str
+
 def update_ref_frame_by_constraint(scene:ami_msg.ObjectScene, 
                                 ref_frame:ami_msg.RefFrame, 
                                 component_name:str,
@@ -367,7 +422,7 @@ def calculate_constraints_for_component(scene: ami_msg.ObjectScene,
     if logger is not None:
         #logger.warn(f"list:{frame_list}")
         pass
-
+        
     return calculate_frame_contrains_for_frame_list(scene, frame_list, component_name=component_name, logger=logger)
 
 ### Delete here if possible

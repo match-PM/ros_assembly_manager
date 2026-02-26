@@ -1,0 +1,3 @@
+bool is_active false
+string ref_frame
+geometry_msgs/Transform transform

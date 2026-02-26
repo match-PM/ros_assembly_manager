@@ -61,6 +61,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/RefFrameProperties.msg"
   "msg/AssemblyFrameProperties.msg"
   "msg/ComponentProperties.msg"
+  "msg/FrConstraintTransform.msg"
 
   DEPENDENCIES geometry_msgs std_msgs# Add packages that above messages depend on, in this case geometry_msgs for Sphere.msg
 )

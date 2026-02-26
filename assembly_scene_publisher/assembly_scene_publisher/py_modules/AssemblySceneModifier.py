@@ -38,17 +38,15 @@ class AssemblySceneModifier(AssemblySceneAnalyzer):
         try:
             # make a deep copy just to be sure that the original ref frame is not modified
             # this is just for safety reasons
-            copy_ref_frame = deepcopy(ref_frame)
-            scene_copy = deepcopy(self._get_scene())
 
             #self.logger.warn(f"Update ref frame constraints for frame '{ref_frame.frame_name}'")
             
-            frame_constraints_handler:FrameConstraintsHandler = FrameConstraintsHandler.return_handler_from_msg(msg=copy_ref_frame.constraints,
-                                                                                                                scene=scene_copy)
+            frame_constraints_handler:FrameConstraintsHandler = FrameConstraintsHandler.return_handler_from_msg(msg=ref_frame.constraints,
+                                                                                                                scene=self._get_scene())
             
-            pose = frame_constraints_handler.calculate_frame_constraints(initial_pose = copy_ref_frame.pose, 
-                                                                            scene=scene_copy,
-                                                                            frame_name=copy_ref_frame.frame_name,
+            pose = frame_constraints_handler.calculate_frame_constraints(initial_pose = ref_frame.pose, 
+                                                                            scene=self._get_scene(),
+                                                                            frame_name=ref_frame.frame_name,
                                                                             component_name = component_name,
                                                                             logger=self.logger)
             
@@ -60,6 +58,37 @@ class AssemblySceneModifier(AssemblySceneAnalyzer):
             self.logger.error(str(e))
             self.logger.error(f"Unknown Error. Constraint could not be updated!")
             return False
+
+    def update_frame_constraint_activation(self,
+                                        ref_frame:ami_msg.RefFrame,
+                                        ):
+        """Checks and sets the activation of the constraints for a reference frame."""
+
+        # make a deep copy just to be sure that the original ref frame is not modified
+        # this is just for safety reasons
+
+        frame_constraints_handler:FrameConstraintsHandler = FrameConstraintsHandler.return_handler_from_msg(msg=ref_frame.constraints,
+                                                                                                            scene=self._get_scene(),
+                                                                                                            logger=self.logger)
+        
+        frame_constraints_handler.set_activations(scene=self._get_scene())
+        ref_frame.constraints = frame_constraints_handler.return_as_msg()
+
+    def update_all_frame_constraint_activations(self):
+        """
+        This function updates the activation of the constraints for all reference frames in the scene. It checks if the constraints are valid and sets the activation accordingly.
+        """
+        
+        #self.logger.info(f"Updating constraint activations for all frames in the scene...")
+
+        for comp in self._get_scene().objects_in_scene:
+            comp: ami_msg.Object
+
+            for ref_frame in comp.ref_frames:
+                self.update_frame_constraint_activation(ref_frame)
+
+        for ref_frame in self._get_scene().ref_frames_in_scene:
+            self.update_frame_constraint_activation(ref_frame)
 
     def calculate_frame_constraints_for_frame_list(self,
                                                 frame_list: list[ami_msg.RefFrame],

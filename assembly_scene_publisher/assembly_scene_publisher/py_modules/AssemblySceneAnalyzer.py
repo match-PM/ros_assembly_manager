@@ -490,6 +490,7 @@ class AssemblySceneAnalyzer():
         except_centroid: bool = False,
         except_orthogonal: bool = False,
         except_in_plane: bool = False,
+        except_transform: bool = False
     ) -> bool:
         """
         Checks if the given frame is constrained in the scene.
@@ -510,6 +511,7 @@ class AssemblySceneAnalyzer():
             "centroid": constraints.centroid.is_active,
             "orthogonal": constraints.orthogonal.is_active,
             "in_plane": constraints.in_plane.is_active,
+            "transform": constraints.transform.is_active,
         }
 
         if except_centroid:
@@ -518,6 +520,8 @@ class AssemblySceneAnalyzer():
             active_constraints["orthogonal"] = False
         if except_in_plane:
             active_constraints["in_plane"] = False
+        if except_transform:
+            active_constraints["transform"] = False
 
         return any(active_constraints.values())
 

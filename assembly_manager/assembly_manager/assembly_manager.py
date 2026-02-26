@@ -327,8 +327,8 @@ class AssemblyManagerNode(Node):
 
             self.logger.info(f"Start processing ref frames for '{spawn_request.obj_name}'...")
             # This is needed for tf to update
-            time.sleep(1.5)
-            
+            time.sleep(0.5)
+
             num_of_ref_frames = len(ref_frames)
             # go through the dictionary
             for ind, ref_frame in enumerate(ref_frames):
@@ -346,12 +346,11 @@ class AssemblyManagerNode(Node):
                 constraint_dict = ref_frame.get("constraints",{})
                 #constraint_dict['units'] = doc_units
                 #constraint_dict = {"constraints": constraint_dict}
-
+                
                 frame_constraint_handler = f_constraints.FrameConstraintsHandler.return_handler_from_dict(dictionary=constraint_dict,
                                                                                                           component_name=comp_name,
                                                                                                           logger = self.logger)
                 frame_constraint_handler.unit = doc_units
-                
                 msg = frame_constraint_handler.return_as_msg()
                                 
                 create_ref_frame_request.ref_frame.constraints = msg
@@ -360,7 +359,7 @@ class AssemblyManagerNode(Node):
                 if ind == num_of_ref_frames - 1:
                     create_ref_frame_request.recalculate_constraints = True
                     self.logger.info(f"Recalculation of all constraints triggered by spawing frame '{create_ref_frame_request.ref_frame.frame_name}'!")
-
+                                
                 spawn_ref_frame_success = self.create_ref_frame(create_ref_frame_request)
 
                 if not spawn_ref_frame_success:

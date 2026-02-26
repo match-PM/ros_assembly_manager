@@ -55,7 +55,7 @@ from assembly_scene_publisher.py_modules.scene_errors import *
 from assembly_scene_publisher.py_modules.AssemblySceneAnalyzerAdv import AssemblySceneAnalyzerAdv
 from assembly_scene_publisher.py_modules.AssemblySceneAnalyzer import UnInitializedScene
 from assembly_scene_viewer.py_modules.STLViewerWidget import STLViewerWidget
-
+from assembly_scene_publisher.py_modules.frame_constraints import FrameConstraintsHandler
 # import vtk
 # from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 
@@ -580,7 +580,7 @@ class FramesElementPanel(QListWidget):
             item_text = frame.frame_name
             if item_text.startswith(self.obj_name):
                 item_text = item_text[len(self.obj_name)+1:]
-
+            
             # Determine frame type and select icon
             icon = None
             props = frame.properties
@@ -596,7 +596,10 @@ class FramesElementPanel(QListWidget):
                 icon = icon_map['assembly']
             elif props.assembly_frame_properties.is_target_frame:
                 icon = icon_map['target']
-            elif frame.constraints.centroid.is_active or frame.constraints.in_plane.is_active or frame.constraints.orthogonal.is_active:
+            elif (frame.constraints.centroid.is_active 
+                  or frame.constraints.in_plane.is_active 
+                  or frame.constraints.orthogonal.is_active
+                  or frame.constraints.transform.is_active):
                 icon = icon_map['chain']
             else:
                 icon = icon_map['default']
@@ -1068,6 +1071,8 @@ class PropertiesPanel(QWidget):
         layout.addWidget(self.properties_text)
     
     def display_frame_properties(self, frame: am_msgs.RefFrame):
+        constriant_handler = FrameConstraintsHandler(logger=self.logger)
+        constriant_handler.set_from_msg(frame.constraints)
         """Display properties of a frame"""
         text = f"<b>Frame: {frame.frame_name}</b><br>"
         text += f"Parent Frame: {frame.parent_frame}<br>"
@@ -1076,23 +1081,7 @@ class PropertiesPanel(QWidget):
         text += f"  Orientation: ({frame.pose.orientation.x:.4f}, {frame.pose.orientation.y:.4f}, {frame.pose.orientation.z:.4f}, {frame.pose.orientation.w:.4f})<br>"
         
         text += f"<br><b>Constraints:</b><br>"
-        if frame.constraints.centroid.is_active:
-            text += f"  <b>Centroid:</b> Active<br>"
-            text += f"    Ref Frames: {', '.join(frame.constraints.centroid.ref_frame_names)}<br>"
-            text += f"    Dimensions: {frame.constraints.centroid.dim}<br>"
-            text += f"    Offsets: ({frame.constraints.centroid.offset_values.x:.4f}, {frame.constraints.centroid.offset_values.y:.4f}, {frame.constraints.centroid.offset_values.z:.4f})<br>"
-        
-        if frame.constraints.in_plane.is_active:
-            text += f"  <b>In-Plane:</b> Active<br>"
-            text += f"    Ref Frames: {', '.join(frame.constraints.in_plane.ref_frame_names)}<br>"
-            text += f"    Plane Offset: {frame.constraints.in_plane.plane_offset:.4f}<br>"
-            text += f"    Normal Axis: {frame.constraints.in_plane.normal_axis}<br>"
-        
-        if frame.constraints.orthogonal.is_active:
-            text += f"  <b>Orthogonal:</b> Active<br>"
-            text += f"    Frame 1: {frame.constraints.orthogonal.frame_1}<br>"
-            text += f"    Frame 2: {frame.constraints.orthogonal.frame_2}<br>"
-            text += f"    Frame 3: {frame.constraints.orthogonal.frame_3}<br>"
+        text += constriant_handler.get_info()
         
         text += f"<br><b>Frame Properties:</b><br>"
         

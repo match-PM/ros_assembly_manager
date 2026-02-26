@@ -238,6 +238,7 @@ class AssemblyManagerScene():
                 
             frame_list_to_append_to.append(new_ref_frame)
 
+        #self.assembly_scene_modifier.update_all_frame_constraint_activations()
         self.publish_information()
         return True
 
@@ -1377,6 +1378,7 @@ class AssemblyManagerScene():
         return plane
     
     def update_scene_with_constraints(self):
+        self.assembly_scene_modifier.update_all_frame_constraint_activations()
         calculate_constraints_for_scene(self.scene, logger=self.logger)
         self.publish_information()
     

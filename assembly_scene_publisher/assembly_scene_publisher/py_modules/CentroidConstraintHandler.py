@@ -115,6 +115,9 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
         
         return frame_names
     
+    def get_info(self)->str:
+        info_str = f'Centroid constraint:\n\t Reference frames: {self.ref_frame_names} \n\tdimension: {self.dim}\n\toffset values: {self.offset_values}'
+        return info_str
     
     def get_frame_references_const(self, scene: ami_msg.ObjectScene)->ConstraintRestrictionList:
         

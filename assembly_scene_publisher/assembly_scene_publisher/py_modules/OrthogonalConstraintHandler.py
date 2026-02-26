@@ -341,6 +341,10 @@ class OrthogonalConstraintHandler(ami_msg.FrConstraintOrthogonal):
 
         return result_pose
 
+    def get_info(self)->str:
+        info_str = f'Orthogonal constraint:\n\t Reference frames: {self.frame_1}, {self.frame_2}, {self.frame_3} \n\tdistance from f1: {self.distance_from_f1}\n\tdistance from f1 to f2 connection: {self.distance_from_f1_f2_connection}\n\torthogonal axis: {self.frame_orthogonal_connection_axis}\n\tnormal axis: {self.frame_normal_plane_axis}'
+        return info_str
+    
     @staticmethod
     def return_handler_from_msg( msg: ami_msg.FrConstraintOrthogonal, logger: RcutilsLogger = None):
         handler = OrthogonalConstraintHandler(logger)
