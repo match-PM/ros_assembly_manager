@@ -185,12 +185,114 @@ class RefFrameConstraints:
         return result
 
 
+class SpawningTransformationWidget(QGroupBox):
+    """Widget for editing the spawning transformation (translation and rotation)"""
+    
+    def __init__(self, parent=None):
+        super().__init__("Spawning Transformation", parent)
+        self.init_ui()
+    
+    def init_ui(self):
+        """Initialize the UI with translation and rotation fields"""
+        layout = QGridLayout()
+        
+        # Translation section
+        layout.addWidget(QLabel("Translation (mm):"), 0, 0, 1, 3)
+        
+        layout.addWidget(QLabel("X:"), 1, 0)
+        self.trans_x = QDoubleSpinBox()
+        self.trans_x.setRange(-10000, 10000)
+        self.trans_x.setDecimals(6)
+        layout.addWidget(self.trans_x, 1, 1)
+        
+        layout.addWidget(QLabel("Y:"), 1, 2)
+        self.trans_y = QDoubleSpinBox()
+        self.trans_y.setRange(-10000, 10000)
+        self.trans_y.setDecimals(6)
+        layout.addWidget(self.trans_y, 1, 3)
+        
+        layout.addWidget(QLabel("Z:"), 2, 0)
+        self.trans_z = QDoubleSpinBox()
+        self.trans_z.setRange(-10000, 10000)
+        self.trans_z.setDecimals(6)
+        layout.addWidget(self.trans_z, 2, 1)
+        
+        # Rotation section (Quaternion)
+        layout.addWidget(QLabel("Rotation (Quaternion):"), 3, 0, 1, 3)
+        
+        layout.addWidget(QLabel("X:"), 4, 0)
+        self.rot_x = QDoubleSpinBox()
+        self.rot_x.setRange(-1.0, 1.0)
+        self.rot_x.setDecimals(6)
+        layout.addWidget(self.rot_x, 4, 1)
+        
+        layout.addWidget(QLabel("Y:"), 4, 2)
+        self.rot_y = QDoubleSpinBox()
+        self.rot_y.setRange(-1.0, 1.0)
+        self.rot_y.setDecimals(6)
+        layout.addWidget(self.rot_y, 4, 3)
+        
+        layout.addWidget(QLabel("Z:"), 5, 0)
+        self.rot_z = QDoubleSpinBox()
+        self.rot_z.setRange(-1.0, 1.0)
+        self.rot_z.setDecimals(6)
+        layout.addWidget(self.rot_z, 5, 1)
+        
+        layout.addWidget(QLabel("W:"), 5, 2)
+        self.rot_w = QDoubleSpinBox()
+        self.rot_w.setRange(-1.0, 1.0)
+        self.rot_w.setDecimals(6)
+        self.rot_w.setValue(1.0)
+        layout.addWidget(self.rot_w, 5, 3)
+        
+        self.setLayout(layout)
+    
+    def set_transformation(self, transformation: Dict[str, Any]):
+        """Load transformation data into the widget"""
+        if not transformation:
+            return
+        
+        # Load translation
+        translation = transformation.get('translation', {})
+        self.trans_x.setValue(translation.get('X', 0.0))
+        self.trans_y.setValue(translation.get('Y', 0.0))
+        self.trans_z.setValue(translation.get('Z', 0.0))
+        
+        # Load rotation (quaternion)
+        rotation = transformation.get('rotation', {})
+        self.rot_x.setValue(rotation.get('X', 0.0))
+        self.rot_y.setValue(rotation.get('Y', 0.0))
+        self.rot_z.setValue(rotation.get('Z', 0.0))
+        self.rot_w.setValue(rotation.get('W', 1.0))
+    
+    def get_transformation(self) -> Dict[str, Any]:
+        """Get the current transformation data"""
+        return {
+            'translation': {
+                'X': self.trans_x.value(),
+                'Y': self.trans_y.value(),
+                'Z': self.trans_z.value()
+            },
+            'rotation': {
+                'X': self.rot_x.value(),
+                'Y': self.rot_y.value(),
+                'Z': self.rot_z.value(),
+                'W': self.rot_w.value(),
+                'IsIdentity': (self.rot_w.value() == 1.0 and 
+                              self.rot_x.value() == 0.0 and
+                              self.rot_y.value() == 0.0 and
+                              self.rot_z.value() == 0.0)
+            }
+        }
+
+
 class AssemblyModifierWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.setAcceptDrops(True)
         self.current_data = None
         self.current_frame_name = None
+        self.current_file_path = None
         self.init_ui()
     
     def init_ui(self):
@@ -214,6 +316,10 @@ class AssemblyModifierWidget(QWidget):
         drop_label.setMinimumHeight(80)
         drop_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         left_layout.addWidget(drop_label)
+        
+        # Spawning Transformation Widget
+        self.spawning_transform_widget = SpawningTransformationWidget()
+        left_layout.addWidget(self.spawning_transform_widget)
         
         # List widget for ref_frames
         list_label = QLabel("Reference Frames:")
@@ -291,6 +397,12 @@ class AssemblyModifierWidget(QWidget):
         try:
             with open(file_path, 'r') as f:
                 self.current_data = json.load(f)
+            
+            self.current_file_path = file_path
+            
+            # Load spawning transformation if available
+            spawning_transform = self.current_data.get('mountingDescription', {}).get('mountingReferences', {}).get('spawningTransformation', {})
+            self.spawning_transform_widget.set_transformation(spawning_transform)
             
             self.populate_refframes_list()
             QMessageBox.information(self, "Success", f"Loaded: {Path(file_path).name}")
@@ -512,6 +624,18 @@ class AssemblyModifierWidget(QWidget):
         
         if reply == QMessageBox.StandardButton.No:
             return
+        
+        # Update spawning transformation in current data before saving
+        try:
+            spawning_transform = self.spawning_transform_widget.get_transformation()
+            if 'mountingDescription' not in self.current_data:
+                self.current_data['mountingDescription'] = {}
+            if 'mountingReferences' not in self.current_data['mountingDescription']:
+                self.current_data['mountingDescription']['mountingReferences'] = {}
+            
+            self.current_data['mountingDescription']['mountingReferences']['spawningTransformation'] = spawning_transform
+        except Exception as e:
+            QMessageBox.warning(self, "Warning", f"Error updating spawning transformation: {str(e)}")
         
         file_path, _ = QFileDialog.getSaveFileName(
             self,
