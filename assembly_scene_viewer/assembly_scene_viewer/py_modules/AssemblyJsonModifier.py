@@ -133,7 +133,7 @@ class InPlaneConstraint:
 @dataclass
 class TransformConstraint:
     """Represents a transform constraint for a reference frame"""
-    frame_name: str = ""
+    refFrame: str = ""
     transform: Dict[str, Any] = field(default_factory=lambda: {
         "translation": {"X": 0.0, "Y": 0.0, "Z": 0.0},
         "rotation": {"X": 0.0, "Y": 0.0, "Z": 0.0, "W": 1.0}
@@ -142,7 +142,7 @@ class TransformConstraint:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'TransformConstraint':
         return cls(
-            frame_name=data.get('frame_name', ''),
+            refFrame=data.get('refFrame', ''),
             transform=data.get('transform', {
                 "translation": {"X": 0.0, "Y": 0.0, "Z": 0.0},
                 "rotation": {"X": 0.0, "Y": 0.0, "Z": 0.0, "W": 1.0}
@@ -151,7 +151,7 @@ class TransformConstraint:
     
     def to_dict(self) -> Dict[str, Any]:
         return {
-            'frame_name': self.frame_name,
+            'refFrame': self.refFrame,
             'transform': self.transform
         }
 
@@ -162,7 +162,7 @@ class RefFrameConstraints:
     centroid: CentroidConstraint = field(default_factory=CentroidConstraint)
     orthogonal: OrthogonalConstraint = field(default_factory=OrthogonalConstraint)
     inPlane: InPlaneConstraint = field(default_factory=InPlaneConstraint)
-    transformConstraint: Optional[TransformConstraint] = None
+    transform: Optional[TransformConstraint] = None
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'RefFrameConstraints':
@@ -170,8 +170,8 @@ class RefFrameConstraints:
             centroid=CentroidConstraint.from_dict(data.get('centroid', {})),
             orthogonal=OrthogonalConstraint.from_dict(data.get('orthogonal', {})),
             inPlane=InPlaneConstraint.from_dict(data.get('inPlane', {})),
-            transformConstraint=TransformConstraint.from_dict(data.get('transformConstraint', {})) 
-                if data.get('transformConstraint') else None
+            transform=TransformConstraint.from_dict(data.get('transform', {})) 
+                if data.get('transform') else None
         )
     
     def to_dict(self) -> Dict[str, Any]:
@@ -180,8 +180,8 @@ class RefFrameConstraints:
             'orthogonal': self.orthogonal.to_dict(),
             'inPlane': self.inPlane.to_dict(),
         }
-        if self.transformConstraint:
-            result['transformConstraint'] = self.transformConstraint.to_dict()
+        if self.transform:
+            result['transform'] = self.transform.to_dict()
         return result
 
 
@@ -365,6 +365,11 @@ class AssemblyModifierWidget(QWidget):
         self.save_btn.clicked.connect(self.save_json)
         right_layout.addWidget(self.save_btn)
         
+        # Reload button
+        self.reload_btn = QPushButton("Reload JSON")
+        self.reload_btn.clicked.connect(self.reload_json)
+        right_layout.addWidget(self.reload_btn)
+        
         # Set layout proportions
         left_widget = QWidget()
         left_widget.setLayout(left_layout)
@@ -457,8 +462,8 @@ class AssemblyModifierWidget(QWidget):
             return True
         
         # Check transform constraint
-        transform = constraints.get('transformConstraint', {})
-        if transform and transform.get('frame_name'):
+        transform = constraints.get('transform', {})
+        if transform and transform.get('refFrame'):
             return True
         
         return False
@@ -594,7 +599,7 @@ class AssemblyModifierWidget(QWidget):
             return
         
         constraints = frame.get('constraints', {})
-        transform_data = constraints.get('transformConstraint', {})
+        transform_data = constraints.get('transform', {})
         
         # Get all available frame names for reference
         all_frames = self.current_data.get('mountingDescription', {}).get('mountingReferences', {}).get('ref_frames', [])
@@ -602,15 +607,19 @@ class AssemblyModifierWidget(QWidget):
         
         dialog = TransformConstraintDialog(transform_data, frame_names, self)
         if dialog.exec():
-            constraints['transformConstraint'] = dialog.get_data()
+            constraints['transform'] = dialog.get_data()
             frame['constraints'] = constraints
             self.display_frame_details(frame)
             self.update_frame_item_color()
     
     def save_json(self):
-        """Save the current data to a JSON file with confirmation dialog"""
+        """Save the current data to the loaded JSON file"""
         if not self.current_data:
             QMessageBox.warning(self, "Warning", "No data loaded")
+            return
+        
+        if not self.current_file_path:
+            QMessageBox.warning(self, "Warning", "No file loaded. Please load a file first.")
             return
         
         # Show confirmation dialog
@@ -637,20 +646,36 @@ class AssemblyModifierWidget(QWidget):
         except Exception as e:
             QMessageBox.warning(self, "Warning", f"Error updating spawning transformation: {str(e)}")
         
-        file_path, _ = QFileDialog.getSaveFileName(
+        try:
+            with open(self.current_file_path, 'w') as f:
+                json.dump(self.current_data, f, indent=2)
+            QMessageBox.information(self, "Success", "File saved successfully")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to save: {str(e)}")
+    
+    def reload_json(self):
+        """Reload the currently loaded JSON file from disk"""
+        if not self.current_file_path:
+            QMessageBox.warning(self, "Warning", "No file loaded. Please load a file first.")
+            return
+        
+        # Show confirmation dialog
+        reply = QMessageBox.question(
             self,
-            "Save JSON File",
-            "",
-            "JSON Files (*.json);;All Files (*)"
+            "Reload File",
+            "Reload the file from disk? Any unsaved changes will be lost.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
         )
         
-        if file_path:
-            try:
-                with open(file_path, 'w') as f:
-                    json.dump(self.current_data, f, indent=2)
-                QMessageBox.information(self, "Success", "File saved successfully")
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to save: {str(e)}")
+        if reply == QMessageBox.StandardButton.No:
+            return
+        
+        try:
+            self.load_json(self.current_file_path)
+            QMessageBox.information(self, "Success", "File reloaded successfully")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to reload: {str(e)}")
     
     def display_frame_details(self, frame):
         """Display detailed information about a reference frame"""
@@ -703,10 +728,10 @@ class AssemblyModifierWidget(QWidget):
             details.append(f"    Normal Axis: {in_plane.get('normalAxis', 'N/A')}")
         
         # Transform constraint
-        transform_constraint = constraints.get('transformConstraint', {})
+        transform_constraint = constraints.get('transform', {})
         if transform_constraint:
             details.append(f"  <b>Transform Constraint:</b>")
-            details.append(f"    Frame Name: {transform_constraint.get('frame_name', 'N/A')}")
+            details.append(f"    Ref Frame: {transform_constraint.get('refFrame', 'N/A')}")
             transform_data = transform_constraint.get('transform', {})
             translation = transform_data.get('translation', {})
             rotation = transform_data.get('rotation', {})
@@ -1083,11 +1108,11 @@ class TransformConstraintDialog(QDialog):
     def init_ui(self):
         layout = QVBoxLayout()
         
-        # Frame name
-        layout.addWidget(QLabel("Frame Name:"))
+        # Ref Frame
+        layout.addWidget(QLabel("Ref Frame:"))
         self.frame_combo = QComboBox()
         self.frame_combo.addItems([""] + self.frame_names)
-        self.frame_combo.setCurrentText(self.data.get('frame_name', ''))
+        self.frame_combo.setCurrentText(self.data.get('refFrame', ''))
         layout.addWidget(self.frame_combo)
         
         # Transform data
@@ -1178,7 +1203,7 @@ class TransformConstraintDialog(QDialog):
     
     def get_data(self) -> Dict[str, Any]:
         return {
-            'frame_name': self.frame_combo.currentText(),
+            'refFrame': self.frame_combo.currentText(),
             'transform': {
                 'translation': {
                     'X': self.trans_x.value(),

@@ -1180,7 +1180,7 @@ class AssemblySceneAnalyzer():
         except AssemblyFrameNotFoundError as e:
             return True
     
-    def check_frame_in_occupied_frames(self, frame_name:str)-> bool:
+    def check_frame_in_occupied_frames(self, frame_name:str, component_name:str = None)-> bool:
         """
         Checks if the given frame name is in the list of occupied frames in the scene.
         parameters:
@@ -1188,11 +1188,23 @@ class AssemblySceneAnalyzer():
         returns:
         - True if the frame name is in the list of occupied frames, False otherwise
         """
+        is_occupied = False
+        is_same_component = False
         for occupied_frame in self._get_scene().occupied_spawning_frames:
             if occupied_frame == frame_name:
+                is_occupied = True
+                break
+        
+        if is_occupied and component_name is not None:
+            component = self.get_component_by_name(component_name)
+            if component.parent_frame == frame_name:
+                return False
+            else:
                 return True
-        return False
 
+        else: 
+            return is_occupied
+        
     def check_frame_measured(self, frame_name:str)-> bool:
         """
         Checks if the given frame name is in the list of measured frames in the scene.

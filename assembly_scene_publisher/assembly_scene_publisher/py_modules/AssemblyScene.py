@@ -110,7 +110,7 @@ class AssemblyManagerScene():
     
     def add_obj_to_scene(self, new_comp:ami_msg.Object)-> bool:
         
-        if self.assembly_scene_analyzer.check_frame_in_occupied_frames(new_comp.parent_frame):
+        if self.assembly_scene_analyzer.check_frame_in_occupied_frames(new_comp.parent_frame, component_name=new_comp.obj_name):
             self.logger.error(f"Parent frame '{new_comp.parent_frame}' is marked as occupied frame. Object '{new_comp.obj_name}' can not be spawned!")
             return False
         
