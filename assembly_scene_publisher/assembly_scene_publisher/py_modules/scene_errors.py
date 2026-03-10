@@ -65,3 +65,23 @@ class OccupiedFrameError(Exception):
     def __init__(self, message:str):
         self.message = message
         super().__init__(self.message)
+
+class AddRefFrameError(Exception):
+    def __init__(self, message:str):
+        self.message = message
+        super().__init__(self.message)
+
+class AssemblyTransformationError(Exception):
+    def __init__(self, message:str):
+        self.message = message
+        super().__init__(self.message)
+
+class TfFrameLookupError(Exception):
+    def __init__(self, message:str):
+        self.message = message
+        super().__init__(self.message)
+
+class RefPlaneError(Exception):
+    def __init__(self, message:str):
+        self.message = message
+        super().__init__(self.message)

@@ -16,6 +16,7 @@ from assembly_scene_publisher.py_modules.geometry_type_functions import (get_poi
                                                                      vector3_to_matrix1x3)  
 
 from assembly_scene_publisher.py_modules.geometry_functions import (matrix_multiply_vector)  
+from assembly_scene_publisher.py_modules.scene_errors import *
 
 
 ROUND_FACTOR = 9
@@ -70,7 +71,7 @@ def get_transform_for_frame_in_world(frame_name: str, tf_buffer: Buffer, logger 
             logger.debug(f"Frame '{frame_name}' found in TF!")
     except Exception as e:
         transform = None
-        raise ValueError(f"Frame '{frame_name}' does not exist in TF! {str(e)}")
+        raise TfFrameLookupError(f"Frame '{frame_name}' does not exist in TF! {str(e)}")
     return transform
 
 def get_transform_for_frame(frame_name: str, parent_frame:str, tf_buffer: Buffer, logger = None) -> TransformStamped:
@@ -83,13 +84,20 @@ def get_transform_for_frame(frame_name: str, parent_frame:str, tf_buffer: Buffer
             logger.debug(f"Frame '{frame_name}' found in TF!")
     except Exception as e:
         transform = None
-        raise ValueError(f"Frame '{frame_name}' does not exist in TF! {str(e)}")
+        raise TfFrameLookupError(f"Frame '{frame_name}' does not exist in TF! {str(e)}")
     return transform
 
-def get_plane_from_frame_names(frames: list[str], tf_buffer: Buffer, parent_frame:str = None, logger = None)-> sp.Plane:
+def get_plane_from_frame_names(frames: list[str], 
+                               tf_buffer: Buffer, 
+                               parent_frame:str = None, 
+                               logger = None)-> sp.Plane:
+    """
+    This function takes a list of three frame names, retrieves their transforms from the TF buffer, and constructs a sympy Plane object based on the positions of these frames. 
+    The frames can be specified relative to a parent frame or in the world frame.
+    """
 
     if len(frames)!=3:
-        raise ValueError
+        raise RefPlaneError("Exactly three frame names must be provided to define a plane.")
     
     if parent_frame is not None:
         t1:TransformStamped = get_transform_for_frame(frames[0], parent_frame, tf_buffer)
@@ -107,6 +115,7 @@ def get_plane_from_frame_names(frames: list[str], tf_buffer: Buffer, parent_fram
 
     if t1 is None or t2 is None or t3 is None:
         raise ValueError
+    
     t_rounded_1 = TransformStamped()
     t_rounded_1.header = t1.header
     t_rounded_1.child_frame_id = t1.child_frame_id
@@ -132,7 +141,7 @@ def get_plane_from_frame_names(frames: list[str], tf_buffer: Buffer, parent_fram
     p1 = get_point_from_ros_obj(t_rounded_1.transform.translation)
     p2 = get_point_from_ros_obj(t_rounded_2.transform.translation)
     p3 = get_point_from_ros_obj(t_rounded_3.transform.translation)
-
+    
     plane = sp.Plane(p1,p2,p3)
 
     return plane

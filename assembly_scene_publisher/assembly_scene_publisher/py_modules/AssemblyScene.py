@@ -1,8 +1,5 @@
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import TransformStamped
-from geometry_msgs.msg import Pose
-from geometry_msgs.msg import Point
 from tf2_ros import Buffer, TransformListener, TransformBroadcaster, StaticTransformBroadcaster
 from rclpy.callback_groups import ReentrantCallbackGroup, MutuallyExclusiveCallbackGroup
 import numpy as np
@@ -10,7 +7,8 @@ import json
 import assembly_manager_interfaces.msg as ami_msg
 import assembly_manager_interfaces.srv as ami_srv
 from scipy.spatial.transform import Rotation as R
-from geometry_msgs.msg import Vector3, Quaternion
+
+from geometry_msgs.msg import Vector3, Quaternion, Transform, Point, Pose, TransformStamped
 import sympy as sp
 from typing import Union
 from assembly_scene_publisher.py_modules.scene_errors import *
@@ -18,6 +16,7 @@ from ament_index_python.packages import get_package_share_directory
 import os
 import random
 import string
+from dataclasses import dataclass
 # import plt
 import matplotlib.pyplot as plt
 from assembly_scene_publisher.py_modules.AssemblySceneAnalyzer import AssemblySceneAnalyzer
@@ -43,7 +42,14 @@ from assembly_scene_publisher.py_modules.geometry_functions import (get_point_of
                                                                     get_euler_rotation_matrix, 
                                                                     quaternion_multiply, 
                                                                     matrix_multiply_vector, 
+                                                                    fix_basis_orientation,
                                                                     norm_vec_direction, 
+                                                                    multiply_ros_transforms,
+                                                                    multiply_quaternions,
+                                                                    quaternion_inverse,
+                                                                    inverse_ros_transform,
+                                                                    BasisDiagnostics,
+                                                                    basis_diagnostics,
                                                                     calc_angle_between_vectors)
 
 from assembly_scene_publisher.py_modules.geometry_type_functions import (vector3_to_matrix1x3,
@@ -54,6 +60,7 @@ from assembly_scene_publisher.py_modules.geometry_type_functions import (vector3
                                                                             get_rotation_matrix_from_tf,
                                                                             transform_matrix_to_pose,
                                                                             euler_to_quaternion,
+                                                                            sympy_to_numpy,
                                                                             get_euler_angles_from_roatation_matrix,
                                                                             SCALE_FACTOR)
 
@@ -71,6 +78,7 @@ from rosidl_runtime_py.convert import message_to_ordereddict
 from rosidl_runtime_py.set_message import set_message_fields
 import json
 import os
+
 
 def vec_to_um(v)-> str:
     return f"(x={v.x * 1e6:.3f}, y={v.y * 1e6:.3f}, z={v.z * 1e6:.3f}) µm"
@@ -166,11 +174,11 @@ class AssemblyManagerScene():
             # eventually 
             return False
 
-    def add_ref_frame_to_scene(self, new_ref_frame:ami_msg.RefFrame)-> bool:
-
+    def add_ref_frame_to_scene(self, new_ref_frame:ami_msg.RefFrame):
+        
         if new_ref_frame is None:
             self.node.get_logger().warn(f"Frame is None.")
-            return False
+            raise AddRefFrameError("Provided frame is None. Frame could not be added to the scene.")
         
         # checks if ref frame frame exists
         ref_frame_existend, parent_frame = self.check_ref_frame_exists(new_ref_frame.frame_name)
@@ -183,13 +191,13 @@ class AssemblyManagerScene():
 
         if not ref_frame_existend and (name_conflict_1 or name_conflict_2):
             self.logger.error(f"Ref frame '{new_ref_frame.frame_name}' can not have the same name as an existing reference frame or object!")
-            return False
+            raise AddRefFrameError("Ref frame name conflicts with an existing reference frame or object.")
 
         parent_frame_exists = self.check_if_frame_exists(new_ref_frame.parent_frame)
             
         if not parent_frame_exists:
             self.logger.warn(f'Tried to spawn ref frame {new_ref_frame.frame_name}, but parent frame {new_ref_frame.parent_frame} does not exist!')
-            return False
+            raise AddRefFrameError("Parent frame does not exist.")
         
         # Check if the new ref frame is a gripping frame, derived by its name
         for identificador in self.GRIPPING_FRAME_IDENTIFICATORS:
@@ -240,7 +248,7 @@ class AssemblyManagerScene():
 
         #self.assembly_scene_modifier.update_all_frame_constraint_activations()
         self.publish_information()
-        return True
+
 
     def add_ref_frames_to_scene_from_dict(self, ref_frames_dict:dict)-> bool:
         """
@@ -296,11 +304,7 @@ class AssemblyManagerScene():
                 msg = frame_constraint_handler.return_as_msg()
                 new_ref_frame.constraints = msg
 
-                add_success = self.add_ref_frame_to_scene(new_ref_frame)
-
-                if not add_success:
-                    self.logger.error(f"Ref frame {new_ref_frame} could not be created!")
-                    return False
+                self.add_ref_frame_to_scene(new_ref_frame)
             
             self.update_scene_with_constraints()
             return True 
@@ -859,10 +863,48 @@ class AssemblyManagerScene():
         :raises ValueError: Raised when the assembly transformation cannot be calculated due to invalid plane selection or other issues.
         :raises RefPlaneNotFoundError: Raised when a plane specified in the instruction does not exist in the scene.
         """
+
+        if not self._check_create_instruction(instruction):
+            return False
+        
+        try:
+            transfrom = self.calculate_assembly_transformation(instruction)
+
+        except (AssemblyTransformationError,
+                ComponentNotFoundError,
+                RefPlaneNotFoundError,
+                AddRefFrameError) as e:
+            self.logger.error(f"Error occured in creating assembly instruction: {str(e)}")
+            return False    
+
+        
+        inst_exists = False
+        for index, _inst in enumerate(self.scene.assembly_instructions):
+            _inst : ami_msg.AssemblyInstruction
+            if _inst.id == instruction.id:
+                del self.scene.assembly_instructions[index]
+                self.scene.assembly_instructions.append(instruction)
+                _inst = instruction
+                inst_exists=True
+                break
+        if not inst_exists:
+            self.scene.assembly_instructions.append(instruction)
+
+        return True
+    
+    def _check_create_instruction(self, instruction: ami_msg.AssemblyInstruction)->bool:
+        """
+        This function checks if the given instruction is valid for creating an assembly instruction. It checks if the components and planes specified in the instruction exist in the scene and if the plane selection is valid. If any of the checks fail, it returns False. If all checks pass, it returns
+        raises: ComponentNotFoundError: Raised when a component specified in the instruction does not exist in the scene.
+        raises: ValueError: Raised when the assembly transformation cannot be calculated due to invalid plane selection or other issues.
+        raises: RefPlaneNotFoundError: Raised when a plane specified in the instruction does not exist in the scene.
+
+        """
         # Get plane msgs for object 1
         if instruction.id == "":
                 self.logger.error(f"ID of the instruction shoud not be empty. Aboarted!")
                 return False
+        
         instruction.plane_match_1.plane_name_component_1
 
         if not self.assembly_scene_analyzer.check_component_exists(instruction.component_1):
@@ -893,30 +935,8 @@ class AssemblyManagerScene():
             self.logger.error(f"Invalid plane selection. All given planes are linked to the same component!")
             return False
         
-        try:
-            transfrom = self.calculate_assembly_transformation(instruction)
-        except ValueError as e:
-            self.logger.error(f"{str(e)}")
-            return False    
-        except Exception as e:
-            self.logger.error(str(e))
-            self.logger.error(f"Fatal Error")
-            return False
-        
-        inst_exists=False
-        for index, _inst in enumerate(self.scene.assembly_instructions):
-            _inst : ami_msg.AssemblyInstruction
-            if _inst.id == instruction.id:
-                del self.scene.assembly_instructions[index]
-                self.scene.assembly_instructions.append(instruction)
-                _inst = instruction
-                inst_exists=True
-                break
-        if not inst_exists:
-            self.scene.assembly_instructions.append(instruction)
-
         return True
-    
+        
     def _get_plane_obj_from_scene(self, plane_name:str, parent_frame:str = None)-> sp.Plane:
         plane_msg = get_plane_from_scene(self.scene, plane_name)
         plane_msg: ami_msg.Plane
@@ -925,13 +945,18 @@ class AssemblyManagerScene():
             plane_msg.point_names[1]!='' and 
             plane_msg.point_names[2]!=''):
             
-            plane = get_plane_from_frame_names(frames = plane_msg.point_names , tf_buffer=self.tf_buffer, parent_frame=parent_frame)
+            plane = get_plane_from_frame_names(frames = plane_msg.point_names, 
+                                               tf_buffer = self.tf_buffer, 
+                                               parent_frame = parent_frame,
+                                               logger = self.logger)
 
         elif (plane_msg.axis_names[0]!='' and
             plane_msg.point_names[0]!='' and 
             plane_msg.point_names[1]=='' and 
             plane_msg.point_names[2]==''):
-            plane = self.get_plane_from_axis_and_frame(plane_msg.axis_names[0], plane_msg.point_names[0],parent_frame=parent_frame)
+            plane = self.get_plane_from_axis_and_frame(axis_name=plane_msg.axis_names[0], 
+                                                       point_name=plane_msg.point_names[0], 
+                                                       parent_frame=parent_frame)
         else:
             plane = None
 
@@ -955,12 +980,14 @@ class AssemblyManagerScene():
     
     def calculate_plane_intersections(self, instruction: ami_msg.AssemblyInstruction)-> tuple[Vector3, Vector3]:
         """
-        This function calculates the intersection point of the given planes and returns the intersection point as a Vector3.
+        This function calculates the intersection point of the given planes and returns the intersection point as a Vector3 in world coordinates. 
+        The first Vector3 corresponds to the intersection point of the planes of component 1 and the second Vector3 corresponds to the intersection point of the planes of component 2.
 
         """
         component_1 = get_parent_frame_for_ref_frame(self.scene,
                                                      get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_1).point_names[0],
                                                      logger=self.logger)
+        
         component_2 = get_parent_frame_for_ref_frame(self.scene,
                                                      get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_2).point_names[0],
                                                      logger=self.logger)
@@ -1007,287 +1034,625 @@ class AssemblyManagerScene():
 
         return (comp_1_mate_plane_intersection, comp_2_mate_plane_intersection)
     
-    def calculate_assembly_transformation(self, instruction:ami_msg.AssemblyInstruction)->Pose:
+    # def calculate_assembly_transformation_old(self, instruction:ami_msg.AssemblyInstruction)->Pose:
         
-        # calculate according to numpy
-        intersection_obj_1 = get_plane_intersection_from_scene_num(self.scene,
-                                                                    instruction.plane_match_1.plane_name_component_1, 
-                                                                    instruction.plane_match_2.plane_name_component_1,
-                                                                    instruction.plane_match_3.plane_name_component_1,
-                                                                    self.logger)
+    #     # calculate according to numpy
+    #     intersection_obj_1 = get_plane_intersection_from_scene_num(self.scene,
+    #                                                                 instruction.plane_match_1.plane_name_component_1, 
+    #                                                                 instruction.plane_match_2.plane_name_component_1,
+    #                                                                 instruction.plane_match_3.plane_name_component_1,
+    #                                                                 self.logger)
         
-        intersection_obj_2 = get_plane_intersection_from_scene_num(self.scene,
-                                                                        instruction.plane_match_1.plane_name_component_2, 
-                                                                        instruction.plane_match_2.plane_name_component_2,
-                                                                        instruction.plane_match_3.plane_name_component_2)
+    #     intersection_obj_2 = get_plane_intersection_from_scene_num(self.scene,
+    #                                                                 instruction.plane_match_1.plane_name_component_2, 
+    #                                                                 instruction.plane_match_2.plane_name_component_2,
+    #                                                                 instruction.plane_match_3.plane_name_component_2)
         
-        intersection_obj_1_world = transform_vector3_to_world(intersection_obj_1, self.tf_buffer, original_parent_frame=instruction.component_1)
-        intersection_obj_2_world = transform_vector3_to_world(intersection_obj_2, self.tf_buffer, original_parent_frame=instruction.component_2)
+    #     intersection_obj_1_world = transform_vector3_to_world(intersection_obj_1, self.tf_buffer, original_parent_frame=instruction.component_1)
+    #     intersection_obj_2_world = transform_vector3_to_world(intersection_obj_2, self.tf_buffer, original_parent_frame=instruction.component_2)
 
-        #self.logger.error(f"Numpy: {str(intersection_obj_1_world)}")
-        #self.logger.error(f"Numpy: {str(intersection_obj_2_world)}")
+    #     #self.logger.error(f"Numpy: {str(intersection_obj_1_world)}")
+    #     #self.logger.error(f"Numpy: {str(intersection_obj_2_world)}")
 
-        # calculate with sympy
-        obj_1_plane_1 = self._get_plane_obj_from_scene(instruction.plane_match_1.plane_name_component_1)
-        obj_1_plane_2 = self._get_plane_obj_from_scene(instruction.plane_match_2.plane_name_component_1)
-        obj_1_plane_3 = self._get_plane_obj_from_scene(instruction.plane_match_3.plane_name_component_1)
+    #     # calculate with sympy
+    #     obj_1_plane_1 = self._get_plane_obj_from_scene(instruction.plane_match_1.plane_name_component_1)
+    #     obj_1_plane_2 = self._get_plane_obj_from_scene(instruction.plane_match_2.plane_name_component_1)
+    #     obj_1_plane_3 = self._get_plane_obj_from_scene(instruction.plane_match_3.plane_name_component_1)
 
-        obj_1_name = get_parent_frame_for_ref_frame(self.scene,
-                                                    get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_1).point_names[0],
-                                                    logger=self.logger)
-        obj_2_name = get_parent_frame_for_ref_frame(self.scene,
-                                                    get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_2).point_names[0],
-                                                    logger=self.logger)
+    #     obj_1_name = get_parent_frame_for_ref_frame(self.scene,
+    #                                                 get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_1).point_names[0],
+    #                                                 logger=self.logger)
+    #     obj_2_name = get_parent_frame_for_ref_frame(self.scene,
+    #                                                 get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_2).point_names[0],
+    #                                                 logger=self.logger)
         
-        #obj_1_mate_plane_intersection: Vector3 = point3D_to_vector3(get_point_of_plane_intersection(obj_1_plane_1, obj_1_plane_2, obj_1_plane_3))
+    #     #obj_1_mate_plane_intersection: Vector3 = point3D_to_vector3(get_point_of_plane_intersection(obj_1_plane_1, obj_1_plane_2, obj_1_plane_3))
         
-        obj_2_plane_1 = self._get_plane_obj_from_scene(instruction.plane_match_1.plane_name_component_2)
-        obj_2_plane_2 = self._get_plane_obj_from_scene(instruction.plane_match_2.plane_name_component_2)
-        obj_2_plane_3 = self._get_plane_obj_from_scene(instruction.plane_match_3.plane_name_component_2)
+    #     obj_2_plane_1 = self._get_plane_obj_from_scene(instruction.plane_match_1.plane_name_component_2)
+    #     obj_2_plane_2 = self._get_plane_obj_from_scene(instruction.plane_match_2.plane_name_component_2)
+    #     obj_2_plane_3 = self._get_plane_obj_from_scene(instruction.plane_match_3.plane_name_component_2)
 
-        #obj_2_mate_plane_intersection: Vector3 = point3D_to_vector3(get_point_of_plane_intersection(obj_2_plane_1, obj_2_plane_2, obj_2_plane_3))
-        try:
-            obj_1_mate_plane_intersection, obj_2_mate_plane_intersection = self.calculate_plane_intersections(instruction)
-            #comparison of plane intersections
-            #self.logger.error(f"Sympy: {str(obj_1_mate_plane_intersection)}")
-            #self.logger.error(f"Sympy: {str(obj_2_mate_plane_intersection)}")
-            result_diff_1 = substract_vectors(intersection_obj_1_world, obj_1_mate_plane_intersection)
-            result_diff_2 = substract_vectors(intersection_obj_2_world, obj_2_mate_plane_intersection)
+    #     #obj_2_mate_plane_intersection: Vector3 = point3D_to_vector3(get_point_of_plane_intersection(obj_2_plane_1, obj_2_plane_2, obj_2_plane_3))
+    #     try:
+    #         obj_1_mate_plane_intersection, obj_2_mate_plane_intersection = self.calculate_plane_intersections(instruction)
+    #         #comparison of plane intersections
+    #         #self.logger.error(f"Sympy: {str(obj_1_mate_plane_intersection)}")
+    #         #self.logger.error(f"Sympy: {str(obj_2_mate_plane_intersection)}")
+    #         result_diff_1 = substract_vectors(intersection_obj_1_world, obj_1_mate_plane_intersection)
+    #         result_diff_2 = substract_vectors(intersection_obj_2_world, obj_2_mate_plane_intersection)
             
-            threshold = 1e-8  # Define a small threshold value
-            if ((abs(result_diff_1.x) > threshold or abs(result_diff_1.y) > threshold or abs(result_diff_1.z) > threshold) or 
-                (abs(result_diff_2.x) > threshold or abs(result_diff_2.y) > threshold or abs(result_diff_2.z) > threshold)):
-                self.logger.error(f"SEVERE DIFFERENCE IN INTERSECTION CALCULATION!! NOTIFY MAINTAINER.")
-                self.logger.error(f"Difference in intersection calculation: {vec_to_um(result_diff_1)}, {vec_to_um(result_diff_2)}")
+    #         threshold = 1e-8  # Define a small threshold value
+    #         if ((abs(result_diff_1.x) > threshold or abs(result_diff_1.y) > threshold or abs(result_diff_1.z) > threshold) or 
+    #             (abs(result_diff_2.x) > threshold or abs(result_diff_2.y) > threshold or abs(result_diff_2.z) > threshold)):
+    #             self.logger.error(f"SEVERE DIFFERENCE IN INTERSECTION CALCULATION!! NOTIFY MAINTAINER.")
+    #             self.logger.error(f"Difference in intersection calculation: {vec_to_um(result_diff_1)}, {vec_to_um(result_diff_2)}")
 
-            obj_1_mate_plane_intersection = intersection_obj_1_world
-            obj_2_mate_plane_intersection = intersection_obj_2_world
+    #         obj_1_mate_plane_intersection = intersection_obj_1_world
+    #         obj_2_mate_plane_intersection = intersection_obj_2_world
 
-        except ValueError as e:
-            self.logger.warn(f"Error in plane intersection calculation with sympy. Using numpy calculation. Error: '{str(e)}'")
-            obj_1_mate_plane_intersection = intersection_obj_1_world
-            obj_2_mate_plane_intersection = intersection_obj_2_world
+    #     except ValueError as e:
+    #         self.logger.warn(f"Error in plane intersection calculation with sympy. Using numpy calculation. Error: '{str(e)}'")
+    #         obj_1_mate_plane_intersection = intersection_obj_1_world
+    #         obj_2_mate_plane_intersection = intersection_obj_2_world
 
-        assembly_transform = Pose()
+    #     assembly_transform = Pose()
 
+    #     if instruction.component_1_is_moving_part:
+    #         moving_component = obj_1_name
+    #         static_component = obj_2_name
+
+    #     else:
+    #         moving_component = obj_2_name
+    #         static_component = obj_1_name
+
+    #     self.logger.info(f"\nMoving component: '{moving_component}'\nStatic component: '{static_component}'")
+        
+    #     # Get the ideal norm vectors from the plane messages
+    #     comp_1_plane_1_ideal_norm_vector = get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_1).ideal_norm_vector
+    #     comp_1_plane_2_ideal_norm_vector = get_plane_from_scene(self.scene, instruction.plane_match_2.plane_name_component_1).ideal_norm_vector
+    #     comp_1_plane_3_ideal_norm_vector = get_plane_from_scene(self.scene, instruction.plane_match_3.plane_name_component_1).ideal_norm_vector
+
+    #     comp_2_plane_1_ideal_norm_vector = get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_2).ideal_norm_vector
+    #     comp_2_plane_2_ideal_norm_vector = get_plane_from_scene(self.scene, instruction.plane_match_2.plane_name_component_2).ideal_norm_vector
+    #     comp_2_plane_3_ideal_norm_vector = get_plane_from_scene(self.scene, instruction.plane_match_3.plane_name_component_2).ideal_norm_vector
+
+    #     # Transform the ideal norm vectors to the world frame
+    #     # for component 1
+    #     obj_1_rot_matrix = get_rotation_matrix_from_tf(self.tf_buffer.lookup_transform('world', obj_1_name,rclpy.time.Time()))
+    #     comp_1_plane_1_ideal_norm_vector = vector3_to_matrix1x3(comp_1_plane_1_ideal_norm_vector)
+    #     comp_1_plane_1_ideal_norm_vector = matrix_multiply_vector(matrix=obj_1_rot_matrix, vector = comp_1_plane_1_ideal_norm_vector)
+
+    #     comp_1_plane_2_ideal_norm_vector = vector3_to_matrix1x3(comp_1_plane_2_ideal_norm_vector)
+    #     comp_1_plane_2_ideal_norm_vector = matrix_multiply_vector(matrix=obj_1_rot_matrix, vector = comp_1_plane_2_ideal_norm_vector)
+
+    #     comp_1_plane_3_ideal_norm_vector = vector3_to_matrix1x3(comp_1_plane_3_ideal_norm_vector)
+    #     comp_1_plane_3_ideal_norm_vector = matrix_multiply_vector(matrix=obj_1_rot_matrix, vector = comp_1_plane_3_ideal_norm_vector)
+
+    #     # for component 2
+    #     obj_2_rot_matrix = get_rotation_matrix_from_tf(self.tf_buffer.lookup_transform('world', obj_2_name,rclpy.time.Time()))
+    #     comp_2_plane_1_ideal_norm_vector = vector3_to_matrix1x3(comp_2_plane_1_ideal_norm_vector)
+    #     comp_2_plane_1_ideal_norm_vector = matrix_multiply_vector(matrix=obj_2_rot_matrix, vector = comp_2_plane_1_ideal_norm_vector)
+
+    #     comp_2_plane_2_ideal_norm_vector = vector3_to_matrix1x3(comp_2_plane_2_ideal_norm_vector)
+    #     comp_2_plane_2_ideal_norm_vector = matrix_multiply_vector(matrix=obj_2_rot_matrix, vector = comp_2_plane_2_ideal_norm_vector)
+
+    #     comp_2_plane_3_ideal_norm_vector = vector3_to_matrix1x3(comp_2_plane_3_ideal_norm_vector)
+    #     comp_2_plane_3_ideal_norm_vector = matrix_multiply_vector(matrix=obj_2_rot_matrix, vector = comp_2_plane_3_ideal_norm_vector)
+
+    #     #self.logger.warn(f"Ideal norm vectors ob1: {comp_1_plane_1_ideal_norm_vector}, {comp_1_plane_2_ideal_norm_vector}, {comp_1_plane_3_ideal_norm_vector}")
+    #     #self.logger.warn(f"Ideal norm vectors obj2: {comp_2_plane_1_ideal_norm_vector}, {comp_2_plane_2_ideal_norm_vector}, {comp_2_plane_3_ideal_norm_vector}")
+
+    #     # Get the normal vectors from the plane actual plane in the world frame
+    #     bvec_obj_1_1:sp.Matrix = sp.Matrix(obj_1_plane_1.normal_vector).normalized().evalf()
+    #     bvec_obj_1_2:sp.Matrix = sp.Matrix(obj_1_plane_2.normal_vector).normalized().evalf()
+    #     bvec_obj_1_3:sp.Matrix = sp.Matrix(obj_1_plane_3.normal_vector).normalized().evalf()
+
+    #     bvec_obj_2_1=sp.Matrix(obj_2_plane_1.normal_vector).normalized().evalf()
+    #     bvec_obj_2_2=sp.Matrix(obj_2_plane_2.normal_vector).normalized().evalf()
+    #     bvec_obj_2_3=sp.Matrix(obj_2_plane_3.normal_vector).normalized().evalf()
+
+    #     self.logger.debug(f"All normal vectors obj 1 are: {bvec_obj_1_1.evalf()}, {bvec_obj_1_2.evalf()}, {bvec_obj_1_3.evalf}")
+    #     self.logger.debug(f"All normal vectors obj2 are: {bvec_obj_2_1.evalf()}, {bvec_obj_2_2.evalf()}, {bvec_obj_2_3.evalf}")
+    #     self.logger.debug(f"All normal vectors obj2 are: {comp_2_plane_1_ideal_norm_vector}, {comp_2_plane_2_ideal_norm_vector}, {comp_2_plane_3_ideal_norm_vector}")
+        
+    #     # get the multiplicator for the normal vectors calculated from the planes and match their direction to the ideal normal vectors
+
+    #     mult_1 = norm_vec_direction(bvec_obj_1_1,comp_1_plane_1_ideal_norm_vector, logger=self.logger)
+    #     mult_2 = norm_vec_direction(bvec_obj_1_2,comp_1_plane_2_ideal_norm_vector, logger=self.logger)
+    #     mult_3 = norm_vec_direction(bvec_obj_1_3,comp_1_plane_3_ideal_norm_vector, logger=self.logger)
+    #     mult_4 = norm_vec_direction(bvec_obj_2_1,comp_2_plane_1_ideal_norm_vector, logger=self.logger)
+    #     mult_5 = norm_vec_direction(bvec_obj_2_2,comp_2_plane_2_ideal_norm_vector, logger=self.logger)
+    #     mult_6 = norm_vec_direction(bvec_obj_2_3,comp_2_plane_3_ideal_norm_vector, logger=self.logger)
+        
+    #     # Check if the normal vectors should be inverted
+    #     if instruction.plane_match_1.inv_normal_vector:
+    #         mult_4 = -mult_4
+    #         #self.logger.debug("Inverted normal vector for plane 1")
+    #     if instruction.plane_match_2.inv_normal_vector:
+    #         mult_5 = -mult_5
+    #         #self.logger.debug("Inverted normal vector for plane 2")
+    #     if instruction.plane_match_3.inv_normal_vector:
+    #         mult_6 = -mult_6
+    #         #self.logger.debug("Inverted normal vector for plane 3")
+
+    #     # Multiply the normal vectors with the multiplicator
+    #     bvec_obj_1_1 : sp.Matrix = bvec_obj_1_1 * mult_1
+    #     bvec_obj_1_2 : sp.Matrix = bvec_obj_1_2 * mult_2
+    #     bvec_obj_1_3 : sp.Matrix = bvec_obj_1_3 * mult_3
+    #     bvec_obj_2_1 : sp.Matrix = bvec_obj_2_1 * mult_4
+    #     bvec_obj_2_2 : sp.Matrix = bvec_obj_2_2 * mult_5
+    #     bvec_obj_2_3 : sp.Matrix = bvec_obj_2_3 * mult_6
+
+    #     # Stack all normal vectors together to a single basis
+    #     basis_obj_1: sp.Matrix = sp.Matrix.hstack(bvec_obj_1_1, bvec_obj_1_2, bvec_obj_1_3)
+    #     basis_obj_2: sp.Matrix = sp.Matrix.hstack(bvec_obj_2_1, bvec_obj_2_2, bvec_obj_2_3)         
+        
+    #     #self.logger.warn(f"Basis obj 1: {str(obj_1_mate_plane_intersection.y)}")
+    #     # Add the translation to the assembly transformation
+    #     obj_1_mate_plane_intersection.x += float(bvec_obj_1_1[0]*instruction.plane_match_1.plane_offset)
+    #     obj_1_mate_plane_intersection.y += float(bvec_obj_1_1[1]*instruction.plane_match_1.plane_offset)
+    #     obj_1_mate_plane_intersection.z += float(bvec_obj_1_1[2]*instruction.plane_match_1.plane_offset)
+
+    #     obj_1_mate_plane_intersection.x += float(bvec_obj_1_2[0]*instruction.plane_match_2.plane_offset)
+    #     obj_1_mate_plane_intersection.y += float(bvec_obj_1_2[1]*instruction.plane_match_2.plane_offset)
+    #     obj_1_mate_plane_intersection.z += float(bvec_obj_1_2[2]*instruction.plane_match_2.plane_offset)
+
+    #     obj_1_mate_plane_intersection.x += float(bvec_obj_1_3[0]*instruction.plane_match_3.plane_offset)
+    #     obj_1_mate_plane_intersection.y += float(bvec_obj_1_3[1]*instruction.plane_match_3.plane_offset)
+    #     obj_1_mate_plane_intersection.z += float(bvec_obj_1_3[2]*instruction.plane_match_3.plane_offset)
+    #     #self.logger.warn(f"Basis obj 1: {str(obj_1_mate_plane_intersection.y)}")
+
+    #     if instruction.component_1_is_moving_part:
+    #         moving_component_plane_intersection = obj_1_mate_plane_intersection
+    #         static_component_plane_intersection = obj_2_mate_plane_intersection
+    #     else:
+    #         moving_component_plane_intersection = obj_2_mate_plane_intersection
+    #         static_component_plane_intersection = obj_1_mate_plane_intersection
+
+    #     # Calculate the translation
+    #     assembly_transform.position.x = float(static_component_plane_intersection.x - moving_component_plane_intersection.x)
+    #     assembly_transform.position.y = float(static_component_plane_intersection.y - moving_component_plane_intersection.y)
+    #     assembly_transform.position.z = float(static_component_plane_intersection.z - moving_component_plane_intersection.z)
+
+    #     # Calculate the 'unideal' rotationmatrix
+    #     if instruction.component_1_is_moving_part:
+    #         rot_matrix = basis_obj_2 * basis_obj_1.inv()
+    #     else:
+    #         rot_matrix = basis_obj_1 * basis_obj_2.inv()
+
+    #     det_rot_matrix= rot_matrix.det()
+
+    #     #self.logger.warn(f"Rot obj 2 to 1: {rot_matrix.evalf()}")
+
+    #     #self.logger.warn(f"Eigenvalues Rot: {rot_matrix.eigenvals()}")
+    #     #self.logger.warn(f"Det Rot: {det_rot_matrix}")
+               
+    #     #if not round(det_rot_matrix, 9) == 1.0:
+    #         #self.logger.warn(f"Invalid plane selection")
+    #         #return False
+
+    #     # Calculate the approx quaternion for rotation in euclidean space
+    #     # get timestamp
+    #     timestamp_before = self.node.get_clock().now()
+    #     assembly_transform.orientation = self.calc_approx_quat_from_matrix(rot_matrix)
+    #     _test = self.calc_approx_quat_from_matrix_V2(rot_matrix)
+    #     # get timestamp
+    #     timestamp_after = self.node.get_clock().now()
+    #     time_diff = timestamp_after - timestamp_before
+    #     #self.logger.info(f"Assembly transformation is: {assembly_transform.__str__()}")
+    #     self.logger.info(f"""Assembly transformation is: \n
+    #                      x: {assembly_transform.position.x},\n
+    #                      y: {assembly_transform.position.y},\n
+    #                      z: {assembly_transform.position.z},\n
+    #                      w: {assembly_transform.orientation.w},\n
+    #                      x: {assembly_transform.orientation.x},\n
+    #                      y: {assembly_transform.orientation.y},\n
+    #                      z: {assembly_transform.orientation.z}""")
+    #     self.logger.info(f"Time for quaternion calculation: {time_diff.nanoseconds/1e6} ms")
+
+    #     add_success = self.add_assembly_frames_to_scene(instruction.id,
+    #                                                     moving_component,
+    #                                                     static_component,
+    #                                                     moving_component_plane_intersection,
+    #                                                     static_component_plane_intersection,
+    #                                                     assembly_transform)
+    #     if not add_success:
+    #         raise ValueError(f"Could not add assembly frames to scene. Aborting!")
+        
+    #     return assembly_transform
+    
+    def calculate_assembly_transformation(self, instruction: ami_msg.AssemblyInstruction) -> Pose:
+        """
+        Calculates the assembly transformation (Pose) between two components based on
+        plane matches from the assembly instruction.
+        """
+
+        obj_1_name = instruction.component_1
+        obj_2_name = instruction.component_2
+
+        moving_component, static_component = (
+            (obj_1_name, obj_2_name)
+            if instruction.component_1_is_moving_part
+            else (obj_2_name, obj_1_name)
+        )
+        moving_ind, static_ind = (1, 2) if instruction.component_1_is_moving_part else (2, 1)
+
+        self.logger.info(f"Moving component ({moving_ind}): {moving_component}, Static component ({static_ind}): {static_component}")
+
+        # 1️⃣ Plane intersections in world frame
+        obj_1_intersection, obj_2_intersection = self._calculate_plane_intersections_world(instruction)
+
+        # 2️⃣ Basis construction
+        basis_obj_1 = self._get_basis_from_planes(instruction, 
+                                                  component_number = 1,
+                                                  in_world=True)
+        
+        basis_obj_2 = self._get_basis_from_planes(instruction, 
+                                                  component_number = 2, 
+                                                  in_world=True)
+
+        basis_obj_1_local = self._get_basis_from_planes(instruction, 
+                                                  component_number = 1,
+                                                  in_world=False)
+        
+        basis_obj_2_local = self._get_basis_from_planes(instruction, 
+                                                  component_number = 2, 
+                                                  in_world=False)
+
+        #self.logger.warn(f"DEBUG 1 {basis_obj_1_local}")
+        #self.logger.warn(f"DEBUG 2 {basis_obj_2_local}")
+
+        # 3️⃣ Apply plane offsets
+        obj_1_intersection = self._apply_plane_offsets(obj_1_intersection, basis_obj_1, instruction)
+        #obj_2_intersection = self._apply_plane_offsets(obj_2_intersection, basis_obj_2, instruction)
+
+        # 4️⃣ Select moving/static mating points
         if instruction.component_1_is_moving_part:
-            moving_component = obj_1_name
-            static_component = obj_2_name
-
+            moving_intersection = obj_1_intersection
+            static_intersection = obj_2_intersection
         else:
-            moving_component = obj_2_name
-            static_component = obj_1_name
+            moving_intersection = obj_2_intersection
+            static_intersection = obj_1_intersection
 
-        self.logger.info(f"\nMoving component: '{moving_component}'\nStatic component: '{static_component}'")
-        
-        # Get the ideal norm vectors from the plane messages
-        comp_1_plane_1_ideal_norm_vector = get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_1).ideal_norm_vector
-        comp_1_plane_2_ideal_norm_vector = get_plane_from_scene(self.scene, instruction.plane_match_2.plane_name_component_1).ideal_norm_vector
-        comp_1_plane_3_ideal_norm_vector = get_plane_from_scene(self.scene, instruction.plane_match_3.plane_name_component_1).ideal_norm_vector
+        # 5️⃣ Translation
+        translation = self._compute_translation(moving_intersection, static_intersection)
 
-        comp_2_plane_1_ideal_norm_vector = get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_2).ideal_norm_vector
-        comp_2_plane_2_ideal_norm_vector = get_plane_from_scene(self.scene, instruction.plane_match_2.plane_name_component_2).ideal_norm_vector
-        comp_2_plane_3_ideal_norm_vector = get_plane_from_scene(self.scene, instruction.plane_match_3.plane_name_component_2).ideal_norm_vector
 
-        # Transform the ideal norm vectors to the world frame
-        # for component 1
-        obj_1_rot_matrix = get_rotation_matrix_from_tf(self.tf_buffer.lookup_transform('world', obj_1_name,rclpy.time.Time()))
-        comp_1_plane_1_ideal_norm_vector = vector3_to_matrix1x3(comp_1_plane_1_ideal_norm_vector)
-        comp_1_plane_1_ideal_norm_vector = matrix_multiply_vector(matrix=obj_1_rot_matrix, vector = comp_1_plane_1_ideal_norm_vector)
-
-        comp_1_plane_2_ideal_norm_vector = vector3_to_matrix1x3(comp_1_plane_2_ideal_norm_vector)
-        comp_1_plane_2_ideal_norm_vector = matrix_multiply_vector(matrix=obj_1_rot_matrix, vector = comp_1_plane_2_ideal_norm_vector)
-
-        comp_1_plane_3_ideal_norm_vector = vector3_to_matrix1x3(comp_1_plane_3_ideal_norm_vector)
-        comp_1_plane_3_ideal_norm_vector = matrix_multiply_vector(matrix=obj_1_rot_matrix, vector = comp_1_plane_3_ideal_norm_vector)
-
-        # for component 2
-        obj_2_rot_matrix = get_rotation_matrix_from_tf(self.tf_buffer.lookup_transform('world', obj_2_name,rclpy.time.Time()))
-        comp_2_plane_1_ideal_norm_vector = vector3_to_matrix1x3(comp_2_plane_1_ideal_norm_vector)
-        comp_2_plane_1_ideal_norm_vector = matrix_multiply_vector(matrix=obj_2_rot_matrix, vector = comp_2_plane_1_ideal_norm_vector)
-
-        comp_2_plane_2_ideal_norm_vector = vector3_to_matrix1x3(comp_2_plane_2_ideal_norm_vector)
-        comp_2_plane_2_ideal_norm_vector = matrix_multiply_vector(matrix=obj_2_rot_matrix, vector = comp_2_plane_2_ideal_norm_vector)
-
-        comp_2_plane_3_ideal_norm_vector = vector3_to_matrix1x3(comp_2_plane_3_ideal_norm_vector)
-        comp_2_plane_3_ideal_norm_vector = matrix_multiply_vector(matrix=obj_2_rot_matrix, vector = comp_2_plane_3_ideal_norm_vector)
-
-        #self.logger.warn(f"Ideal norm vectors ob1: {comp_1_plane_1_ideal_norm_vector}, {comp_1_plane_2_ideal_norm_vector}, {comp_1_plane_3_ideal_norm_vector}")
-        #self.logger.warn(f"Ideal norm vectors obj2: {comp_2_plane_1_ideal_norm_vector}, {comp_2_plane_2_ideal_norm_vector}, {comp_2_plane_3_ideal_norm_vector}")
-
-        # Get the normal vectors from the plane actual plane in the world frame
-        bvec_obj_1_1:sp.Matrix = sp.Matrix(obj_1_plane_1.normal_vector).normalized().evalf()
-        bvec_obj_1_2:sp.Matrix = sp.Matrix(obj_1_plane_2.normal_vector).normalized().evalf()
-        bvec_obj_1_3:sp.Matrix = sp.Matrix(obj_1_plane_3.normal_vector).normalized().evalf()
-
-        bvec_obj_2_1=sp.Matrix(obj_2_plane_1.normal_vector).normalized().evalf()
-        bvec_obj_2_2=sp.Matrix(obj_2_plane_2.normal_vector).normalized().evalf()
-        bvec_obj_2_3=sp.Matrix(obj_2_plane_3.normal_vector).normalized().evalf()
-
-        self.logger.debug(f"All normal vectors obj 1 are: {bvec_obj_1_1.evalf()}, {bvec_obj_1_2.evalf()}, {bvec_obj_1_3.evalf}")
-        self.logger.debug(f"All normal vectors obj2 are: {bvec_obj_2_1.evalf()}, {bvec_obj_2_2.evalf()}, {bvec_obj_2_3.evalf}")
-        self.logger.debug(f"All normal vectors obj2 are: {comp_2_plane_1_ideal_norm_vector}, {comp_2_plane_2_ideal_norm_vector}, {comp_2_plane_3_ideal_norm_vector}")
-        
-        # get the multiplicator for the normal vectors calculated from the planes and match their direction to the ideal normal vectors
-
-        mult_1 = norm_vec_direction(bvec_obj_1_1,comp_1_plane_1_ideal_norm_vector, logger=self.logger)
-        mult_2 = norm_vec_direction(bvec_obj_1_2,comp_1_plane_2_ideal_norm_vector, logger=self.logger)
-        mult_3 = norm_vec_direction(bvec_obj_1_3,comp_1_plane_3_ideal_norm_vector, logger=self.logger)
-        mult_4 = norm_vec_direction(bvec_obj_2_1,comp_2_plane_1_ideal_norm_vector, logger=self.logger)
-        mult_5 = norm_vec_direction(bvec_obj_2_2,comp_2_plane_2_ideal_norm_vector, logger=self.logger)
-        mult_6 = norm_vec_direction(bvec_obj_2_3,comp_2_plane_3_ideal_norm_vector, logger=self.logger)
-        
-        # Check if the normal vectors should be inverted
-        if instruction.plane_match_1.inv_normal_vector:
-            mult_4 = -mult_4
-            #self.logger.debug("Inverted normal vector for plane 1")
-        if instruction.plane_match_2.inv_normal_vector:
-            mult_5 = -mult_5
-            #self.logger.debug("Inverted normal vector for plane 2")
-        if instruction.plane_match_3.inv_normal_vector:
-            mult_6 = -mult_6
-            #self.logger.debug("Inverted normal vector for plane 3")
-
-        # Multiply the normal vectors with the multiplicator
-        bvec_obj_1_1 : sp.Matrix = bvec_obj_1_1 * mult_1
-        bvec_obj_1_2 : sp.Matrix = bvec_obj_1_2 * mult_2
-        bvec_obj_1_3 : sp.Matrix = bvec_obj_1_3 * mult_3
-        bvec_obj_2_1 : sp.Matrix = bvec_obj_2_1 * mult_4
-        bvec_obj_2_2 : sp.Matrix = bvec_obj_2_2 * mult_5
-        bvec_obj_2_3 : sp.Matrix = bvec_obj_2_3 * mult_6
-
-        # Stack all normal vectors together to a single basis
-        basis_obj_1: sp.Matrix = sp.Matrix.hstack(bvec_obj_1_1, bvec_obj_1_2, bvec_obj_1_3)
-        basis_obj_2: sp.Matrix = sp.Matrix.hstack(bvec_obj_2_1, bvec_obj_2_2, bvec_obj_2_3)         
-        
-        #self.logger.warn(f"Basis obj 1: {str(obj_1_mate_plane_intersection.y)}")
-        # Add the translation to the assembly transformation
-        obj_1_mate_plane_intersection.x += float(bvec_obj_1_1[0]*instruction.plane_match_1.plane_offset)
-        obj_1_mate_plane_intersection.y += float(bvec_obj_1_1[1]*instruction.plane_match_1.plane_offset)
-        obj_1_mate_plane_intersection.z += float(bvec_obj_1_1[2]*instruction.plane_match_1.plane_offset)
-
-        obj_1_mate_plane_intersection.x += float(bvec_obj_1_2[0]*instruction.plane_match_2.plane_offset)
-        obj_1_mate_plane_intersection.y += float(bvec_obj_1_2[1]*instruction.plane_match_2.plane_offset)
-        obj_1_mate_plane_intersection.z += float(bvec_obj_1_2[2]*instruction.plane_match_2.plane_offset)
-
-        obj_1_mate_plane_intersection.x += float(bvec_obj_1_3[0]*instruction.plane_match_3.plane_offset)
-        obj_1_mate_plane_intersection.y += float(bvec_obj_1_3[1]*instruction.plane_match_3.plane_offset)
-        obj_1_mate_plane_intersection.z += float(bvec_obj_1_3[2]*instruction.plane_match_3.plane_offset)
-        #self.logger.warn(f"Basis obj 1: {str(obj_1_mate_plane_intersection.y)}")
-
-        if instruction.component_1_is_moving_part:
-            moving_component_plane_intersection = obj_1_mate_plane_intersection
-            static_component_plane_intersection = obj_2_mate_plane_intersection
-        else:
-            moving_component_plane_intersection = obj_2_mate_plane_intersection
-            static_component_plane_intersection = obj_1_mate_plane_intersection
-
-        # Calculate the translation
-        assembly_transform.position.x = float(static_component_plane_intersection.x - moving_component_plane_intersection.x)
-        assembly_transform.position.y = float(static_component_plane_intersection.y - moving_component_plane_intersection.y)
-        assembly_transform.position.z = float(static_component_plane_intersection.z - moving_component_plane_intersection.z)
-
-        # Calculate the 'unideal' rotationmatrix
+        # 6️⃣ Rotation
         if instruction.component_1_is_moving_part:
             rot_matrix = basis_obj_2 * basis_obj_1.inv()
+
+            basis_obj_1_local = fix_basis_orientation(basis_obj_1_local)
+
+            results = basis_diagnostics(basis_obj_1_local)
+
         else:
             rot_matrix = basis_obj_1 * basis_obj_2.inv()
 
-        det_rot_matrix= rot_matrix.det()
+            basis_obj_2_local = fix_basis_orientation(basis_obj_2_local)
 
-        #self.logger.warn(f"Rot obj 2 to 1: {rot_matrix.evalf()}")
+            results = basis_diagnostics(basis_obj_2_local)
 
-        #self.logger.warn(f"Eigenvalues Rot: {rot_matrix.eigenvals()}")
-        #self.logger.warn(f"Det Rot: {det_rot_matrix}")
-               
-        #if not round(det_rot_matrix, 9) == 1.0:
-            #self.logger.warn(f"Invalid plane selection")
-            #return False
+            basis_local = basis_diagnostics(basis_obj_2_local)
+            basis_global = basis_diagnostics(basis_obj_2)
 
-        # Calculate the approx quaternion for rotation in euclidean space
-        # get timestamp
-        timestamp_before = self.node.get_clock().now()
-        assembly_transform.orientation = self.calc_approx_quat_from_matrix(rot_matrix)
-        # get timestamp
-        timestamp_after = self.node.get_clock().now()
-        time_diff = timestamp_after - timestamp_before
-        #self.logger.info(f"Assembly transformation is: {assembly_transform.__str__()}")
-        self.logger.info(f"""Assembly transformation is: \n
-                         x: {assembly_transform.position.x},\n
-                         y: {assembly_transform.position.y},\n
-                         z: {assembly_transform.position.z},\n
-                         w: {assembly_transform.orientation.w},\n
-                         x: {assembly_transform.orientation.x},\n
-                         y: {assembly_transform.orientation.y},\n
-                         z: {assembly_transform.orientation.z}""")
-        self.logger.info(f"Time for quaternion calculation: {time_diff.nanoseconds/1e6} ms")
+        # This might raise an error
+        self._assess_comp_basis(results)
 
-        add_success = self.add_assembly_frames_to_scene(instruction.id,
-                                                        moving_component,
-                                                        static_component,
-                                                        moving_component_plane_intersection,
-                                                        static_component_plane_intersection,
-                                                        assembly_transform)
-        if not add_success:
-            raise ValueError(f"Could not add assembly frames to scene. Aborting!")
-        
+        quad_moving = results.mat_est.quaternion
+
+
+        # This is the old way of calculating the quaternion.
+        # quat = self.calc_approx_quat_from_matrix(rot_matrix)
+
+        results_rot = basis_diagnostics(rot_matrix)
+
+        # This might raise an error
+        self._assess_assembly_transform(results_rot)
+
+        quat = results_rot.mat_est.quaternion
+
+        # 7️⃣ Pose
+        assembly_transform = Pose()
+        assembly_transform.position = translation
+        assembly_transform.orientation = quat
+
+        #self._log_assembly_transform(assembly_transform)
+
+        # 8️⃣ Add frames
+        success = self.add_assembly_frames_to_scene(
+            instruction,
+            quad_moving,
+            moving_intersection,
+            static_intersection,
+            assembly_transform
+        )
+
+        if not success:
+            raise AddRefFrameError("Could not add assembly frames to scene.")
+
         return assembly_transform
-    
+
+
+    def _apply_plane_offsets(self, intersection: Vector3, basis: sp.Matrix, instruction) -> Vector3:
+
+        plane_matches = [
+            instruction.plane_match_1,
+            instruction.plane_match_2,
+            instruction.plane_match_3
+        ]
+
+        for i, plane_match in enumerate(plane_matches):
+
+            intersection.x += float(basis[0, i] * plane_match.plane_offset)
+            intersection.y += float(basis[1, i] * plane_match.plane_offset)
+            intersection.z += float(basis[2, i] * plane_match.plane_offset)
+
+        return intersection
+
+    def _calculate_plane_intersections_world(self, instruction: ami_msg.AssemblyInstruction)-> tuple[Vector3, Vector3]:
+        """Compute plane intersection points in world frame with numpy fallback."""
+        # Try numpy calculation
+        intersection_obj_1 = get_plane_intersection_from_scene_num(
+            self.scene,
+            instruction.plane_match_1.plane_name_component_1,
+            instruction.plane_match_2.plane_name_component_1,
+            instruction.plane_match_3.plane_name_component_1,
+            self.logger
+        )
+        intersection_obj_2 = get_plane_intersection_from_scene_num(
+            self.scene,
+            instruction.plane_match_1.plane_name_component_2,
+            instruction.plane_match_2.plane_name_component_2,
+            instruction.plane_match_3.plane_name_component_2,
+            self.logger
+        )
+
+        # Transform to world frame
+        intersection_obj_1_world = transform_vector3_to_world(intersection_obj_1, self.tf_buffer, original_parent_frame=instruction.component_1)
+        intersection_obj_2_world = transform_vector3_to_world(intersection_obj_2, self.tf_buffer, original_parent_frame=instruction.component_2)
+
+        # Try sympy calculation for comparison
+        try:
+            obj_1_sym, obj_2_sym = self.calculate_plane_intersections(instruction)
+            diff1 = substract_vectors(intersection_obj_1_world, obj_1_sym)
+            diff2 = substract_vectors(intersection_obj_2_world, obj_2_sym)
+            threshold = 1e-8
+            if any(abs(x) > threshold for x in [diff1.x, diff1.y, diff1.z, diff2.x, diff2.y, diff2.z]):
+                self.logger.error(f"SEVERE DIFFERENCE IN INTERSECTION CALCULATION! Diff: {vec_to_um(diff1)}, {vec_to_um(diff2)}")
+        except ValueError as e:
+            self.logger.warn(f"Sympy intersection failed. Using numpy result. Error: '{str(e)}'")
+
+        # Always return world-frame intersections
+        return intersection_obj_1_world, intersection_obj_2_world
+
+
+    def _get_basis_from_planes(self, 
+                               instruction: ami_msg.AssemblyInstruction, 
+                               component_number: int,
+                               in_world: bool = True) -> sp.Matrix:
+
+        if component_number == 1:
+            component = instruction.component_1
+        else:
+            component = instruction.component_2
+
+        rot_matrix = get_rotation_matrix_from_tf(
+            self.tf_buffer.lookup_transform('world', component, rclpy.time.Time())
+        )
+
+        basis_vectors_world = []
+        basis_vectors_local = []
+
+        plane_matches = [
+            instruction.plane_match_1,
+            instruction.plane_match_2,
+            instruction.plane_match_3
+        ]
+
+        for plane_match in plane_matches:
+
+            if component_number == 1:
+                plane_name = plane_match.plane_name_component_1
+            else:
+                plane_name = plane_match.plane_name_component_2
+
+            plane_obj_scene = self.assembly_scene_analyzer.get_plane_from_scene(plane_name)
+            plane_obj_world = self._get_plane_obj_from_scene(plane_name)
+
+            plane_obj_local = self._get_plane_obj_from_scene(plane_name, 
+                                                             parent_frame=component)
+            
+            normal_vec_world = sp.Matrix(plane_obj_world.normal_vector).normalized()
+            normal_vec_local = sp.Matrix(plane_obj_local.normal_vector).normalized()
+
+            ideal_vec = plane_obj_scene.ideal_norm_vector
+
+            ideal_vec_world = matrix_multiply_vector(
+                rot_matrix,
+                vector3_to_matrix1x3(ideal_vec)
+            )
+
+            mult = norm_vec_direction(normal_vec_world, ideal_vec_world, logger=self.logger)
+
+            if component_number == 2 and plane_match.inv_normal_vector:
+                mult *= -1
+                self.logger.warn(f"Inverted normal vector for plane '{plane_name}'")
+
+            basis_vectors_world.append(normal_vec_world * mult)
+            basis_vectors_local.append(normal_vec_local * mult)
+
+        if in_world:
+            return sp.Matrix.hstack(*basis_vectors_world)
+        else:
+            return sp.Matrix.hstack(*basis_vectors_local)
+
+
+    def _compute_translation(self, 
+                             moving: Vector3, 
+                             static: Vector3) -> Point:
+
+        t = Point()
+        t.x = float(static.x - moving.x)
+        t.y = float(static.y - moving.y)
+        t.z = float(static.z - moving.z)
+
+        return t
+
+    def _log_assembly_transform(self, pose: Pose):
+        self.logger.info(
+            f"Assembly transformation:\n"
+            f"Position: x={pose.position.x}, y={pose.position.y}, z={pose.position.z}\n"
+            f"Orientation: w={pose.orientation.w}, x={pose.orientation.x}, "
+            f"y={pose.orientation.y}, z={pose.orientation.z}"
+        )
+
+    # def add_assembly_frames_to_scene_old(   self,
+    #                                     instruction:ami_msg.AssemblyInstruction,
+    #                                     moving_component_quat: Quaternion,
+    #                                     moving_component_plane_intersection:sp.Point3D, 
+    #                                     static_component_plane_intersection:sp.Point3D, 
+    #                                     assembly_transform: Pose)-> bool:
+        
+    #     if instruction.component_1_is_moving_part:
+    #         moving_component = instruction.component_1
+    #         static_component = instruction.component_2
+    #     else:
+    #         moving_component = instruction.component_2
+    #         static_component = instruction.component_1
+
+    #     assembly_frame = ami_msg.RefFrame()
+    #     target_frame = ami_msg.RefFrame()
+    #     target_frame.frame_name = f"target_frame_{instruction.id}"
+    #     assembly_frame.frame_name = f"assembly_frame_{instruction.id}"
+
+    #     assembly_frame.parent_frame = moving_component
+    #     assembly_frame.pose.position.x = float(moving_component_plane_intersection.x)
+    #     assembly_frame.pose.position.y = float(moving_component_plane_intersection.y)
+    #     assembly_frame.pose.position.z = float(moving_component_plane_intersection.z)
+
+    #     moving_component_world_transform = get_transform_for_frame_in_world(moving_component, self.tf_buffer)
+
+    #     if moving_component_world_transform is None:
+    #         raise ComponentNotFoundError(f"Moving component '{moving_component}' not found in TF buffer.")
+        
+    #     #assembly_frame.pose.orientation = moving_component_world_transform.transform.rotation
+        
+    #     assembly_frame.pose.orientation = moving_component_quat
+
+    #     assembly_frame_matrix = get_transform_matrix_from_tf(assembly_frame.pose)
+    #     moving_component_matrix = get_transform_matrix_from_tf(moving_component_world_transform)
+
+    #     helper_pose = transform_matrix_to_pose(moving_component_matrix.inv()*assembly_frame_matrix)
+    #     assembly_frame.pose = helper_pose
+    #     assembly_frame.properties.assembly_frame_properties.is_assembly_frame = True
+    #     assembly_frame.properties.assembly_frame_properties.associated_frame = target_frame.frame_name
+
+    #     # add the assembly frame to the scene
+    #     add_assembly_frame_success = self.add_ref_frame_to_scene(assembly_frame)
+
+    #     # Create frame for the static (target) component
+    #     target_frame.parent_frame = static_component
+    #     target_frame.pose.position.x = float(static_component_plane_intersection.x)
+    #     target_frame.pose.position.y = float(static_component_plane_intersection.y)
+    #     target_frame.pose.position.z = float(static_component_plane_intersection.z)
+    #     target_frame.properties.assembly_frame_properties.is_target_frame = True
+    #     target_frame.properties.assembly_frame_properties.associated_frame = assembly_frame.frame_name
+
+    #     #target_frame.pose.orientation = quaternion_multiply(assembly_transfrom.orientation, target_frame.pose.orientation)
+    #     target_frame.pose.orientation = quaternion_multiply(assembly_transform.orientation, moving_component_world_transform.transform.rotation)
+    #     static_component_world_transform = get_transform_for_frame_in_world(static_component, self.tf_buffer)
+
+    #     if static_component_world_transform is None:    
+    #         raise ComponentNotFoundError(f"Static component '{static_component}' not found in TF buffer.")
+        
+    #     target_frame_matrix = get_transform_matrix_from_tf(target_frame.pose)
+    #     static_component_matrix = get_transform_matrix_from_tf(static_component_world_transform)
+    #     helper_pose_2 = transform_matrix_to_pose(static_component_matrix.inv()*target_frame_matrix, logger=self.logger)
+    #     target_frame.pose = helper_pose_2
+    #     # add the target frame to the scene
+    #     add_target_frame_success = self.add_ref_frame_to_scene(target_frame)
+    #     result = add_assembly_frame_success and add_target_frame_success
+
+    #     return result
+
+
     def add_assembly_frames_to_scene(   self,
-                                        instruction_id:str,
-                                        moving_component: str, 
-                                        static_component:str, 
+                                        instruction:ami_msg.AssemblyInstruction,
+                                        moving_component_quat: Quaternion,
                                         moving_component_plane_intersection:sp.Point3D, 
                                         static_component_plane_intersection:sp.Point3D, 
                                         assembly_transform: Pose)-> bool:
+        
+        if instruction.component_1_is_moving_part:
+            moving_component = instruction.component_1
+            static_component = instruction.component_2
+        else:
+            moving_component = instruction.component_2
+            static_component = instruction.component_1
+
         assembly_frame = ami_msg.RefFrame()
         target_frame = ami_msg.RefFrame()
-        target_frame.frame_name = f"target_frame_{instruction_id}"
-        assembly_frame.frame_name = f"assembly_frame_{instruction_id}"
+        target_frame.frame_name = f"target_frame_{instruction.id}"
+        assembly_frame.frame_name = f"assembly_frame_{instruction.id}"
 
         assembly_frame.parent_frame = moving_component
         assembly_frame.pose.position.x = float(moving_component_plane_intersection.x)
         assembly_frame.pose.position.y = float(moving_component_plane_intersection.y)
         assembly_frame.pose.position.z = float(moving_component_plane_intersection.z)
-        moving_component_world_transform = get_transform_for_frame_in_world(moving_component, self.tf_buffer)
-        if moving_component_world_transform is None:
-            return False
-        assembly_frame.pose.orientation = moving_component_world_transform.transform.rotation
-        assembly_frame_matrix = get_transform_matrix_from_tf(assembly_frame.pose)
-        moving_component_matrix = get_transform_matrix_from_tf(moving_component_world_transform)
 
-        helper_pose = transform_matrix_to_pose(moving_component_matrix.inv()*assembly_frame_matrix)
+        moving_component_world_transform = get_transform_for_frame_in_world(moving_component, self.tf_buffer)
+        moving_component_world_transform_inv = inverse_ros_transform(moving_component_world_transform, output_type=TransformStamped)
+
+        if moving_component_world_transform is None:
+            raise ComponentNotFoundError(f"Moving component '{moving_component}' not found in TF buffer.")
+        
+        helper_pose = multiply_ros_transforms(moving_component_world_transform_inv,
+                                              assembly_frame.pose,
+                                              output_type=Pose)
+        
         assembly_frame.pose = helper_pose
+        assembly_frame.pose.orientation = moving_component_quat
         assembly_frame.properties.assembly_frame_properties.is_assembly_frame = True
         assembly_frame.properties.assembly_frame_properties.associated_frame = target_frame.frame_name
 
+        assembly_frame_quad_world = multiply_quaternions(moving_component_world_transform.transform.rotation, assembly_frame.pose.orientation)
+                
         # add the assembly frame to the scene
-        add_assembly_frame_success = self.add_ref_frame_to_scene(assembly_frame)
+        self.add_ref_frame_to_scene(assembly_frame)
+
+        target_frame_quad_world = multiply_quaternions(assembly_frame_quad_world, assembly_transform.orientation)
+
+        target_frame_pose_world = Pose()
+        target_frame_pose_world.position.x = float(static_component_plane_intersection.x)
+        target_frame_pose_world.position.y = float(static_component_plane_intersection.y)
+        target_frame_pose_world.position.z = float(static_component_plane_intersection.z)
+        target_frame_pose_world.orientation = target_frame_quad_world
 
         # Create frame for the static (target) component
         target_frame.parent_frame = static_component
-        target_frame.pose.position.x = float(static_component_plane_intersection.x)
-        target_frame.pose.position.y = float(static_component_plane_intersection.y)
-        target_frame.pose.position.z = float(static_component_plane_intersection.z)
         target_frame.properties.assembly_frame_properties.is_target_frame = True
         target_frame.properties.assembly_frame_properties.associated_frame = assembly_frame.frame_name
-
-        #target_frame.pose.orientation = quaternion_multiply(assembly_transfrom.orientation, target_frame.pose.orientation)
-        target_frame.pose.orientation = quaternion_multiply(assembly_transform.orientation, moving_component_world_transform.transform.rotation)
+        
         static_component_world_transform = get_transform_for_frame_in_world(static_component, self.tf_buffer)
-        if static_component_world_transform is None:    
-            return False
-        
-        target_frame_matrix = get_transform_matrix_from_tf(target_frame.pose)
-        static_component_matrix = get_transform_matrix_from_tf(static_component_world_transform)
-        helper_pose_2 = transform_matrix_to_pose(static_component_matrix.inv()*target_frame_matrix, logger=self.logger)
-        target_frame.pose = helper_pose_2
-        # add the target frame to the scene
-        add_target_frame_success = self.add_ref_frame_to_scene(target_frame)
-        result = add_assembly_frame_success and add_target_frame_success
+        static_component_world_transform_inv = inverse_ros_transform(static_component_world_transform, output_type=TransformStamped)
 
-        return result
+        if static_component_world_transform is None:    
+            raise ComponentNotFoundError(f"Static component '{static_component}' not found in TF buffer.")
         
+
+        helper_pose_2 = multiply_ros_transforms(static_component_world_transform_inv,
+                                                target_frame_pose_world,
+                                                output_type=Pose)
+
+        target_frame.pose = helper_pose_2
+
+        # add the target frame to the scene
+        self.add_ref_frame_to_scene(target_frame)
+
+        return True
+    
+    # This can be deleted in the future
     def calc_approx_quat_from_matrix(self, rot_mat: sp.Matrix) -> Quaternion:
         initial_guess = np.array([0, 0, 0])
         list_of_cost  = []
@@ -1351,7 +1716,68 @@ class AssemblyManagerScene():
         package_share = get_package_share_directory('assembly_scene_publisher')
         plt.savefig(f"{package_share}/cost_{self.node.get_clock().now()}.png")
         return quaternion
-            
+
+
+    def _assess_comp_basis(self, comp_basis_results: BasisDiagnostics):
+        if comp_basis_results.max_axis_error_deg < 1e-3:
+            quality = "Excellent"
+        elif comp_basis_results.max_axis_error_deg < 1e-2:
+            quality = "Good"
+        elif comp_basis_results.max_axis_error_deg < 0.1:
+            quality = "Acceptable"
+        elif comp_basis_results.max_axis_error_deg < 1.0:
+            quality = "Poor"
+        else:
+            quality = "Bad"
+
+        self.logger.info(
+            f"[Component Basis Diagnostics] {quality} | "
+            f"max_axis_err={comp_basis_results.max_axis_error_deg:.6f}° | "
+        )
+
+        if quality != "Excellent":
+            message = (
+                f"Component basis quality evaluated to !'{quality}'! (Max axis error: {comp_basis_results.max_axis_error_deg:.6f}°). " 
+                f"This means that the planes forming the assembly_frame of the moving component are not orthogonal." 
+                f"Please check plane selection and also if all reference points have been measured correctly."
+                f"Diagnostics Info: {comp_basis_results.as_str()}"
+            )
+            #self.logger.error(message)
+            raise AssemblyTransformationError(message)
+        else:
+            self.logger.info(f"Component basis quality evalueted to '{quality}' (Axis Error: {comp_basis_results.max_axis_error_deg:.6f}°). "
+                             "This is a good sign! You can proceed with the assembly.")
+
+    def _assess_assembly_transform(self, assembly_transform_results: BasisDiagnostics):
+
+        logger = self.logger
+
+        if assembly_transform_results.max_axis_error_deg < 1e-3:
+            quality = "Excellent"
+        elif assembly_transform_results.max_axis_error_deg < 1e-2:
+            quality = "Good"
+        elif assembly_transform_results.max_axis_error_deg < 0.1:
+            quality = "Acceptable"
+        elif assembly_transform_results.max_axis_error_deg < 1.0:
+            quality = "Poor"
+        else:
+            quality = "Bad"
+
+                
+        if quality != "Excellent":
+            message = (
+                f"Assembly transform basis quality evaluated to !'{quality}'! (Max axis error: {assembly_transform_results.max_axis_error_deg:.6f}°)." 
+                f"This means that the assembly transform could not be constructed as an right handed euler transformation" 
+                f"Please if both component bases have good quality and if the plane selection is correct. Also check if all reference points have been measured correctly."
+                f"You might have to flip the normal vector of one or more planes in the instruction to ensure proper definition. "
+                f"Diagnostics Info: {assembly_transform_results.as_str()}"
+            )
+            #self.logger.error(message)
+            raise AssemblyTransformationError(message)
+        else:
+            self.logger.info(f"Assembly transform basis quality evalueted to '{quality}' (Axis Error: {assembly_transform_results.max_axis_error_deg:.6f}°). "
+                             "This is a good sign! You can proceed with the assembly.")
+
     def log_secene(self):
         self.logger.info("Objects in scene:")
         for obj in self.scene.objects_in_scene:

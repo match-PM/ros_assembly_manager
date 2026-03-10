@@ -2,6 +2,8 @@ from copy import deepcopy
 import sympy as sp
 from geometry_msgs.msg import Vector3, Quaternion, Transform, TransformStamped, Pose, Point
 
+from dataclasses import dataclass
+
 import numpy as np
 from typing import Union, Type, Optional
 from scipy.spatial.transform import Rotation
@@ -26,6 +28,32 @@ class NumPlane():
         self.B = B
         self.C = C
         self.D = D
+
+def fix_basis_orientation(basis: sp.Matrix, global_z=sp.Matrix([0,0,1])):
+
+    B = basis.copy()
+
+    axes = [B[:,0], B[:,1], B[:,2]]
+
+    # --- find axis closest to global Z
+    alignments = [abs(a.dot(global_z)) for a in axes]
+    z_idx = alignments.index(max(alignments))
+
+    # swap axis into Z position
+    if z_idx != 2:
+        axes[2], axes[z_idx] = axes[z_idx], axes[2]
+
+    B = sp.Matrix.hstack(axes[0], axes[1], axes[2])
+
+    # make Z point upward
+    if B[:,2].dot(global_z) < 0:
+        B[:,2] = -B[:,2]
+
+    # ensure right handed
+    if B[:,0].cross(B[:,1]).dot(B[:,2]) < 0:
+        B[:,1] = -B[:,1]
+
+    return B
 
 def num_plane_from_points(point_1: Point,
                           point_2: Point,
@@ -427,6 +455,29 @@ def quaternion_multiply(q0:Quaternion, q1:Quaternion)->Quaternion:
 
     return result
 
+def multiply_quaternions(q1:Quaternion, q2:Quaternion)->Quaternion:
+    """
+    Multiplies two quaternions using scipy's Rotation class for correctness and simplicity.
+    """
+    r1 = R.from_quat([q1.x, q1.y, q1.z, q1.w])
+    r2 = R.from_quat([q2.x, q2.y, q2.z, q2.w])
+
+    r = r1 * r2
+
+    q = r.as_quat()
+
+    result = Quaternion()
+    result.x, result.y, result.z, result.w = q
+
+    return result
+
+def quaternion_inverse(q: Quaternion) -> Quaternion:
+    q_inv = Quaternion()
+    q_inv.x = -q.x
+    q_inv.y = -q.y
+    q_inv.z = -q.z
+    q_inv.w =  q.w
+    return q_inv
 
 def matrix_multiply_vector(matrix:sp.Matrix, vector:sp.Matrix)->Vector3:
     result = matrix * vector
@@ -893,3 +944,148 @@ def inverse_ros_transform(
 
     # Use your existing helper to generate ROS message
     return matrix_to_ros_msg(translation, rotation, result_type=output_type)
+
+
+@dataclass
+class MatrixEstimate:
+    det: float
+    is_right_handed: bool
+    quaternion: Quaternion
+    mat: np.ndarray
+    euler_xyz_deg: np.ndarray
+    ortho_error: float
+
+    
+    def as_str(self) -> str:
+        s = (
+            f"[MatrixEstimate]\n"
+            f"  Determinant: {self.det:.6f} | Right-handed: {self.is_right_handed}\n"
+            f"  Orthogonality error: {self.ortho_error:.3e}\n"
+            f"  Quaternion: [x={self.quaternion.x:.4f}, y={self.quaternion.y:.4f}, z={self.quaternion.z:.4f}, w={self.quaternion.w:.4f}]"
+            #f"  Matrix:\n{np.array2string(self.mat, formatter={'float_kind':lambda x: f'{x:.3f}'})}"
+        )
+        return s
+    
+@dataclass
+class MatrixDiagnostics:
+    det: float
+    is_right_handed: bool
+    mat: np.ndarray
+    ortho_error: float
+
+    
+    def as_str(self) -> str:
+        s = (
+            f"[MatrixDiagnostics]\n"
+            f"  Determinant: {self.det:.6f} | Right-handed: {self.is_right_handed}\n"
+            f"  Orthogonality error: {self.ortho_error:.3e}"
+            #f"  \n"
+            #f"  Matrix:\n{np.array2string(self.mat, formatter={'float_kind':lambda x: f'{x:.3f}'})}"
+        )
+        return s
+@dataclass
+class BasisDiagnostics:
+    residual_error: float
+    rotation_error_deg: float
+    axis_errors_deg: np.ndarray  # axis-by-axis rotation errors
+    max_axis_error_deg: float
+    scale_shear_matrix: np.ndarray
+    mat_est: MatrixEstimate
+    mat_init: MatrixDiagnostics
+
+
+    def as_str(self) -> str:
+        s = (
+            f"[BasisDiagnostics]\n"
+            f"  Residual error: {self.residual_error:.3e}\n"
+            f"  Rotation error (deg): {self.rotation_error_deg:.2f}\n"
+            f"  Axis errors (deg): {self.axis_errors_deg}\n"
+            f"  Max axis error (deg): {self.max_axis_error_deg:.2f}\n"
+            #f"  Scale/Shear matrix:\n{np.array2string(self.scale_shear_matrix, formatter={'float_kind':lambda x: f'{x:.3f}'})}\n"
+            f"  Initial Matrix Diagnostics:\n{self.mat_init.as_str()}\n"
+            f"  Estimated Rotation Matrix:\n{self.mat_est.as_str()}"
+        )
+        return s
+
+
+
+
+
+def basis_diagnostics(rot_mat: sp.Matrix) -> BasisDiagnostics:
+    """
+    Compute diagnostics for a 3x3 basis or rotation matrix,
+    including axis-by-axis rotation errors.
+    """
+    # Convert SymPy to numeric float64
+    M = np.array(rot_mat.evalf(), dtype=np.float64)
+
+    # Determinant and handedness
+    det_init = np.linalg.det(M)
+    is_right_handed_init = det_init > 0
+
+    # Orthogonality error
+    ortho_error_init = np.linalg.norm(M.T @ M - np.eye(3))
+
+    # Closest rotation via polar decomposition
+    U, _, Vt = np.linalg.svd(M)
+    R_est = U @ Vt
+    if np.linalg.det(R_est) < 0:
+        Vt[-1, :] *= -1
+        R_est = U @ Vt
+
+    det_est = np.linalg.det(R_est)
+    is_right_handed_est = det_est > 0
+    ortho_error_est = np.linalg.norm(R_est.T @ R_est - np.eye(3))
+
+    residual_error = np.linalg.norm(M - R_est)
+
+    # Polar rotation error (geodesic angle between R_est and M treated as rotation)
+    R_diff = R_est.T @ M
+    trace_val = np.clip((np.trace(R_diff) - 1)/2, -1.0, 1.0)
+    rotation_error_deg = np.degrees(np.arccos(trace_val))
+
+    # Quaternion and Euler angles of closest rotation
+    rot_obj = R.from_matrix(R_est)
+    quaternion = rot_obj.as_quat()
+    euler_xyz_deg = np.degrees(rot_obj.as_euler('xyz'))
+
+    # Scale/Shear matrix
+    scale_shear_matrix = R_est.T @ M
+
+    # --- Axis-by-axis rotation errors ---
+    axis_errors_deg = np.zeros(3)
+    for i in range(3):
+        # normalize both vectors
+        v_true = M[:, i] / np.linalg.norm(M[:, i])
+        v_est = R_est[:, i] / np.linalg.norm(R_est[:, i])
+        # angle between vectors
+        cos_theta = np.clip(np.dot(v_true, v_est), -1.0, 1.0)
+        axis_errors_deg[i] = np.degrees(np.arccos(cos_theta))
+
+    max_axis_error_deg = np.max(axis_errors_deg)
+
+    mat_est = MatrixEstimate(
+        det=det_est,
+        is_right_handed=is_right_handed_est,
+        quaternion=Quaternion(x=quaternion[0], y=quaternion[1], z=quaternion[2], w=quaternion[3]),
+        mat=R_est,
+        euler_xyz_deg=euler_xyz_deg,
+        ortho_error=ortho_error_est
+    )
+
+    mat_init = MatrixDiagnostics(
+        det=det_init,
+        is_right_handed=is_right_handed_init,
+        mat=M,
+        ortho_error=ortho_error_init
+    )
+    
+    return BasisDiagnostics(
+        residual_error=residual_error,
+        rotation_error_deg=rotation_error_deg,
+        axis_errors_deg=axis_errors_deg,
+        max_axis_error_deg=max_axis_error_deg,
+        scale_shear_matrix=scale_shear_matrix,
+        mat_est=mat_est,
+        mat_init=mat_init
+    )

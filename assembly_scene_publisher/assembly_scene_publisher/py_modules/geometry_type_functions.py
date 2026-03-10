@@ -18,6 +18,10 @@ def vector3_to_matrix1x3(vector:Vector3)->sp.Matrix:
 def point3D_to_vector3(point:Point)->Vector3:
     return Vector3(x=float(point.x), y=float(point.y), z=float(point.z))
 
+# Convert sympy matrix to float NumPy array
+def sympy_to_numpy(sym_mat: sp.Matrix) -> np.ndarray:
+    return np.array(sym_mat.evalf(), dtype=float)
+
 def get_normal_vectors_from_quaternion(quaternion:Quaternion)->list[Vector3]:
     """
     Get the normal vectors of the coordinate system defined by the quaternion.

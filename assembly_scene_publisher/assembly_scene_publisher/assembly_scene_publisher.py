@@ -105,13 +105,19 @@ class AssemblyScenePublisherNode(Node):
         """This is the callback function for the /CreateRefFrame service. If the TF Frame does not exist, the function creates a new TF Frame. 
         If the frame already exists, the inforamtion will be updated!"""
         
-        add_success = self.object_scene.add_ref_frame_to_scene(request.ref_frame)
+        try:
+            self.object_scene.add_ref_frame_to_scene(request.ref_frame)
+
+        except AddRefFrameError as e:
+            self.get_logger().error(f"Error occurred while adding reference frame: {e}")
+            response.success = False
+            return response
 
         if request.recalculate_constraints:
             self.object_scene.update_scene_with_constraints()
 
-        response.success = add_success
-
+        response.success = True
+        
         return response
 
     def create_ref_plane(self,request:ami_srv.CreateRefPlane.Request, response:ami_srv.CreateRefPlane.Response):
