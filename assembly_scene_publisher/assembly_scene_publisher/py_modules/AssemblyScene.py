@@ -1338,6 +1338,8 @@ class AssemblyManagerScene():
 
         # This might raise an error
         self._assess_comp_basis(results)
+        self.logger.warning(f"basis t {results.as_str()}")
+
 
         quad_moving = results.mat_est.quaternion
 
@@ -1349,6 +1351,8 @@ class AssemblyManagerScene():
 
         # This might raise an error
         self._assess_assembly_transform(results_rot)
+        
+        self.logger.warning(f"assembly t {results_rot.as_str()}")
 
         quat = results_rot.mat_est.quaternion
 
@@ -1621,7 +1625,9 @@ class AssemblyManagerScene():
         # add the assembly frame to the scene
         self.add_ref_frame_to_scene(assembly_frame)
 
-        target_frame_quad_world = multiply_quaternions(assembly_frame_quad_world, assembly_transform.orientation)
+        inv_assembly_transform = inverse_ros_transform(assembly_transform, output_type=Pose)
+
+        target_frame_quad_world = multiply_quaternions(assembly_frame_quad_world, inv_assembly_transform.orientation)
 
         target_frame_pose_world = Pose()
         target_frame_pose_world.position.x = float(static_component_plane_intersection.x)
