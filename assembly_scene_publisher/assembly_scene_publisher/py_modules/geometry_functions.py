@@ -29,9 +29,35 @@ class NumPlane():
         self.C = C
         self.D = D
 
-def fix_basis_orientation(basis: sp.Matrix, global_z=sp.Matrix([0,0,1])):
+class MatrixManipulation:
+    def __init__(self):
+        self.operations = []
 
+    def swap(self, i, j):
+        self.operations.append(("swap", i, j))
+
+    def flip(self, i):
+        self.operations.append(("flip", i))
+
+    def apply(self, basis: sp.Matrix):
+        B = basis.copy()
+        axes = [B[:,0], B[:,1], B[:,2]]
+
+        for op in self.operations:
+            if op[0] == "swap":
+                _, i, j = op
+                axes[i], axes[j] = axes[j], axes[i]
+
+            elif op[0] == "flip":
+                _, i = op
+                axes[i] = -axes[i]
+
+        return sp.Matrix.hstack(*axes)
+    
+def fix_basis_orientation(basis: sp.Matrix, global_z=sp.Matrix([0,0,1]))-> tuple[sp.Matrix, MatrixManipulation]:
+    
     B = basis.copy()
+    manip = MatrixManipulation()
 
     axes = [B[:,0], B[:,1], B[:,2]]
 
@@ -42,18 +68,25 @@ def fix_basis_orientation(basis: sp.Matrix, global_z=sp.Matrix([0,0,1])):
     # swap axis into Z position
     if z_idx != 2:
         axes[2], axes[z_idx] = axes[z_idx], axes[2]
+        manip.swap(2, z_idx)
 
-    B = sp.Matrix.hstack(axes[0], axes[1], axes[2])
+    B = sp.Matrix.hstack(*axes)
 
     # make Z point upward
     if B[:,2].dot(global_z) < 0:
-        B[:,2] = -B[:,2]
+        axes[2] = -axes[2]
+        manip.flip(2)
+
+    B = sp.Matrix.hstack(*axes)
 
     # ensure right handed
-    if B[:,0].cross(B[:,1]).dot(B[:,2]) < 0:
-        B[:,1] = -B[:,1]
+    if axes[0].cross(axes[1]).dot(axes[2]) < 0:
+        axes[1] = -axes[1]
+        manip.flip(1)
 
-    return B
+    B = sp.Matrix.hstack(*axes)
+
+    return B, manip
 
 def num_plane_from_points(point_1: Point,
                           point_2: Point,

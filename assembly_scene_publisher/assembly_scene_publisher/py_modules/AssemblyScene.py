@@ -43,6 +43,7 @@ from assembly_scene_publisher.py_modules.geometry_functions import (get_point_of
                                                                     quaternion_multiply, 
                                                                     matrix_multiply_vector, 
                                                                     fix_basis_orientation,
+                                                                    MatrixManipulation,
                                                                     norm_vec_direction, 
                                                                     multiply_ros_transforms,
                                                                     multiply_quaternions,
@@ -976,6 +977,7 @@ class AssemblyManagerScene():
             return None
         else:
             assembly_transform = self.calculate_assembly_transformation(instruction)
+            self.logger.error(f"THIS IS CURRENTLY NOT WORKING CORRECTLY!!!")
             return assembly_transform
     
     def calculate_plane_intersections(self, instruction: ami_msg.AssemblyInstruction)-> tuple[Vector3, Vector3]:
@@ -1322,58 +1324,55 @@ class AssemblyManagerScene():
         if instruction.component_1_is_moving_part:
             rot_matrix = basis_obj_2 * basis_obj_1.inv()
 
-            basis_obj_1_local = fix_basis_orientation(basis_obj_1_local)
+            basis_obj_1_local, mat_manipulation = fix_basis_orientation(basis_obj_1_local)
 
-            results = basis_diagnostics(basis_obj_1_local)
+            basis_obj_2_local = mat_manipulation.apply(basis_obj_2_local)
+
+            results_moving= basis_diagnostics(basis_obj_1_local)
+
+            results_static = basis_diagnostics(basis_obj_2_local)
 
         else:
             rot_matrix = basis_obj_1 * basis_obj_2.inv()
 
-            basis_obj_2_local = fix_basis_orientation(basis_obj_2_local)
+            basis_obj_2_local, mat_manipulation = fix_basis_orientation(basis_obj_2_local)
 
-            results = basis_diagnostics(basis_obj_2_local)
+            basis_obj_1_local = mat_manipulation.apply(basis_obj_1_local)
 
-            basis_local = basis_diagnostics(basis_obj_2_local)
-            basis_global = basis_diagnostics(basis_obj_2)
+            results_moving = basis_diagnostics(basis_obj_2_local)
+            results_static = basis_diagnostics(basis_obj_1_local)
 
         # This might raise an error
-        self._assess_comp_basis(results)
-        self.logger.warning(f"basis t {results.as_str()}")
+        self._assess_comp_basis(results_moving, comp_name = f"{moving_component} (moving)")
+        self.logger.warning(f"DEBUG - Basis {moving_component} (moving): {results_moving.as_str()}")
 
+        self._assess_comp_basis(results_static, comp_name = f"{static_component} (static)")
+        self.logger.warning(f"DEBUG - Basis {static_component} (static): {results_static.as_str()}")
 
-        quad_moving = results.mat_est.quaternion
+        quad_moving = results_moving.mat_est.quaternion
 
-
+        quad_static = results_static.mat_est.quaternion
+        
         # This is the old way of calculating the quaternion.
         # quat = self.calc_approx_quat_from_matrix(rot_matrix)
 
-        results_rot = basis_diagnostics(rot_matrix)
+        #results_rot = basis_diagnostics(rot_matrix)
 
         # This might raise an error
-        self._assess_assembly_transform(results_rot)
+        #self._assess_assembly_transform(results_rot)
         
-        self.logger.warning(f"assembly t {results_rot.as_str()}")
+        #self.logger.warning(f"assembly t {results_rot.as_str()}")
 
-        quat = results_rot.mat_est.quaternion
-
-        # 7️⃣ Pose
-        assembly_transform = Pose()
-        assembly_transform.position = translation
-        assembly_transform.orientation = quat
-
-        #self._log_assembly_transform(assembly_transform)
+        #quat = results_rot.mat_est.quaternion
 
         # 8️⃣ Add frames
-        success = self.add_assembly_frames_to_scene(
+        assembly_transform = self.add_assembly_frames_to_scene(
             instruction,
             quad_moving,
+            quad_static,
             moving_intersection,
             static_intersection,
-            assembly_transform
         )
-
-        if not success:
-            raise AddRefFrameError("Could not add assembly frames to scene.")
 
         return assembly_transform
 
@@ -1584,9 +1583,9 @@ class AssemblyManagerScene():
     def add_assembly_frames_to_scene(   self,
                                         instruction:ami_msg.AssemblyInstruction,
                                         moving_component_quat: Quaternion,
+                                        static_component_quat: Quaternion,
                                         moving_component_plane_intersection:sp.Point3D, 
-                                        static_component_plane_intersection:sp.Point3D, 
-                                        assembly_transform: Pose)-> bool:
+                                        static_component_plane_intersection:sp.Point3D, )-> Pose:
         
         if instruction.component_1_is_moving_part:
             moving_component = instruction.component_1
@@ -1625,15 +1624,10 @@ class AssemblyManagerScene():
         # add the assembly frame to the scene
         self.add_ref_frame_to_scene(assembly_frame)
 
-        inv_assembly_transform = inverse_ros_transform(assembly_transform, output_type=Pose)
-
-        target_frame_quad_world = multiply_quaternions(assembly_frame_quad_world, inv_assembly_transform.orientation)
-
         target_frame_pose_world = Pose()
         target_frame_pose_world.position.x = float(static_component_plane_intersection.x)
         target_frame_pose_world.position.y = float(static_component_plane_intersection.y)
         target_frame_pose_world.position.z = float(static_component_plane_intersection.z)
-        target_frame_pose_world.orientation = target_frame_quad_world
 
         # Create frame for the static (target) component
         target_frame.parent_frame = static_component
@@ -1652,11 +1646,12 @@ class AssemblyManagerScene():
                                                 output_type=Pose)
 
         target_frame.pose = helper_pose_2
+        target_frame.pose.orientation = static_component_quat
 
         # add the target frame to the scene
         self.add_ref_frame_to_scene(target_frame)
 
-        return True
+        return Pose()
     
     # This can be deleted in the future
     def calc_approx_quat_from_matrix(self, rot_mat: sp.Matrix) -> Quaternion:
@@ -1724,7 +1719,9 @@ class AssemblyManagerScene():
         return quaternion
 
 
-    def _assess_comp_basis(self, comp_basis_results: BasisDiagnostics):
+    def _assess_comp_basis(self, 
+                           comp_basis_results: BasisDiagnostics, 
+                           comp_name: str):
         if comp_basis_results.max_axis_error_deg < 1e-3:
             quality = "Excellent"
         elif comp_basis_results.max_axis_error_deg < 1e-2:
@@ -1743,7 +1740,7 @@ class AssemblyManagerScene():
 
         if quality != "Excellent":
             message = (
-                f"Component basis quality evaluated to !'{quality}'! (Max axis error: {comp_basis_results.max_axis_error_deg:.6f}°). " 
+                f"Component basis quality for {comp_name} evaluated to !'{quality}'! (Max axis error: {comp_basis_results.max_axis_error_deg:.6f}°). " 
                 f"This means that the planes forming the assembly_frame of the moving component are not orthogonal." 
                 f"Please check plane selection and also if all reference points have been measured correctly."
                 f"Diagnostics Info: {comp_basis_results.as_str()}"
@@ -1751,7 +1748,7 @@ class AssemblyManagerScene():
             #self.logger.error(message)
             raise AssemblyTransformationError(message)
         else:
-            self.logger.info(f"Component basis quality evalueted to '{quality}' (Axis Error: {comp_basis_results.max_axis_error_deg:.6f}°). "
+            self.logger.info(f"Component basis quality for {comp_name} evalueted to '{quality}' (Axis Error: {comp_basis_results.max_axis_error_deg:.6f}°). "
                              "This is a good sign! You can proceed with the assembly.")
 
     def _assess_assembly_transform(self, assembly_transform_results: BasisDiagnostics):
