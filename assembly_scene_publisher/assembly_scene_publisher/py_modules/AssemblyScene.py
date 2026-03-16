@@ -1738,7 +1738,7 @@ class AssemblyManagerScene():
             f"max_axis_err={comp_basis_results.max_axis_error_deg:.6f}° | "
         )
 
-        if quality != "Excellent":
+        if quality != "Excellent" and quality != "Good":
             message = (
                 f"Component basis quality for {comp_name} evaluated to !'{quality}'! (Max axis error: {comp_basis_results.max_axis_error_deg:.6f}°). " 
                 f"This means that the planes forming the assembly_frame of the moving component are not orthogonal." 
@@ -1766,8 +1766,8 @@ class AssemblyManagerScene():
         else:
             quality = "Bad"
 
-                
-        if quality != "Excellent":
+        
+        if quality != "Excellent" and quality != "Good":
             message = (
                 f"Assembly transform basis quality evaluated to !'{quality}'! (Max axis error: {assembly_transform_results.max_axis_error_deg:.6f}°)." 
                 f"This means that the assembly transform could not be constructed as an right handed euler transformation" 

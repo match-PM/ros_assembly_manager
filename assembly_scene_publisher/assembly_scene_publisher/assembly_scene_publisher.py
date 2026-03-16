@@ -195,7 +195,10 @@ class AssemblyScenePublisherNode(Node):
         try:
             transfrom = self.object_scene.get_assembly_transformation_by_id(request.instruction_id)
             
-        except ValueError as e:
+        except (AssemblyTransformationError,
+                ComponentNotFoundError,
+                RefPlaneNotFoundError,
+                AddRefFrameError) as e:
             self.get_logger().error(f"Error getting the assembly transformation: {e}")
             response.success = False
             return response
