@@ -956,7 +956,7 @@ class AssemblyManagerScene():
             plane_msg.point_names[1]=='' and 
             plane_msg.point_names[2]==''):
             plane = self.get_plane_from_axis_and_frame(axis_name=plane_msg.axis_names[0], 
-                                                       point_name=plane_msg.point_names[0], 
+                                                       frame_name=plane_msg.point_names[0], 
                                                        parent_frame=parent_frame)
         else:
             plane = None
