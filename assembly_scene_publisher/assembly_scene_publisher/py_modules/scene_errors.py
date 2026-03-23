@@ -42,12 +42,12 @@ class LaserFrameNotFoundError(Exception):
 
 class AssemblyFrameNotFoundError(Exception):
     def __init__(self, obj_name:str):
-        self.message = f"Assembly frame for object '{obj_name}' not found in the scene."
+        self.message = f"Assembly frame for object '{obj_name}' not found in the scene. Make sure the assembly instruction was calculated successfully."
         super().__init__(self.message)
 
 class TargetFrameNotFoundError(Exception):
     def __init__(self, obj_name:str):
-        self.message = f"Target frame for object '{obj_name}' not found in the scene."
+        self.message = f"Target frame for object '{obj_name}' not found in the scene. Make sure the assembly instruction was calculated successfully."
         super().__init__(self.message)
 
 
