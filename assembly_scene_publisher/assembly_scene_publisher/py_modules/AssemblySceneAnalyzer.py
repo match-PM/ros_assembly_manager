@@ -1187,6 +1187,8 @@ class AssemblySceneAnalyzer():
         - frame_name: name of the frame to check
         returns:
         - True if the frame name is in the list of occupied frames, False otherwise
+        raises:
+        - ComponentNotFoundError: if the component is not found in the scene
         """
         is_occupied = False
         is_same_component = False
@@ -1196,7 +1198,11 @@ class AssemblySceneAnalyzer():
                 break
         
         if is_occupied and component_name is not None:
-            component = self.get_component_by_name(component_name)
+            try:
+                component = self.get_component_by_name(component_name)
+            except ComponentNotFoundError:
+                return True
+
             if component.parent_frame == frame_name:
                 return False
             else:
