@@ -456,13 +456,14 @@ class AssemblyManagerNode(Node):
                 for component in file_data.get("mountingDescription").get("components"):
                     component_name = component.get("name")
                     directory, filename = os.path.split(request.file_path)
-                    component_path = os.path.join(directory.replace("assemblies", "components"), f"{component_name[:-2]}.json")
+                    component_path = os.path.join(directory.replace("assemblies", "components"), f"{component_name[:-2]}.json") # -2 to remove -1, -2 etc., because it is exported like this from solid works
                     request = ami_srv.SpawnComponentFromDescription.Request()
                     #self.logger.debug(f"Spawning component from description: {component_path}")
                     request.file_path = component_path
                     spawn_success, spawn_msg = self.spawn_component_from_description(request, component_name_override = component_name)
                     if not spawn_success:
                         self.logger.error(f"Error while spawning component from description: {spawn_msg}")
+                        response.message = spawn_msg
                         response.success = False
                         return response
                     
