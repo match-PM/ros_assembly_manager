@@ -1831,11 +1831,12 @@ class AssemblyManagerScene():
         if save_data:
             self.logger.info("Saving scene data before clearing...")
             self.save_scene_to_files()
-        
+        self.scene.occupied_spawning_frames = []
         self.destroy_all_ref_frames()
         self.scene = ami_msg.ObjectScene()
         self.assembly_scene_analyzer.set_scene(self.scene)
         self.publish_information()
+
         
         return True
         
