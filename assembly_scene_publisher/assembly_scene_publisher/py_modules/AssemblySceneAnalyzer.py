@@ -1469,7 +1469,37 @@ class AssemblySceneAnalyzer():
         except ComponentNotFoundError as e:
             self.logger.error(f"Error: Could not create plane graph for component '{component_name}': {e}")
             return None
+    
+    def check_is_glue_pt_frame(self, frame_name:str)-> bool:
+        """
+        Checks if the given frame name is a glue point frame.
+        parameters:
+        - frame_name: name of the frame to check
+        returns:
+        - True if the frame name is a glue point frame, False otherwise
+        """
+        try:
+            frame = self.get_ref_frame_by_name(frame_name)
+            return frame.properties.glue_pt_frame_properties.is_glue_point
         
+        except RefFrameNotFoundError as e:
+            self.logger.error(f"Error: Could not check if frame '{frame_name}' is a glue point frame: {e}")
+            return False
+    
+    def get_all_component_frames(self)-> list[str]:
+        """
+        Get a list of all component frame names in the scene.
+        returns:
+        - list of all component frame names in the scene
+        """
+        list_of_frames = []
+        for component in self._get_scene().objects_in_scene:
+            component: ami_msg.Object
+            for frame in component.ref_frames:
+                frame: ami_msg.RefFrame
+                list_of_frames.append(frame.frame_name)
+        return list_of_frames
+
     # def get_identification_order(scene: ami_msg.ObjectScene,
     #                             frame_list: list[ami_msg.RefFrame],
     #                             logger: RcutilsLogger = None)->ConstraintRestrictionList:
