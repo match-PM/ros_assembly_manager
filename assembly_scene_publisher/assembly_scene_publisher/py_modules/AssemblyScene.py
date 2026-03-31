@@ -1900,12 +1900,15 @@ class AssemblyManagerScene():
         
         return final_list
 
-    def save_scene_to_file(self, file_path: str) -> bool:
+    def save_scene_to_file(self, file_path: str) -> tuple[bool, str]:
+        """
+        Saves the current scene to a JSON file at the specified file path.
+        Returns a tuple (success: bool, full_file_path: str).
+        """
         file_dict = {}
-        # ensure file path exists
 
-        if not os.path.exists(os.path.dirname(file_path)):
-            return False
+        # create folder if it does not exist
+        os.makedirs(file_path, exist_ok=True)
 
         file_name = f"Scene_Save_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         ordered_dict = message_to_ordereddict(self.scene)
@@ -1913,10 +1916,13 @@ class AssemblyManagerScene():
         file_dict["save_time"] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
         self.logger.info(f"Saving scene to file {file_path}...")
-        with open(os.path.join(file_path, file_name), 'w') as file:
+
+        full_path = os.path.join(file_path, file_name)
+
+        with open(full_path, 'w') as file:
             json.dump(file_dict, file, indent=4)
 
-        return True
+        return True, full_path
     
     def load_scene_from_file(self, file_path: str) -> bool:
         if not os.path.exists(file_path):
@@ -1942,6 +1948,7 @@ class AssemblyManagerScene():
             self.publish_information()
             self.logger.info(f"Loaded scene from file {file_path} successfully!")
             return True
+        
         except Exception as e:
             self.logger.error(f"Failed to load scene: {e}")
             return False

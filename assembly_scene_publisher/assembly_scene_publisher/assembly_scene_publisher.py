@@ -9,6 +9,7 @@ from rclpy.callback_groups import ReentrantCallbackGroup, MutuallyExclusiveCallb
 from std_srvs.srv import Empty
 import assembly_manager_interfaces.srv as ami_srv
 import assembly_manager_interfaces.msg as ami_msg
+import assembly_manager_interfaces.action as ami_action
 
 from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
 
@@ -19,6 +20,7 @@ from assembly_scene_publisher.py_modules.AssemblyScene import AssemblyManagerSce
 from assembly_scene_publisher.py_modules.scene_errors import *
 from assembly_scene_publisher.py_modules.AssemblyScenePositionCorrector import AssemblyScenePositionCorrector
 from assembly_scene_publisher.py_modules.LineOfSightManager import LineOfSightManager
+from assembly_scene_publisher.py_modules.AssemblySceneMonteCarloSimulator import AssemblySceneMonteCarloSimulator
 
 class AssemblyScenePublisherNode(Node):
     def __init__(self):
@@ -39,6 +41,8 @@ class AssemblyScenePublisherNode(Node):
         self.line_of_sight_manager = LineOfSightManager(node=self, 
                                                         assembly_scene_topic=assembly_scene_topic)
         
+        self.monte_carlo_simulator = AssemblySceneMonteCarloSimulator(self.object_scene)
+
         mng_str = "assembly_manager" 
         pub_str = "assembly_scene_publisher"
         self.spawn_object_srv = self.create_service(ami_srv.SpawnObject,f'{pub_str}/spawn_object',self.spawn_object_callback,callback_group=self.callback_group)
@@ -86,6 +90,13 @@ class AssemblyScenePublisherNode(Node):
         self.set_component_properties_srv = self.create_service(ami_srv.SetComponentProperties,f'{mng_str}/set_component_properties', self.set_component_properties,callback_group=self.callback_group)
         
         self.correct_component_position_srv = self.create_service(ami_srv.CorrectComponentPosition,f'{mng_str}/correct_component_position', self.correct_component_position,callback_group=self.callback_group)
+        
+        # create an action server for the monte carlo simulation
+        self.monte_carlos_simulation_action_srv = rclpy.action.ActionServer(self, ami_action.MonteCarloSimulation, 
+                                                                            f'{mng_str}/monte_carlo_simulation', 
+                                                                            self.monte_carlo_simulator.execute_action, 
+                                                                            callback_group=self.callback_group)
+
         self.get_logger().info("Assembly scene publisher started!")
 
     def get_scene(self, request :ami_srv.GetScene.Request, response:ami_srv.GetScene.Response):
@@ -262,7 +273,7 @@ class AssemblyScenePublisherNode(Node):
     
     def save_scene_to_file(self, request: ami_srv.SaveSceneToFile.Request, response: ami_srv.SaveSceneToFile.Response):
         try:
-            response.success = self.object_scene.save_scene_to_file(request.file_path)
+            response.success, path = self.object_scene.save_scene_to_file(request.file_path)
         except Exception as e:
             self.get_logger().error(f"Error saving scene to file: {e}")
             response.success = False    
@@ -309,6 +320,8 @@ class AssemblyScenePublisherNode(Node):
     def check_line_of_sight(self, request: ami_srv.CheckLineOfSight.Request, response: ami_srv.CheckLineOfSight.Response):
         response = self.line_of_sight_manager.check_line_of_sight(request)
         return response
+
+
 
 def main(args=None):
     rclpy.init(args=args)

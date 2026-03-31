@@ -1,0 +1,12 @@
+# Goal: Parameters for the Monte Carlo simulation
+string param_file      # Path to the parameter file for the simulation
+string instruction_id  # Assembly instruction to be considered 
+int32 num_simulations  # Number of simulations to run
+---
+# Result: Results from the Monte Carlo simulation
+bool success           # Whether the simulation completed successfully
+string message         # Any message or error information
+---
+# Feedback: Progress feedback during simulation
+int32 simulations_completed  # Number of simulations completed so far
+int32 total_simulations      # Total number of simulations to run
