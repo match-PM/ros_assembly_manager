@@ -1,0 +1,17 @@
+avg_tick_time: '3.695'
+failure_count: 0
+result_values:
+  mean_orientation_pitch: 0.0
+  mean_orientation_roll: 0.0
+  mean_orientation_yaw: 0.0
+  mean_x: -0.0010000000462835133
+  mean_y: 0.0009475000231599326
+  mean_z: 0.002500000026116363
+  std_dev_orientation_pitch: 0.0
+  std_dev_orientation_roll: 0.0
+  std_dev_orientation_yaw: 0.0
+  std_dev_x: 2.9553908333815217e-13
+  std_dev_y: 1.2180930303652776e-13
+  std_dev_z: 8.507039299113505e-14
+total_iterations: 25
+total_simulation_time: 7.767974376678467

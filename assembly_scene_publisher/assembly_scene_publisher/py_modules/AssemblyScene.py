@@ -874,7 +874,8 @@ class AssemblyManagerScene():
         except (AssemblyTransformationError,
                 ComponentNotFoundError,
                 RefPlaneNotFoundError,
-                AddRefFrameError) as e:
+                AddRefFrameError,
+                ValueError) as e:
             self.logger.error(f"Error occured in creating assembly instruction: {str(e)}")
             return False    
 
@@ -1807,6 +1808,9 @@ class AssemblyManagerScene():
         return plane
     
     def update_scene_with_constraints(self):
+        """
+        This function calculates the constraints for all frames in the scene and updates their activation status.
+        """
         self.assembly_scene_modifier.update_all_frame_constraint_activations()
         calculate_constraints_for_scene(self.scene, logger=self.logger)
         self.publish_information()

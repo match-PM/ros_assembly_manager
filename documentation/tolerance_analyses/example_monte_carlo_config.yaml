@@ -1,0 +1,16 @@
+mc_parameters:
+  num_simulations: 1000
+  instruction_id: "Description_Glas_Platelet_Paper_UFC_Paper"
+  exclude_components: []
+  vision:
+    active: true
+    mes_std_dev: 0.01
+    exclude_frames: []
+  laser:
+    active: true
+    mes_std_dev: 0.005
+    exclude_frames: []
+  comments: "This configuration file is used for a Monte Carlo simulation to analyze the effects of measurement uncertainties 
+              in vision and laser systems. The 'num_simulations' parameter specifies the number of iterations to run, while the 
+              'mes_std_dev' parameters define the standard deviation of the measurement errors for both vision and laser systems. 
+              Adjust these values based on the expected accuracy of your sensors to get meaningful results."

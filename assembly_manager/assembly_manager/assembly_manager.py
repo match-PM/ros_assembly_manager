@@ -20,6 +20,7 @@ import json
 import ast
 from functools import partial
 import time
+import re
 from assembly_scene_publisher.py_modules.AssemblySceneAnalyzerAdv import AssemblySceneAnalyzerAdv
 from assembly_scene_publisher.py_modules.AssemblySceneAnalyzer import UnInitializedScene
 # import standard srv msg with empty request and response
@@ -71,6 +72,22 @@ class AssemblyManagerNode(Node):
         
         self.logger = self.get_logger()
         self.logger.info("Assembly manager started!")
+        
+
+    def validate_component_name(self, component_name: str) -> tuple:
+        """Validate that component name ends with '-X' where X is a positive integer.
+        
+        Args:
+            component_name (str): The component name to validate
+            
+        Returns:
+            tuple: (is_valid: bool, message: str)
+        """
+        pattern = r'^.*-\d+$'
+        if re.match(pattern, component_name):
+            return True, f"Component name '{component_name}' is valid."
+        else:
+            return False, f"Component name '{component_name}' does not match the required pattern. It must end with '-X' where X is a positive integer (e.g., 'component-1')."
         
 
     def destroy_component(self, request: ami_srv.DestroyObject.Request)->bool:
@@ -377,6 +394,15 @@ class AssemblyManagerNode(Node):
                 self.assembly_scene_analyzer.wait_for_initial_scene_update()
                 for component in file_data.get("mountingDescription").get("components"):
                     component_name = component.get("name")
+                    
+                    # Validate component name
+                    is_valid, validation_msg = self.validate_component_name(component_name)
+                    if not is_valid:
+                        self.logger.error(validation_msg)
+                        response.message = validation_msg
+                        response.success = False
+                        return response
+                    
                     directory, filename = os.path.split(request.file_path)
                     component_path = os.path.join(directory.replace("assemblies", "components"), f"{component_name[:-2]}.json") # -2 to remove -1, -2 etc., because it is exported like this from solid works
                     request = ami_srv.SpawnComponentFromDescription.Request()

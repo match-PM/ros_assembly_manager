@@ -92,10 +92,13 @@ class AssemblyScenePublisherNode(Node):
         self.correct_component_position_srv = self.create_service(ami_srv.CorrectComponentPosition,f'{mng_str}/correct_component_position', self.correct_component_position,callback_group=self.callback_group)
         
         # create an action server for the monte carlo simulation
-        self.monte_carlos_simulation_action_srv = rclpy.action.ActionServer(self, ami_action.MonteCarloSimulation, 
+        self.monte_carlos_simulation_action_srv = rclpy.action.ActionServer(self, 
+                                                                            ami_action.MonteCarloSimulation, 
                                                                             f'{mng_str}/monte_carlo_simulation', 
-                                                                            self.monte_carlo_simulator.execute_action, 
-                                                                            callback_group=self.callback_group)
+                                                                            execute_callback = self.monte_carlo_simulator.execute_action, 
+                                                                            goal_callback = self.monte_carlo_simulator.goal_callback,
+                                                                            cancel_callback = self.monte_carlo_simulator.cancel_callback,
+                                                                            callback_group = self.callback_group)
 
         self.get_logger().info("Assembly scene publisher started!")
 
