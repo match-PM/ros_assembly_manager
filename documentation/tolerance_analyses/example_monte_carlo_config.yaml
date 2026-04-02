@@ -2,9 +2,10 @@ mc_parameters:
   num_simulations: 1000
   instruction_id: "Description_Glas_Platelet_Paper_UFC_Paper"
   exclude_components: []
+  tol_unit: "mm"
   vision:
     active: true
-    mes_std_dev: 0.01
+    mes_std_dev: 0.005
     exclude_frames: []
   laser:
     active: true

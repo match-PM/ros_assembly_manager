@@ -23,6 +23,10 @@ import os
 from dataclasses import dataclass
 from scipy.spatial.transform import Rotation as R
 import matplotlib.pyplot as plt
+from dataclasses import dataclass, asdict
+from typing import Dict
+from numpy import mean, std
+import random
 
 def pose_to_dict(pose:Pose)->dict:
     return {
@@ -63,14 +67,19 @@ def compare_poses(pose1: Pose, pose2: Pose, position_tolerance: float = 1e-6, or
     
     return position_close and orientation_close
 
+   
+    
 class MonteCarloSimulationParameters:
     def __init__(self, num_simulations: int, param_file: str):
         self.num_simulations = num_simulations
         self._instruction: ami_msg.AssemblyInstruction = None
         self._instruction_id=None
         self.param_file = param_file
+        self.tol_unit = "mm"
         self.vision_mes_std_dev = 0.0
         self.laser_mes_std_dev = 0.0
+        self.vision_active = True
+        self.laser_active = True
         self.load_from_file(param_file)
         self.exclude_frames_vision:list[str] = []
         self.exclude_frames_laser:list[str] = []
@@ -95,6 +104,7 @@ class MonteCarloSimulationParameters:
         num_simulations: 1000
         instruction_id: "Description_Glas_Platelet_Paper_UFC_Paper"
         exclude_components: []
+        tol_unit: "mm"
         vision:
             active: true
             mes_std_dev: 0.01
@@ -109,16 +119,116 @@ class MonteCarloSimulationParameters:
                 data = yaml.safe_load(f)
             self.num_simulations = data['mc_parameters']['num_simulations']
             self._instruction_id = data['mc_parameters']['instruction_id']
+            self.vision_active = data['mc_parameters']['vision'].get('active', True)  # Default to active if not specified
             self.vision_mes_std_dev = data['mc_parameters']['vision']['mes_std_dev']
             self.laser_mes_std_dev = data['mc_parameters']['laser']['mes_std_dev']
+            self.laser_active = data['mc_parameters']['laser'].get('active', True)  # Default to active if not specified
+            self.tol_unit = data['mc_parameters'].get('tol_unit', 'mm')
             self.exclude_frames_vision = data['mc_parameters']['vision'].get('exclude_frames', [])
             self.exclude_frames_laser = data['mc_parameters']['laser'].get('exclude_frames', [])
             self.exclude_components = data['mc_parameters'].get('exclude_components', [])
         except Exception as e:
             raise Exception(f"Failed to load Monte Carlo simulation parameters from file: {e}")
 
-from dataclasses import dataclass, asdict
-from typing import Dict
+
+class ToleranceApplicator:
+
+
+    @staticmethod
+    def gen_value_gauss(std:float):
+        value = random.gauss(0, std)
+        return value
+    
+    @staticmethod
+    def gen_gausss_radius(std:float):
+        r = np.abs(np.random.normal(0, std)) 
+        theta = np.random.uniform(0, 2 * np.pi)
+
+        x = r * np.cos(theta)
+        y = r * np.sin(theta)
+        return x, y
+
+    @staticmethod
+    def gen_gaussian_2d(std: float):
+        x, y = np.random.normal(0, std, size=2)
+        return x, y
+    
+    @staticmethod
+    def get_multiplier_for_tol_unit(tol_unit: str) -> float:
+        if tol_unit == "mm":
+            return 0.001
+        elif tol_unit == "cm":
+            return 0.01
+        elif tol_unit == "um":
+            return 0.000001
+        elif tol_unit == "m":
+            return 1.0
+        else:
+            raise Exception(f"Unsupported tolerance unit: {tol_unit}")
+    
+    @staticmethod
+    def apply_tol_to_component_frames(component_frames: list[ami_msg.RefFrame], simulation_params: MonteCarloSimulationParameters) -> None:
+        for frame in component_frames:
+            ToleranceApplicator.apply_tol_to_ref_frame(frame, simulation_params)
+
+    @staticmethod
+    def apply_tol_to_ref_frame(ref_frame: ami_msg.RefFrame, simulation_params: MonteCarloSimulationParameters) -> None:
+        ToleranceApplicator.apply_tol_to_vision_frame(ref_frame, simulation_params)
+        ToleranceApplicator.apply_tol_to_laser_frame(ref_frame, simulation_params)
+
+    @staticmethod
+    def apply_tol_to_vision_frame(ref_frame: ami_msg.RefFrame, simulation_params: MonteCarloSimulationParameters) -> None:
+        if not ref_frame.properties.vision_frame_properties.is_vision_frame:
+            return 
+        
+        if ref_frame.frame_name in simulation_params.exclude_frames_vision:
+            return 
+        
+        if not simulation_params.vision_active:
+            return
+        
+        vision_tolerance = simulation_params.vision_mes_std_dev
+        multiplier = ToleranceApplicator.get_multiplier_for_tol_unit(simulation_params.tol_unit)
+        
+        if False:
+            tol_value = ToleranceApplicator.gen_value_gauss(vision_tolerance) * multiplier
+            # turn sign of tolerance value randomly to simulate both positive and negative measurement errors
+            if random.choice([True, False]):
+                tol_value = -tol_value
+
+        if True:
+            # radiant gauss
+            x, y = ToleranceApplicator.gen_gaussian_2d(vision_tolerance * multiplier)
+            # flip sign
+            if random.choice([True, False]):
+                x = -x
+            if random.choice([True, False]):
+                y = -y
+
+        # Apply tolerance to vision frame position
+        ref_frame.pose.position.x += x
+        ref_frame.pose.position.y += y
+
+    @staticmethod
+    def apply_tol_to_laser_frame(ref_frame: ami_msg.RefFrame, simulation_params: MonteCarloSimulationParameters) -> None:
+        if not ref_frame.properties.laser_frame_properties.is_laser_frame:
+            return 
+        
+        if ref_frame.frame_name in simulation_params.exclude_frames_laser:
+            return 
+        
+        if not simulation_params.laser_active:
+            return
+        
+        laser_tolerance = simulation_params.laser_mes_std_dev   
+        multiplier = ToleranceApplicator.get_multiplier_for_tol_unit(simulation_params.tol_unit)
+        
+        # Apply laser tolerance to z position
+        tol_value = ToleranceApplicator.gen_value_gauss(laser_tolerance) * multiplier
+        if random.choice([True, False]):
+            tol_value = -tol_value
+        ref_frame.pose.position.z += tol_value
+        
 
 @dataclass
 class ComponentStatistics:
@@ -134,13 +244,14 @@ class ResultValues:
     orientation: Dict[str, ComponentStatistics]  # 'roll', 'pitch', 'yaw'
 
     @classmethod
-    def from_distributions(cls, transform_distributions: list) -> 'ResultValues':
+    def from_distributions(cls, transform_distributions: list[Pose]) -> 'ResultValues':
         """Create ResultValues from transform distributions."""
         
+        mult = 1e6 # convert from meters to micrometers for more intuitive statistics
         # Extract position values
-        x = [t.position.x for t in transform_distributions]
-        y = [t.position.y for t in transform_distributions]
-        z = [t.position.z for t in transform_distributions]
+        x = [t.position.x * mult for t in transform_distributions]
+        y = [t.position.y * mult for t in transform_distributions]
+        z = [t.position.z * mult for t in transform_distributions]
 
         # Extract rotation values
         rolls, pitches, yaws = [], [], []
@@ -184,6 +295,31 @@ class ResultValues:
         """Get summary statistics without distribution values."""
         return self.to_dict(include_distributions=False)
 
+@dataclass
+class InstructionResultValues:
+    def __init__(self, 
+                 assembly_results: ResultValues = None,
+                 target_results: ResultValues = None,
+                 transform_results: ResultValues = None):
+        self.assembly_results = assembly_results
+        self.target_results = target_results
+        self.transform_results = transform_results
+
+    def set_assembly_distributions(self, assembly_distributions: list[Pose]):
+        self.assembly_results = ResultValues.from_distributions(assembly_distributions)
+    
+    def set_target_distributions(self, target_distributions: list[Pose]):
+        self.target_results = ResultValues.from_distributions(target_distributions)
+
+    def set_transform_distributions(self, transform_distributions: list[Pose]):
+        self.transform_results = ResultValues.from_distributions(transform_distributions)
+
+    def to_dict(self, include_distributions: bool = False) -> dict:
+        return {
+            "assembly_results": self.assembly_results.to_dict(include_distributions) if self.assembly_results else None,
+            "target_results": self.target_results.to_dict(include_distributions) if self.target_results else None,
+            "transform_results": self.transform_results.to_dict(include_distributions) if self.transform_results else None
+        }
 class MonteCarloSimulationResults:
     POSES_FILE_NAME = "poses.yaml"
     RESULTS_FILE_NAME = "results.yaml"
@@ -202,13 +338,15 @@ class MonteCarloSimulationResults:
         self._tick_times: list[float] = []
         self._total_simulation_time: float = 0.0
         self._failure_count: int = 0
+        self.prev_avg_tick_time: float = None
         self.instruction: ami_msg.AssemblyInstruction = instruction
         self._file_name: str = os.path.basename(file_path)
         self._file_dir: str = os.path.dirname(file_path)
         self._results_dir: str = os.path.join(self._file_dir, f"results_{self._file_name.split('.')[0]}")
         self._iterations_ran: int = 0
-        self._cached_result_values: ResultValues = None  # Cache for result values to avoid recalculation
+        self._cached_result_values: InstructionResultValues = None  # Cache for result values to avoid recalculation
         self.load_prev_poses()  # Attempt to load previous poses if they exist, otherwise start with empty distributions
+        self.load_prev_results()
 
     def get_iterations_ran(self) -> int:
         return self._iterations_ran
@@ -280,7 +418,7 @@ class MonteCarloSimulationResults:
     def get_total_simulation_time(self) -> float:
         return self._total_simulation_time
     
-    def _calc_transform_distribution(self)-> ResultValues:
+    def _calc_transform_distribution(self)-> InstructionResultValues:
         """Calculate transform distribution and cache the result."""
         # Return cached result if available
         if self._cached_result_values is not None:
@@ -289,15 +427,21 @@ class MonteCarloSimulationResults:
         if len(self.assembly_pose_distributions) != len(self.target_pose_distributions):
             raise Exception("Assembly and target pose distributions must have the same number of samples to calculate transform distribution")
         
-        self._transform_distributions = []
+        self._transform_distributions: list[Pose] = []
 
         for assembly_pose, target_pose in zip(self.assembly_pose_distributions, self.target_pose_distributions):
             # Calculate the transform from assembly to target
             transform = multiply_ros_transforms(inverse_ros_transform(assembly_pose,output_type=Pose), target_pose, output_type=Pose)
             self._transform_distributions.append(transform)
         
+        result_values = InstructionResultValues()
+
+        result_values.set_assembly_distributions(self.assembly_pose_distributions)
+        result_values.set_target_distributions(self.target_pose_distributions)
+        result_values.set_transform_distributions(self._transform_distributions)
+
         # Cache and return the result
-        self._cached_result_values = ResultValues.from_distributions(self._transform_distributions)
+        self._cached_result_values = result_values
         return self._cached_result_values
 
     def get_results(self) -> dict:
@@ -378,6 +522,7 @@ class MonteCarloSimulationResults:
             self._failure_count = data['failure_count']
             self.set_total_simulation_time(data['total_simulation_time'], append=True)
             self._iterations_ran = data['total_iterations']
+            self.prev_avg_tick_time = float(data['avg_tick_time'])
         except Exception as e:
             raise Exception(f"Failed to load Monte Carlo simulation results from file: {e}")
 
@@ -470,14 +615,32 @@ class AssemblySceneMonteCarloSimulator:
         # start tick time
         start_time = time.time()
         # Modify frames
-        vision_frames_c1 = self.assembly_manager_scene.assembly_scene_analyzer.get_vision_frames_of_component(simulation_params.get_instruction().component_1)
-        vision_frames_c2 = self.assembly_manager_scene.assembly_scene_analyzer.get_vision_frames_of_component(simulation_params.get_instruction().component_2)
-        laser_frames_c1 = self.assembly_manager_scene.assembly_scene_analyzer.get_laser_frames_of_component(simulation_params.get_instruction().component_1) 
-        laser_frames_c2 = self.assembly_manager_scene.assembly_scene_analyzer.get_laser_frames_of_component(simulation_params.get_instruction().component_2)
-        
+        component_1 = simulation_params.get_instruction().component_1
+        component_2 = simulation_params.get_instruction().component_2
+
+        c1_frames = []
+        c2_frames = []
+        vision_frames_c1 = self.assembly_manager_scene.assembly_scene_analyzer.get_vision_frames_of_component(component_1)
+        vision_frames_c2 = self.assembly_manager_scene.assembly_scene_analyzer.get_vision_frames_of_component(component_2)
+        c1_frames.extend(vision_frames_c1)
+        c2_frames.extend(vision_frames_c2)
+        laser_frames_c1 = self.assembly_manager_scene.assembly_scene_analyzer.get_laser_frames_of_component(component_1) 
+        laser_frames_c2 = self.assembly_manager_scene.assembly_scene_analyzer.get_laser_frames_of_component(component_2)
+        c1_frames.extend(laser_frames_c1)
+        c2_frames.extend(laser_frames_c2)
+
+        if not (component_1 in simulation_params.exclude_components):
+            self.node.get_logger().info(f"Applying tolerance to component {component_1} frames: {[frame.frame_name for frame in c1_frames]}")
+            ToleranceApplicator.apply_tol_to_component_frames(c1_frames, simulation_params)
+
+        if not (component_2 in simulation_params.exclude_components):
+            self.node.get_logger().info(f"Applying tolerance to component {component_2} frames: {[frame.frame_name for frame in c2_frames]}")
+            ToleranceApplicator.apply_tol_to_component_frames(c2_frames, simulation_params)
+
         self.assembly_manager_scene.update_scene_with_constraints()
         try:
             self.assembly_manager_scene.calculate_assembly_transformation(simulation_params.get_instruction())
+        
         except Exception as e:
             self.node.get_logger().error(f"FATAL ERROR during assembly transformation calculation: {e}")
             simulation_results.increment_failure_count()
@@ -518,7 +681,7 @@ class AssemblySceneMonteCarloSimulator:
         """Callback for the Monte Carlo simulation action server."""
         goal = goal_handle.request
         result = ami_action.MonteCarloSimulation.Result()
-        self.node.get_logger().info(f"Starting Monte Carlo simulation with {goal.num_simulations} simulations")
+        self.node.get_logger().info(f"Starting Monte Carlo simulation with {goal.num_simulations} ticks.")
 
         try:
             self.pre_simulation()
@@ -545,6 +708,10 @@ class AssemblySceneMonteCarloSimulator:
             monte_carlo_results.set_initial_assembly_pose(assembly_frame.pose)
             monte_carlo_results.set_initial_target_pose(target_frame.pose)   
 
+            if monte_carlo_results.prev_avg_tick_time is not None:
+                estimated_total_time = monte_carlo_results.prev_avg_tick_time * goal.num_simulations
+                self.node.get_logger().info(f"Estimated total simulation time based on previous runs: {estimated_total_time:.2f} seconds")
+
             # Run simulations
             for i in range(goal.num_simulations):
                 # Check if cancel was requested
@@ -560,6 +727,8 @@ class AssemblySceneMonteCarloSimulator:
                 self.monte_carlo_simulation_tick(simulation_params=simulation_params, 
                                                  simulation_results=monte_carlo_results)
                 
+                self.load_recent_scene()  # Load the original scene back after each tick to ensure independence of simulations
+
                 # Send feedback
                 feedback = ami_action.MonteCarloSimulation.Feedback()
                 feedback.simulations_completed = i + 1
@@ -593,15 +762,15 @@ class AssemblySceneMonteCarloSimulator:
         simulation_results.save_poses()
         simulation_results.save_results()
         self.node.get_logger().info(f"Starting to plot distributions...")
-        simulation_results.plot_distributions()
+        simulation_results.plot_distributions(simulation_results._cached_result_values.target_results)
         
     def goal_callback(self, goal_request: ami_action.MonteCarloSimulation.Goal):
-        self.node.get_logger().info(f"Received goal: {str(goal_request)}")
+        #self.node.get_logger().info(f"Received goal: {str(goal_request)}")
         # Accept all goals
         return GoalResponse.ACCEPT
 
     def cancel_callback(self, goal_handle):
-        self.node.get_logger().info("Cancel request received")
+        self.node.get_logger().warn("Cancel request received")
         return CancelResponse.ACCEPT
 
 if __name__ == "__main__":
