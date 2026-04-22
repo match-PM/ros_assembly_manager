@@ -365,21 +365,33 @@ class STLViewerWidget(QWidget):
                 
                 corners = [p1, p2, p4, p3]
             else:
-                # For axis + point plane, compute normal and create plane square
-                v1 = p2 - p1  # First axis direction
-                v2 = p3 - p1  # Direction from first axis point to support point
-                normal_vec = np.cross(v1, v2)
-                normal_norm = np.linalg.norm(normal_vec)
+                # For axis + point plane:
+                # - Normal is the axis direction (p2 - p1)
+                # - The support point (p3) defines the plane's position
+                axis_vec = p2 - p1  # Axis direction
+                normal_norm = np.linalg.norm(axis_vec)
                 if normal_norm > 0:
-                    normal_vec = normal_vec / normal_norm
+                    normal_vec = axis_vec / normal_norm
+                else:
+                    # Handle degenerate case where axis points are identical
+                    normal_vec = np.array([0, 0, 1])
                 
-                # Create perpendicular vectors
-                u = v1 / np.linalg.norm(v1)
+                # Create two perpendicular vectors to the normal
+                # Find a vector not parallel to normal
+                if abs(normal_vec[0]) < 0.9:
+                    perpendicular1 = np.array([1, 0, 0])
+                else:
+                    perpendicular1 = np.array([0, 1, 0])
+                
+                # Create orthonormal basis
+                u = np.cross(normal_vec, perpendicular1)
+                u = u / np.linalg.norm(u)
                 v = np.cross(normal_vec, u)
                 v = v / np.linalg.norm(v)
                 
-                center = (p1 + p2 + p3) / 3
-                scale = max(np.linalg.norm(p2 - p1), np.linalg.norm(p3 - p1)) * 0.6
+                # Plane center is at the support point
+                center = p3
+                scale = np.linalg.norm(p2 - p1) * 0.6
                 half_scale = scale / 2
                 
                 corners = [

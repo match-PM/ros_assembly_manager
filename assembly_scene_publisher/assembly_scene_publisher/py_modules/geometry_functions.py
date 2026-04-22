@@ -747,7 +747,6 @@ def create_3D_plane_2(frames: list[Pose],
     # Normalize the normal vector
     normal_vector /= np.linalg.norm(normal_vector)
 
-    print(f"Normal Vector: {normal_vector}")
     if normal_vector[2]<0:
         norm_vector_dir = -normal_vector
     else:
@@ -785,7 +784,8 @@ def rotate_point(frame:Pose,
     normal_vector = np.array([float(sp.N(coord)) for coord in plane.normal_vector], dtype=float)
 
     if logger is not None:
-        logger.warn(f"Normal Vector: {normal_vector}")
+        #logger.warn(f"DEBUG Normal Vector: {normal_vector}")
+        pass
 
     # Set direction of normal vector to point upwards. 
     if normal_vector[2] < 0:
@@ -795,7 +795,8 @@ def rotate_point(frame:Pose,
     angles = angles_to_normal_vector(normal_vector, frame.orientation)
 
     if logger is not None:
-        logger.warn(f"Angles to Normal Vector: {angles}")
+        #logger.warn(f"DEBUG Angles to Normal Vector: {angles}")
+        pass
 
     target_axis = target_axis.upper()
     if target_axis not in ["X", "Y", "Z"]:
@@ -1041,9 +1042,50 @@ class BasisDiagnostics:
         return s
 
 
+@dataclass
+class BasisDiagnosticsWithPlanes:
+    """Enhanced basis diagnostics that tracks which plane each axis error corresponds to."""
+    diagnostics: BasisDiagnostics
+    plane_names: list[str]  # Names of the three planes (1, 2, 3)
+    axis_errors_by_plane: dict[str, float]  # Maps plane name to its axis error
+    max_error_plane_name: str  # Plane name with maximum error
+    max_error_deg: float  # Maximum error value
+    
+    def as_str(self) -> str:
+        s = (
+            f"[BasisDiagnosticsWithPlanes]\n"
+            f"{self.diagnostics.as_str()}\n"
+            f"  Plane-wise axis errors:\n"
+        )
+        for plane_name, error_deg in self.axis_errors_by_plane.items():
+            s += f"    {plane_name}: {error_deg:.4f}°\n"
+        s += f"  Maximum error plane: {self.max_error_plane_name} ({self.max_error_deg:.4f}°)"
+        return s
 
-
-
+def create_diagnostics_with_planes(
+                                diagnostics: BasisDiagnostics,
+                                plane_names: list[str]) -> BasisDiagnosticsWithPlanes:
+    """Create enhanced diagnostics that maps axis errors to plane names."""
+    if len(plane_names) != 3:
+        raise ValueError("Expected 3 plane names for basis diagnostics")
+    
+    axis_errors_by_plane = {
+        plane_names[0]: float(diagnostics.axis_errors_deg[0]),
+        plane_names[1]: float(diagnostics.axis_errors_deg[1]),
+        plane_names[2]: float(diagnostics.axis_errors_deg[2]),
+    }
+    
+    max_idx = int(np.argmax(diagnostics.axis_errors_deg))
+    max_error_plane_name = plane_names[max_idx]
+    
+    return BasisDiagnosticsWithPlanes(
+        diagnostics=diagnostics,
+        plane_names=plane_names,
+        axis_errors_by_plane=axis_errors_by_plane,
+        max_error_plane_name=max_error_plane_name,
+        max_error_deg=diagnostics.max_axis_error_deg
+    )
+    
 def basis_diagnostics(rot_mat: sp.Matrix) -> BasisDiagnostics:
     """
     Compute diagnostics for a 3x3 basis or rotation matrix,

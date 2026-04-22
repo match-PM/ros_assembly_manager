@@ -50,6 +50,8 @@ from assembly_scene_publisher.py_modules.geometry_functions import (get_point_of
                                                                     quaternion_inverse,
                                                                     inverse_ros_transform,
                                                                     BasisDiagnostics,
+                                                                    BasisDiagnosticsWithPlanes,
+                                                                    create_diagnostics_with_planes,
                                                                     basis_diagnostics,
                                                                     calc_angle_between_vectors)
 
@@ -83,6 +85,10 @@ import os
 
 def vec_to_um(v)-> str:
     return f"(x={v.x * 1e6:.3f}, y={v.y * 1e6:.3f}, z={v.z * 1e6:.3f}) µm"
+
+
+
+
 
 class AssemblyManagerScene():
     UNUSED_FRAME_CONST = 'unused_frame'
@@ -874,7 +880,8 @@ class AssemblyManagerScene():
         except (AssemblyTransformationError,
                 ComponentNotFoundError,
                 RefPlaneNotFoundError,
-                AddRefFrameError) as e:
+                AddRefFrameError,
+                ValueError) as e:
             self.logger.error(f"Error occured in creating assembly instruction: {str(e)}")
             return False    
 
@@ -1323,6 +1330,13 @@ class AssemblyManagerScene():
 
 
         # 6️⃣ Rotation
+        # Collect plane names for diagnostics
+        plane_names = [
+            instruction.plane_match_1.plane_name_component_1,
+            instruction.plane_match_2.plane_name_component_1,
+            instruction.plane_match_3.plane_name_component_1
+        ]
+        
         if instruction.component_1_is_moving_part:
             rot_matrix = basis_obj_2 * basis_obj_1.inv()
 
@@ -1330,9 +1344,24 @@ class AssemblyManagerScene():
 
             basis_obj_2_local = mat_manipulation.apply(basis_obj_2_local)
 
-            results_moving= basis_diagnostics(basis_obj_1_local)
+            results_moving = basis_diagnostics(basis_obj_1_local)
 
             results_static = basis_diagnostics(basis_obj_2_local)
+            
+            # Create enhanced diagnostics with plane names
+            results_moving_with_planes = create_diagnostics_with_planes(
+                results_moving, plane_names
+            )
+            
+            # Plane names for component 2 (static)
+            static_plane_names = [
+                instruction.plane_match_1.plane_name_component_2,
+                instruction.plane_match_2.plane_name_component_2,
+                instruction.plane_match_3.plane_name_component_2
+            ]
+            results_static_with_planes = create_diagnostics_with_planes(
+                results_static, static_plane_names
+            )
 
         else:
             rot_matrix = basis_obj_1 * basis_obj_2.inv()
@@ -1343,17 +1372,34 @@ class AssemblyManagerScene():
 
             results_moving = basis_diagnostics(basis_obj_2_local)
             results_static = basis_diagnostics(basis_obj_1_local)
+            
+            # Create enhanced diagnostics with plane names
+            static_plane_names = [
+                instruction.plane_match_1.plane_name_component_1,
+                instruction.plane_match_2.plane_name_component_1,
+                instruction.plane_match_3.plane_name_component_1
+            ]
+            results_moving_with_planes = create_diagnostics_with_planes(
+                results_moving, 
+                [instruction.plane_match_1.plane_name_component_2,
+                 instruction.plane_match_2.plane_name_component_2,
+                 instruction.plane_match_3.plane_name_component_2]
+            )
+            
+            results_static_with_planes = create_diagnostics_with_planes(
+                results_static, static_plane_names
+            )
 
         # This might raise an error
-        self._assess_comp_basis(results_moving, comp_name = f"{moving_component} (moving)")
-        self.logger.warning(f"DEBUG - Basis {moving_component} (moving): {results_moving.as_str()}")
+        self._assess_comp_basis(results_moving_with_planes, comp_name = f"{moving_component} (moving)")
+        self.logger.warning(f"DEBUG - Basis {moving_component} (moving):\n{results_moving_with_planes.as_str()}")
 
-        self._assess_comp_basis(results_static, comp_name = f"{static_component} (static)")
-        self.logger.warning(f"DEBUG - Basis {static_component} (static): {results_static.as_str()}")
+        self._assess_comp_basis(results_static_with_planes, comp_name = f"{static_component} (static)")
+        self.logger.warning(f"DEBUG - Basis {static_component} (static):\n{results_static_with_planes.as_str()}")
 
-        quad_moving = results_moving.mat_est.quaternion
+        quad_moving = results_moving_with_planes.diagnostics.mat_est.quaternion
 
-        quad_static = results_static.mat_est.quaternion
+        quad_static = results_static_with_planes.diagnostics.mat_est.quaternion
         
         # This is the old way of calculating the quaternion.
         # quat = self.calc_approx_quat_from_matrix(rot_matrix)
@@ -1722,35 +1768,38 @@ class AssemblyManagerScene():
 
 
     def _assess_comp_basis(self, 
-                           comp_basis_results: BasisDiagnostics, 
+                           comp_basis_results: BasisDiagnosticsWithPlanes, 
                            comp_name: str):
-        if comp_basis_results.max_axis_error_deg < 1e-3:
+        if comp_basis_results.max_error_deg < 1e-3:
             quality = "Excellent"
-        elif comp_basis_results.max_axis_error_deg < 1e-2:
+        elif comp_basis_results.max_error_deg < 1e-2:
             quality = "Good"
-        elif comp_basis_results.max_axis_error_deg < 0.1:
+        elif comp_basis_results.max_error_deg < 0.1:
             quality = "Acceptable"
-        elif comp_basis_results.max_axis_error_deg < 1.0:
+        elif comp_basis_results.max_error_deg < 1.0:
             quality = "Poor"
         else:
             quality = "Bad"
 
         self.logger.info(
             f"[Component Basis Diagnostics] {quality} | "
-            f"max_axis_err={comp_basis_results.max_axis_error_deg:.6f}° | "
+            f"max_axis_err={comp_basis_results.max_error_deg:.6f}° (plane: {comp_basis_results.max_error_plane_name}) | "
         )
 
         if quality != "Excellent" and quality != "Good":
             message = (
-                f"Component basis quality for {comp_name} evaluated to !'{quality}'! (Max axis error: {comp_basis_results.max_axis_error_deg:.6f}°). " 
-                f"This means that the planes forming the assembly_frame of the moving component are not orthogonal." 
-                f"Please check plane selection and also if all reference points have been measured correctly."
-                f"Diagnostics Info: {comp_basis_results.as_str()}"
+                f"Component basis quality for {comp_name} evaluated to !'{quality}'! "
+                f"(Max axis error: {comp_basis_results.max_error_deg:.6f}° from plane: {comp_basis_results.max_error_plane_name}). " 
+                f"This means that the planes forming the assembly_frame of the component are not orthogonal. "
+                f"Please check plane selection and ensure all reference points have been measured correctly. "
+                f"Problematic plane: {comp_basis_results.max_error_plane_name}\n"
+                f"Diagnostics Info:\n{comp_basis_results.as_str()}"
             )
             #self.logger.error(message)
             # raise AssemblyTransformationError(message)
         else:
-            self.logger.info(f"Component basis quality for {comp_name} evalueted to '{quality}' (Axis Error: {comp_basis_results.max_axis_error_deg:.6f}°). "
+            self.logger.info(f"Component basis quality for {comp_name} evaluated to '{quality}' "
+                             f"(Max Axis Error: {comp_basis_results.max_error_deg:.6f}° from plane: {comp_basis_results.max_error_plane_name}). "
                              "This is a good sign! You can proceed with the assembly.")
 
     def _assess_assembly_transform(self, assembly_transform_results: BasisDiagnostics):
@@ -1809,6 +1858,9 @@ class AssemblyManagerScene():
         return plane
     
     def update_scene_with_constraints(self):
+        """
+        This function calculates the constraints for all frames in the scene and updates their activation status.
+        """
         self.assembly_scene_modifier.update_all_frame_constraint_activations()
         calculate_constraints_for_scene(self.scene, logger=self.logger)
         self.publish_information()

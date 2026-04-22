@@ -1011,7 +1011,7 @@ class AssemblySceneAnalyzer():
             raise GluePointFrameNotFoundError(f"No glue point frames found for component: {component_name}")
 
         return glue_pt_frames
-
+    
     def get_vision_frames_of_component(self, component_name:str)-> list[ami_msg.RefFrame]:
         """
         Get the vision frames of a component by searching for known identifiers in its reference frames.

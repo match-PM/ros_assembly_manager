@@ -1,6 +1,5 @@
 # Goal: Parameters for the Monte Carlo simulation
 string param_file      # Path to the parameter file for the simulation
-string instruction_id  # Assembly instruction to be considered 
 int32 num_simulations  # Number of simulations to run
 ---
 # Result: Results from the Monte Carlo simulation
