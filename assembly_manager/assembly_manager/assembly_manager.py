@@ -422,6 +422,8 @@ class AssemblyManagerNode(Node):
                     # commented out to make possible that only some of the instructions are created
                     response.success = False
                     return response
+            # wait 1s 
+            time.sleep(1.5)
             
             response.success = True
         except Exception as e:

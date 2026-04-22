@@ -944,7 +944,7 @@ class AssemblySceneAnalyzer():
                 if instruction.component_2 == assembly_component and instruction.component_1 == target_component:
                     return instruction
 
-        raise AssemblyInstructionNotFoundError(f"Assembly instruction for components '{assembly_component}' and '{target_component}' not found in the scene.")
+        raise AssemblyInstructionNotFoundError(f"Assembly instruction for components '{assembly_component}' and '{target_component}' not found in the scene. Make sure the assembly instruction was created correctly.")
         
     def get_assembly_instruction_by_name(self, instruction_name: str) -> ami_msg.AssemblyInstruction:
         """

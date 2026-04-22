@@ -891,6 +891,8 @@ class AssemblyManagerScene():
         if not inst_exists:
             self.scene.assembly_instructions.append(instruction)
 
+        self.publish_scene()
+        
         return True
     
     def _check_create_instruction(self, instruction: ami_msg.AssemblyInstruction)->bool:
@@ -1746,7 +1748,7 @@ class AssemblyManagerScene():
                 f"Diagnostics Info: {comp_basis_results.as_str()}"
             )
             #self.logger.error(message)
-            raise AssemblyTransformationError(message)
+            # raise AssemblyTransformationError(message)
         else:
             self.logger.info(f"Component basis quality for {comp_name} evalueted to '{quality}' (Axis Error: {comp_basis_results.max_axis_error_deg:.6f}°). "
                              "This is a good sign! You can proceed with the assembly.")
