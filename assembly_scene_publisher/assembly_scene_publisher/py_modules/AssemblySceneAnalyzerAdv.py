@@ -110,3 +110,17 @@ class AssemblySceneAnalyzerAdv(AssemblySceneAnalyzer):
                 if frame.properties.laser_frame_properties.has_been_measured or frame.properties.vision_frame_properties.has_been_measured:
                     return True
         return False
+
+    def get_placed_components(self) -> list[str]:
+        """
+        Get a list of components that are currently placed in the scene and not assembled yet.
+
+        Returns:
+            list[str]: List of names of placed components.
+        """
+        placed_components = []
+        for obj in self._get_scene().objects_in_scene:
+            obj: ami_msg.Object
+            if obj.properties.is_placed and not obj.properties.is_assembled:
+                placed_components.append(obj.obj_name)
+        return placed_components

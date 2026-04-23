@@ -2067,6 +2067,7 @@ class AssemblyManagerScene():
             self.logger.error(f"Failed to get frame {request.frame_name}: {e}")
             response.success = False
             return response
+        self.publish_information()
         return response
     
     def set_component_properties(self, request: ami_srv.SetComponentProperties.Request):
@@ -2080,6 +2081,7 @@ class AssemblyManagerScene():
             self.logger.error(f"Failed to get component {request.component_name}: {e}")
             response.success = False
             return response
+        self.publish_information()
         return response
     
     def set_component_uuid(self, request: ami_srv.SetComponentUuid.Request):
@@ -2093,6 +2095,7 @@ class AssemblyManagerScene():
             self.logger.error(f"Failed to get component {request.component_name}: {e}")
             response.success = False
             return response
+        self.publish_information()
         return response
                 
     @staticmethod
