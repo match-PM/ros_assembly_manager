@@ -62,127 +62,17 @@ import yaml
 from dataclasses import dataclass, asdict, field
 from typing import List, Dict, Any, Optional
 
+from assembly_scene_viewer.py_modules.ComponentDescriptionModifier import *
 
-@dataclass
-class CentroidConstraint:
-    """Represents a centroid constraint for a reference frame"""
-    refFrameNames: List[str] = field(default_factory=list)
-    dim: str = "xyz"
-    offsetValues: List[float] = field(default_factory=lambda: [0.0, 0.0, 0.0])
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'CentroidConstraint':
-        return cls(
-            refFrameNames=data.get('refFrameNames', []),
-            dim=data.get('dim', 'xyz'),
-            offsetValues=data.get('offsetValues', [0.0, 0.0, 0.0])
-        )
-    
-    def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
-
-
-@dataclass
-class OrthogonalConstraint:
-    """Represents an orthogonal constraint for a reference frame"""
-    frame_1: str = ""
-    frame_2: str = ""
-    frame_3: str = ""
-    distance_from_f1: float = 0.0
-    unit_distance_from_f1: str = "%"
-    distance_from_f1_f2_connection: float = 0.0
-    frame_normal_plane_axis: str = "z"
-    frame_orthogonal_connection_axis: str = "x"
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'OrthogonalConstraint':
-        return cls(
-            frame_1=data.get('frame_1', ''),
-            frame_2=data.get('frame_2', ''),
-            frame_3=data.get('frame_3', ''),
-            distance_from_f1=data.get('distance_from_f1', 0.0),
-            unit_distance_from_f1=data.get('unit_distance_from_f1', '%'),
-            distance_from_f1_f2_connection=data.get('distance_from_f1_f2_connection', 0.0),
-            frame_normal_plane_axis=data.get('frame_normal_plane_axis', 'z'),
-            frame_orthogonal_connection_axis=data.get('frame_orthogonal_connection_axis', 'x')
-        )
-    
-    def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
-
-
-@dataclass
-class InPlaneConstraint:
-    """Represents an in-plane constraint for a reference frame"""
-    refFrameNames: List[str] = field(default_factory=list)
-    planeOffset: float = 0.0
-    normalAxis: str = "z"
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'InPlaneConstraint':
-        return cls(
-            refFrameNames=data.get('refFrameNames', []),
-            planeOffset=data.get('planeOffset', 0.0),
-            normalAxis=data.get('normalAxis', 'z')
-        )
-    
-    def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
-
-
-@dataclass
-class TransformConstraint:
-    """Represents a transform constraint for a reference frame"""
-    refFrame: str = ""
-    transform: Dict[str, Any] = field(default_factory=lambda: {
-        "translation": {"X": 0.0, "Y": 0.0, "Z": 0.0},
-        "rotation": {"X": 0.0, "Y": 0.0, "Z": 0.0, "W": 1.0}
-    })
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'TransformConstraint':
-        return cls(
-            refFrame=data.get('refFrame', ''),
-            transform=data.get('transform', {
-                "translation": {"X": 0.0, "Y": 0.0, "Z": 0.0},
-                "rotation": {"X": 0.0, "Y": 0.0, "Z": 0.0, "W": 1.0}
-            })
-        )
-    
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            'refFrame': self.refFrame,
-            'transform': self.transform
-        }
-
-
-@dataclass
-class RefFrameConstraints:
-    """Container for all constraints of a reference frame"""
-    centroid: CentroidConstraint = field(default_factory=CentroidConstraint)
-    orthogonal: OrthogonalConstraint = field(default_factory=OrthogonalConstraint)
-    inPlane: InPlaneConstraint = field(default_factory=InPlaneConstraint)
-    transform: Optional[TransformConstraint] = None
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'RefFrameConstraints':
-        return cls(
-            centroid=CentroidConstraint.from_dict(data.get('centroid', {})),
-            orthogonal=OrthogonalConstraint.from_dict(data.get('orthogonal', {})),
-            inPlane=InPlaneConstraint.from_dict(data.get('inPlane', {})),
-            transform=TransformConstraint.from_dict(data.get('transform', {})) 
-                if data.get('transform') else None
-        )
-    
-    def to_dict(self) -> Dict[str, Any]:
-        result = {
-            'centroid': self.centroid.to_dict(),
-            'orthogonal': self.orthogonal.to_dict(),
-            'inPlane': self.inPlane.to_dict(),
-        }
-        if self.transform:
-            result['transform'] = self.transform.to_dict()
-        return result
+# from .ComponentDescriptionModifier import (
+#     ComponentDescriptionModifier, 
+#     CentroidConstraint, 
+#     OrthogonalConstraint, 
+#     InPlaneConstraint, 
+#     TransformConstraint,
+#     RefFrameConstraints,
+#     RefFrame
+# )
 
 
 class SpawningTransformationWidget(QGroupBox):
@@ -290,9 +180,8 @@ class AssemblyModifierWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.setAcceptDrops(True)
-        self.current_data = None
+        self.component_modifier: Optional[ComponentDescriptionModifier] = None
         self.current_frame_name = None
-        self.current_file_path = None
         self.init_ui()
     
     def init_ui(self):
@@ -301,6 +190,19 @@ class AssemblyModifierWidget(QWidget):
         
         # Left side layout
         left_layout = QVBoxLayout()
+        
+        # File operations buttons at the top
+        file_buttons_layout = QHBoxLayout()
+        
+        self.new_btn = QPushButton("New")
+        self.new_btn.clicked.connect(self.on_new_click)
+        file_buttons_layout.addWidget(self.new_btn)
+        
+        self.open_btn = QPushButton("Open")
+        self.open_btn.clicked.connect(self.on_open_click)
+        file_buttons_layout.addWidget(self.open_btn)
+        
+        left_layout.addLayout(file_buttons_layout)
         
         # Drag and drop area at the top
         drop_label = QLabel("Drag and drop JSON file here")
@@ -327,6 +229,19 @@ class AssemblyModifierWidget(QWidget):
         self.ref_frames_list = QListWidget()
         self.ref_frames_list.itemClicked.connect(self.on_refframe_selected)
         left_layout.addWidget(self.ref_frames_list)
+        
+        # Add/Delete frame buttons
+        frame_buttons_layout = QHBoxLayout()
+        
+        self.add_frame_btn = QPushButton("Add New Frame")
+        self.add_frame_btn.clicked.connect(self.add_new_frame)
+        frame_buttons_layout.addWidget(self.add_frame_btn)
+        
+        self.delete_frame_btn = QPushButton("Delete Frame")
+        self.delete_frame_btn.clicked.connect(self.delete_current_frame)
+        frame_buttons_layout.addWidget(self.delete_frame_btn)
+        
+        left_layout.addLayout(frame_buttons_layout)
         
         # Right side layout for details
         right_layout = QVBoxLayout()
@@ -381,13 +296,10 @@ class AssemblyModifierWidget(QWidget):
         
         self.setLayout(main_layout)
         
-        # Disable constraint buttons initially
+        # Disable buttons initially
         self.enable_constraint_buttons(False)
-    
-    def dragEnterEvent(self, event: QDragEnterEvent):
-        """Handle drag enter event"""
-        if event.mimeData().hasUrls():
-            event.acceptProposedAction()
+        self.add_frame_btn.setEnabled(False)
+        self.delete_frame_btn.setEnabled(False)
     
     def dropEvent(self, event: QDropEvent):
         """Handle drop event for loading JSON files"""
@@ -397,16 +309,59 @@ class AssemblyModifierWidget(QWidget):
                 self.load_json(file_path)
                 break
     
+    def on_open_click(self):
+        """Handle Open button click - opens file dialog"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open Component Description",
+            "",
+            "JSON Files (*.json);;All Files (*)"
+        )
+        if file_path:
+            self.load_json(file_path)
+    
+    def on_new_click(self):
+        """Handle New button click - creates new component"""
+        # Prompt for component name
+        name, ok = QInputDialog.getText(
+            self,
+            "New Component",
+            "Enter component name:",
+            text="New Component"
+        )
+        if ok and name:
+            self.create_new_component(name)
+    
+    def create_new_component(self, name: str = "New Component"):
+        """Create a new component description"""
+        try:
+            # Create new component
+            self.component_modifier = ComponentDescriptionModifier.create_new(name)
+            
+            # Enable buttons when new component is created
+            self.add_frame_btn.setEnabled(True)
+            self.delete_frame_btn.setEnabled(True)
+            
+            # Load spawning transformation
+            spawning_transform = self.component_modifier.get_spawning_transformation()
+            self.spawning_transform_widget.set_transformation(spawning_transform)
+            
+            self.populate_refframes_list()
+            QMessageBox.information(self, "Success", f"Created new component: {name}")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to create component: {str(e)}")
+    
     def load_json(self, file_path):
         """Load and parse JSON file"""
         try:
-            with open(file_path, 'r') as f:
-                self.current_data = json.load(f)
+            self.component_modifier = ComponentDescriptionModifier.from_file(file_path)
             
-            self.current_file_path = file_path
+            # Enable buttons when file is loaded
+            self.add_frame_btn.setEnabled(True)
+            self.delete_frame_btn.setEnabled(True)
             
             # Load spawning transformation if available
-            spawning_transform = self.current_data.get('mountingDescription', {}).get('mountingReferences', {}).get('spawningTransformation', {})
+            spawning_transform = self.component_modifier.get_spawning_transformation()
             self.spawning_transform_widget.set_transformation(spawning_transform)
             
             self.populate_refframes_list()
@@ -418,23 +373,22 @@ class AssemblyModifierWidget(QWidget):
         """Populate the list widget with reference frames"""
         self.ref_frames_list.clear()
         
-        if not self.current_data:
+        if not self.component_modifier:
             return
         
         try:
-            # Navigate to mounting references -> ref_frames
-            ref_frames = self.current_data.get('mountingDescription', {}).get('mountingReferences', {}).get('ref_frames', [])
+            ref_frames = self.component_modifier.get_ref_frames()
             
             for frame in ref_frames:
-                frame_name = frame.get('name', 'Unknown')
-                frame_type = frame.get('type', 'unknown')
+                frame_name = frame.name
+                frame_type = frame.type
                 item_text = f"{frame_name} ({frame_type})"
                 
                 item = QListWidgetItem(item_text)
                 item.setData(Qt.ItemDataRole.UserRole, frame_name)  # Store frame name for later retrieval
                 
                 # Check if frame has constraints and color it green
-                if self.has_constraints(frame):
+                if frame.has_constraints():
                     item.setData(Qt.ItemDataRole.BackgroundRole, QBrush(QColor(144, 238, 144)))  # Light green
                     item.setData(Qt.ItemDataRole.ForegroundRole, QBrush(QColor(0, 0, 0)))  # Black text for contrast
                 
@@ -442,38 +396,12 @@ class AssemblyModifierWidget(QWidget):
         except Exception as e:
             QMessageBox.warning(self, "Warning", f"Error populating frames: {str(e)}")
     
-    def has_constraints(self, frame: Dict[str, Any]) -> bool:
-        """Check if a frame has any constraints defined"""
-        constraints = frame.get('constraints', {})
-        
-        # Check centroid constraint
-        centroid = constraints.get('centroid', {})
-        if centroid.get('refFrameNames'):
-            return True
-        
-        # Check orthogonal constraint
-        orthogonal = constraints.get('orthogonal', {})
-        if any([orthogonal.get('frame_1'), orthogonal.get('frame_2'), orthogonal.get('frame_3')]):
-            return True
-        
-        # Check in-plane constraint
-        inplane = constraints.get('inPlane', {})
-        if inplane.get('refFrameNames'):
-            return True
-        
-        # Check transform constraint
-        transform = constraints.get('transform', {})
-        if transform and transform.get('refFrame'):
-            return True
-        
-        return False
-    
     def update_frame_item_color(self):
         """Update the color of the currently selected frame item based on constraint status"""
-        if not self.current_frame_name:
+        if not self.current_frame_name or not self.component_modifier:
             return
         
-        frame = self.get_current_frame()
+        frame = self.component_modifier.get_ref_frame(self.current_frame_name)
         if not frame:
             return
         
@@ -481,7 +409,7 @@ class AssemblyModifierWidget(QWidget):
         for i in range(self.ref_frames_list.count()):
             item = self.ref_frames_list.item(i)
             if item.data(Qt.ItemDataRole.UserRole) == self.current_frame_name:
-                if self.has_constraints(frame):
+                if frame.has_constraints():
                     item.setData(Qt.ItemDataRole.BackgroundRole, QBrush(QColor(144, 238, 144)))  # Light green
                     item.setData(Qt.ItemDataRole.ForegroundRole, QBrush(QColor(0, 0, 0)))  # Black text for contrast
                 else:
@@ -489,23 +417,24 @@ class AssemblyModifierWidget(QWidget):
                     item.setData(Qt.ItemDataRole.ForegroundRole, QBrush())  # Default text color
                 break
     
+    def dragEnterEvent(self, event: QDragEnterEvent):
+        """Handle drag enter event"""
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+    
     def on_refframe_selected(self, item):
         """Handle selection of a reference frame"""
         frame_name = item.data(Qt.ItemDataRole.UserRole)
         self.current_frame_name = frame_name
         
         try:
-            ref_frames = self.current_data.get('mountingDescription', {}).get('mountingReferences', {}).get('ref_frames', [])
+            if not self.component_modifier:
+                return
             
-            # Find the selected frame
-            selected_frame = None
-            for frame in ref_frames:
-                if frame.get('name') == frame_name:
-                    selected_frame = frame
-                    break
+            frame = self.component_modifier.get_ref_frame(frame_name)
             
-            if selected_frame:
-                self.display_frame_details(selected_frame)
+            if frame:
+                self.display_frame_details(frame)
                 self.enable_constraint_buttons(True)
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Error displaying frame: {str(e)}")
@@ -517,16 +446,101 @@ class AssemblyModifierWidget(QWidget):
         self.edit_inplane_btn.setEnabled(enabled)
         self.edit_transform_btn.setEnabled(enabled)
     
-    def get_current_frame(self):
-        """Get the currently selected frame dictionary"""
-        if not self.current_frame_name or not self.current_data:
+    def get_current_frame(self) -> Optional[RefFrame]:
+        """Get the currently selected frame"""
+        if not self.current_frame_name or not self.component_modifier:
             return None
         
-        ref_frames = self.current_data.get('mountingDescription', {}).get('mountingReferences', {}).get('ref_frames', [])
-        for frame in ref_frames:
-            if frame.get('name') == self.current_frame_name:
-                return frame
-        return None
+        return self.component_modifier.get_ref_frame(self.current_frame_name)
+    
+    def add_new_frame(self):
+        """Open dialog to add a new reference frame"""
+        if not self.component_modifier:
+            QMessageBox.warning(self, "Warning", "No data loaded. Please load a file first.")
+            return
+        
+        # Create a dialog to get frame name and type
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Add New Reference Frame")
+        dialog.setModal(True)
+        dialog.setGeometry(100, 100, 400, 180)
+        
+        layout = QVBoxLayout()
+        
+        # Frame name input
+        layout.addWidget(QLabel("Frame Name:"))
+        name_input = QLineEdit()
+        layout.addWidget(name_input)
+        
+        # Frame type input
+        layout.addWidget(QLabel("Frame Type:"))
+        type_combo = QComboBox()
+        type_combo.addItems(["frame", "point"])
+        type_combo.setToolTip("'frame' has position and orientation, 'point' has position only")
+        layout.addWidget(type_combo)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        ok_btn = QPushButton("OK")
+        cancel_btn = QPushButton("Cancel")
+        button_layout.addWidget(ok_btn)
+        button_layout.addWidget(cancel_btn)
+        layout.addLayout(button_layout)
+        
+        dialog.setLayout(layout)
+        
+        def on_ok():
+            frame_name = name_input.text().strip()
+            frame_type = type_combo.currentText()
+            
+            if not frame_name:
+                QMessageBox.warning(dialog, "Error", "Frame name cannot be empty")
+                return
+            
+            try:
+                self.component_modifier.add_ref_frame(frame_name, frame_type)
+                self.populate_refframes_list()
+                QMessageBox.information(self, "Success", f"Reference frame '{frame_name}' ({frame_type}) added successfully")
+                dialog.accept()
+            except ValueError as e:
+                QMessageBox.warning(dialog, "Error", str(e))
+        
+        ok_btn.clicked.connect(on_ok)
+        cancel_btn.clicked.connect(dialog.reject)
+        
+        dialog.exec()
+    
+    def delete_current_frame(self):
+        """Delete the currently selected reference frame"""
+        if not self.current_frame_name:
+            QMessageBox.warning(self, "Warning", "No frame selected")
+            return
+        
+        if not self.component_modifier:
+            QMessageBox.warning(self, "Warning", "No data loaded")
+            return
+        
+        # Confirm deletion
+        reply = QMessageBox.question(
+            self,
+            "Delete Frame",
+            f"Are you sure you want to delete the frame '{self.current_frame_name}'?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.No:
+            return
+        
+        try:
+            self.component_modifier.remove_ref_frame(self.current_frame_name)
+            self.current_frame_name = None
+            self.enable_constraint_buttons(False)
+            self.details_text.clear()
+            self.populate_refframes_list()
+            QMessageBox.information(self, "Success", "Frame deleted successfully")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to delete frame: {str(e)}")
     
     def edit_centroid_constraint(self):
         """Open editor for centroid constraint"""
@@ -535,19 +549,22 @@ class AssemblyModifierWidget(QWidget):
             QMessageBox.warning(self, "Warning", "No frame selected")
             return
         
-        constraints = frame.get('constraints', {})
-        centroid_data = constraints.get('centroid', {})
+        centroid_data = frame.constraints.centroid.to_dict()
         
         # Get all available frame names for reference
-        all_frames = self.current_data.get('mountingDescription', {}).get('mountingReferences', {}).get('ref_frames', [])
-        frame_names = [f.get('name', '') for f in all_frames]
+        frame_names = self.component_modifier.get_ref_frame_names()
         
         dialog = CentroidConstraintDialog(centroid_data, frame_names, self)
         if dialog.exec():
-            constraints['centroid'] = dialog.get_data()
-            frame['constraints'] = constraints
-            self.display_frame_details(frame)
-            self.update_frame_item_color()
+            self.component_modifier.update_frame_constraint(
+                self.current_frame_name, 
+                'centroid', 
+                dialog.get_data()
+            )
+            frame = self.get_current_frame()
+            if frame:
+                self.display_frame_details(frame)
+                self.update_frame_item_color()
     
     def edit_orthogonal_constraint(self):
         """Open editor for orthogonal constraint"""
@@ -556,19 +573,22 @@ class AssemblyModifierWidget(QWidget):
             QMessageBox.warning(self, "Warning", "No frame selected")
             return
         
-        constraints = frame.get('constraints', {})
-        orthogonal_data = constraints.get('orthogonal', {})
+        orthogonal_data = frame.constraints.orthogonal.to_dict()
         
         # Get all available frame names for reference
-        all_frames = self.current_data.get('mountingDescription', {}).get('mountingReferences', {}).get('ref_frames', [])
-        frame_names = [f.get('name', '') for f in all_frames]
+        frame_names = self.component_modifier.get_ref_frame_names()
         
         dialog = OrthogonalConstraintDialog(orthogonal_data, frame_names, self)
         if dialog.exec():
-            constraints['orthogonal'] = dialog.get_data()
-            frame['constraints'] = constraints
-            self.display_frame_details(frame)
-            self.update_frame_item_color()
+            self.component_modifier.update_frame_constraint(
+                self.current_frame_name, 
+                'orthogonal', 
+                dialog.get_data()
+            )
+            frame = self.get_current_frame()
+            if frame:
+                self.display_frame_details(frame)
+                self.update_frame_item_color()
     
     def edit_inplane_constraint(self):
         """Open editor for in-plane constraint"""
@@ -577,19 +597,22 @@ class AssemblyModifierWidget(QWidget):
             QMessageBox.warning(self, "Warning", "No frame selected")
             return
         
-        constraints = frame.get('constraints', {})
-        inplane_data = constraints.get('inPlane', {})
+        inplane_data = frame.constraints.inPlane.to_dict()
         
         # Get all available frame names for reference
-        all_frames = self.current_data.get('mountingDescription', {}).get('mountingReferences', {}).get('ref_frames', [])
-        frame_names = [f.get('name', '') for f in all_frames]
+        frame_names = self.component_modifier.get_ref_frame_names()
         
         dialog = InPlaneConstraintDialog(inplane_data, frame_names, self)
         if dialog.exec():
-            constraints['inPlane'] = dialog.get_data()
-            frame['constraints'] = constraints
-            self.display_frame_details(frame)
-            self.update_frame_item_color()
+            self.component_modifier.update_frame_constraint(
+                self.current_frame_name, 
+                'inPlane', 
+                dialog.get_data()
+            )
+            frame = self.get_current_frame()
+            if frame:
+                self.display_frame_details(frame)
+                self.update_frame_item_color()
     
     def edit_transform_constraint(self):
         """Open editor for transform constraint"""
@@ -598,27 +621,30 @@ class AssemblyModifierWidget(QWidget):
             QMessageBox.warning(self, "Warning", "No frame selected")
             return
         
-        constraints = frame.get('constraints', {})
-        transform_data = constraints.get('transform', {})
+        transform_data = frame.constraints.transform.to_dict() if frame.constraints.transform else {}
         
         # Get all available frame names for reference
-        all_frames = self.current_data.get('mountingDescription', {}).get('mountingReferences', {}).get('ref_frames', [])
-        frame_names = [f.get('name', '') for f in all_frames]
+        frame_names = self.component_modifier.get_ref_frame_names()
         
         dialog = TransformConstraintDialog(transform_data, frame_names, self)
         if dialog.exec():
-            constraints['transform'] = dialog.get_data()
-            frame['constraints'] = constraints
-            self.display_frame_details(frame)
-            self.update_frame_item_color()
+            self.component_modifier.update_frame_constraint(
+                self.current_frame_name, 
+                'transform', 
+                dialog.get_data()
+            )
+            frame = self.get_current_frame()
+            if frame:
+                self.display_frame_details(frame)
+                self.update_frame_item_color()
     
     def save_json(self):
         """Save the current data to the loaded JSON file"""
-        if not self.current_data:
+        if not self.component_modifier:
             QMessageBox.warning(self, "Warning", "No data loaded")
             return
         
-        if not self.current_file_path:
+        if not self.component_modifier.get_file_path():
             QMessageBox.warning(self, "Warning", "No file loaded. Please load a file first.")
             return
         
@@ -634,28 +660,22 @@ class AssemblyModifierWidget(QWidget):
         if reply == QMessageBox.StandardButton.No:
             return
         
-        # Update spawning transformation in current data before saving
+        # Update spawning transformation in component modifier before saving
         try:
             spawning_transform = self.spawning_transform_widget.get_transformation()
-            if 'mountingDescription' not in self.current_data:
-                self.current_data['mountingDescription'] = {}
-            if 'mountingReferences' not in self.current_data['mountingDescription']:
-                self.current_data['mountingDescription']['mountingReferences'] = {}
-            
-            self.current_data['mountingDescription']['mountingReferences']['spawningTransformation'] = spawning_transform
+            self.component_modifier.set_spawning_transformation(spawning_transform)
         except Exception as e:
             QMessageBox.warning(self, "Warning", f"Error updating spawning transformation: {str(e)}")
         
         try:
-            with open(self.current_file_path, 'w') as f:
-                json.dump(self.current_data, f, indent=2)
+            self.component_modifier.save_to_file()
             QMessageBox.information(self, "Success", "File saved successfully")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to save: {str(e)}")
     
     def reload_json(self):
         """Reload the currently loaded JSON file from disk"""
-        if not self.current_file_path:
+        if not self.component_modifier:
             QMessageBox.warning(self, "Warning", "No file loaded. Please load a file first.")
             return
         
@@ -672,26 +692,35 @@ class AssemblyModifierWidget(QWidget):
             return
         
         try:
-            self.load_json(self.current_file_path)
+            self.component_modifier.reload_from_file()
+            
+            # Reload spawning transformation
+            spawning_transform = self.component_modifier.get_spawning_transformation()
+            self.spawning_transform_widget.set_transformation(spawning_transform)
+            
+            self.populate_refframes_list()
+            self.current_frame_name = None
+            self.enable_constraint_buttons(False)
+            self.details_text.clear()
             QMessageBox.information(self, "Success", "File reloaded successfully")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to reload: {str(e)}")
     
-    def display_frame_details(self, frame):
+    def display_frame_details(self, frame: RefFrame):
         """Display detailed information about a reference frame"""
         details = []
-        details.append(f"<b>Name:</b> {frame.get('name', 'N/A')}")
-        details.append(f"<b>Type:</b> {frame.get('type', 'N/A')}")
+        details.append(f"<b>Name:</b> {frame.name}")
+        details.append(f"<b>Type:</b> {frame.type.upper()} {'(Position Only)' if frame.is_point() else '(Position + Orientation)'}")
         
         # Translation
-        translation = frame.get('transformation', {}).get('translation', {})
+        translation = frame.transformation.get('translation', {})
         details.append(f"<b>Translation:</b>")
         details.append(f"  X: {translation.get('X', 'N/A')}")
         details.append(f"  Y: {translation.get('Y', 'N/A')}")
         details.append(f"  Z: {translation.get('Z', 'N/A')}")
         
-        # Rotation
-        rotation = frame.get('transformation', {}).get('rotation', {})
+        # Rotation (always show for all frame types - data structure is consistent)
+        rotation = frame.transformation.get('rotation', {})
         details.append(f"<b>Rotation (Quaternion):</b>")
         details.append(f"  X: {rotation.get('X', 'N/A')}")
         details.append(f"  Y: {rotation.get('Y', 'N/A')}")
@@ -700,39 +729,38 @@ class AssemblyModifierWidget(QWidget):
         details.append(f"  IsIdentity: {rotation.get('IsIdentity', 'N/A')}")
         
         # Constraints
-        constraints = frame.get('constraints', {})
         details.append(f"<b>Constraints:</b>")
         
         # Centroid constraint
-        centroid = constraints.get('centroid', {})
+        centroid = frame.constraints.centroid
         details.append(f"  <b>Centroid:</b>")
-        details.append(f"    Ref Frames: {', '.join(centroid.get('refFrameNames', []))}")
-        details.append(f"    Dimension: {centroid.get('dim', 'N/A')}")
-        details.append(f"    Offset: {centroid.get('offsetValues', [])}")
+        details.append(f"    Ref Frames: {', '.join(centroid.refFrameNames)}")
+        details.append(f"    Dimension: {centroid.dim}")
+        details.append(f"    Offset: {centroid.offsetValues}")
         
         # Orthogonal constraint
-        orthogonal = constraints.get('orthogonal', {})
-        if any(orthogonal.values()):
+        orthogonal = frame.constraints.orthogonal
+        if any([orthogonal.frame_1, orthogonal.frame_2, orthogonal.frame_3]):
             details.append(f"  <b>Orthogonal:</b>")
-            details.append(f"    Frame 1: {orthogonal.get('frame_1', 'N/A')}")
-            details.append(f"    Frame 2: {orthogonal.get('frame_2', 'N/A')}")
-            details.append(f"    Frame 3: {orthogonal.get('frame_3', 'N/A')}")
-            details.append(f"    Distance from F1: {orthogonal.get('distance_from_f1', 'N/A')} {orthogonal.get('unit_distance_from_f1', '')}")
+            details.append(f"    Frame 1: {orthogonal.frame_1}")
+            details.append(f"    Frame 2: {orthogonal.frame_2}")
+            details.append(f"    Frame 3: {orthogonal.frame_3}")
+            details.append(f"    Distance from F1: {orthogonal.distance_from_f1} {orthogonal.unit_distance_from_f1}")
         
         # In-plane constraint
-        in_plane = constraints.get('inPlane', {})
-        if any(in_plane.values()):
+        in_plane = frame.constraints.inPlane
+        if in_plane.refFrameNames:
             details.append(f"  <b>In Plane:</b>")
-            details.append(f"    Ref Frames: {', '.join(in_plane.get('refFrameNames', []))}")
-            details.append(f"    Plane Offset: {in_plane.get('planeOffset', 'N/A')}")
-            details.append(f"    Normal Axis: {in_plane.get('normalAxis', 'N/A')}")
+            details.append(f"    Ref Frames: {', '.join(in_plane.refFrameNames)}")
+            details.append(f"    Plane Offset: {in_plane.planeOffset}")
+            details.append(f"    Normal Axis: {in_plane.normalAxis}")
         
         # Transform constraint
-        transform_constraint = constraints.get('transform', {})
+        transform_constraint = frame.constraints.transform
         if transform_constraint:
             details.append(f"  <b>Transform Constraint:</b>")
-            details.append(f"    Ref Frame: {transform_constraint.get('refFrame', 'N/A')}")
-            transform_data = transform_constraint.get('transform', {})
+            details.append(f"    Ref Frame: {transform_constraint.refFrame}")
+            transform_data = transform_constraint.transform
             translation = transform_data.get('translation', {})
             rotation = transform_data.get('rotation', {})
             details.append(f"    Translation: X={translation.get('X', 'N/A')}, Y={translation.get('Y', 'N/A')}, Z={translation.get('Z', 'N/A')}")
