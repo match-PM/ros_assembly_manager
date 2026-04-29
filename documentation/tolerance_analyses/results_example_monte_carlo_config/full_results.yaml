@@ -1,0 +1,44 @@
+avg_tick_time: '4.432'
+failure_count: 0
+result_values:
+  assembly_results:
+    mean_orientation_pitch: 0.0036985107565496544
+    mean_orientation_roll: -0.0006660486251208807
+    mean_orientation_yaw: -90.00030667440537
+    mean_x: -15885.121932790114
+    mean_y: -19999.528559788127
+    mean_z: -0.871394404207175
+    std_dev_orientation_pitch: 0.028815003113688672
+    std_dev_orientation_roll: 0.014597368852379456
+    std_dev_orientation_yaw: 0.013723118780707817
+    std_dev_x: 3.591911788501317
+    std_dev_y: 3.6997255741855537
+    std_dev_z: 5.5160060548439915
+  target_results:
+    mean_orientation_pitch: -0.0028752468664767815
+    mean_orientation_roll: -0.0003561580619864454
+    mean_orientation_yaw: -89.99979161305654
+    mean_x: -14937.686347470646
+    mean_y: -19000.021184406476
+    mean_z: 2500.6832010913436
+    std_dev_orientation_pitch: 0.026453425856838988
+    std_dev_orientation_roll: 0.013004548789859134
+    std_dev_orientation_yaw: 0.0138620083978797
+    std_dev_x: 3.8251849237549895
+    std_dev_y: 3.556307117539578
+    std_dev_z: 5.2513176674220325
+  transform_results:
+    mean_orientation_pitch: -0.006574125951235333
+    mean_orientation_roll: 0.0003097419005267752
+    mean_orientation_yaw: 0.0005141423787147709
+    mean_x: -999.6765211916463
+    mean_y: 947.4009017321548
+    mean_z: 2501.5013648505806
+    std_dev_orientation_pitch: 0.04156059311971581
+    std_dev_orientation_roll: 0.020138238838538
+    std_dev_orientation_yaw: 0.019843931295120302
+    std_dev_x: 4.989815043317688
+    std_dev_y: 5.015431291431256
+    std_dev_z: 8.00789635339937
+total_iterations: 237
+total_simulation_time: 46.90151286125183
