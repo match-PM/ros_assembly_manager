@@ -10,3 +10,4 @@ string parent_file_path
 std_msgs/ColorRGBA apperance_color
 ---
 bool success
+string message

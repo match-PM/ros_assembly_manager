@@ -168,9 +168,10 @@ class AssemblyScenePublisherNode(Node):
         new_obj.obj_pose.position.y = request.translation.y
         new_obj.obj_pose.position.z = request.translation.z
 
-        add_success = self.object_scene.add_obj_to_scene(new_obj)
+        add_success, add_message = self.object_scene.add_obj_to_scene(new_obj)
         response.success = add_success
-        
+        response.message = add_message
+
         return response
     
     def destroy_object_callback(self, request:ami_srv.DestroyObject.Request, response:ami_srv.DestroyObject.Response):

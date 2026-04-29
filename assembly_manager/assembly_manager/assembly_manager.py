@@ -138,15 +138,16 @@ class AssemblyManagerNode(Node):
     
     def spawn_object_callback(self, request: ami_srv.SpawnObject.Request, response: ami_srv.SpawnObject.Response):
 
-        response.success = self.spawn_component(request, call_async = False)
+        response.success, response.message = self.spawn_component(request, call_async = False)
         
         return response
         
-    def spawn_component(self, SpawnRequest: ami_srv.SpawnObject.Request, call_async = False)->bool:
+    def spawn_component(self, SpawnRequest: ami_srv.SpawnObject.Request, call_async = False)->tuple:
 
         self.logger.info('Spawn component request received!')
         object_publish_executed =  None
         object_publish_success = False
+        msg = None
 
         SpawnRequest.translation.x = SpawnRequest.translation.x + self.SPAWN_COMPONENT_OFFSET_X
         SpawnRequest.translation.y = SpawnRequest.translation.y + self.SPAWN_COMPONENT_OFFSET_Y
@@ -162,13 +163,17 @@ class AssemblyManagerNode(Node):
                 while not future.done():
                     rclpy.spin_once(self)
                 object_publish_success=future.result().success
+                msg = future.result().message
             else:
                 response = self.object_topic_publisher_client_spawn.call(SpawnRequest)
                 object_publish_success = response.success
+                msg = response.message
 
         self.logger.info(f"Object publish success: {object_publish_success}.")
-        
-        return object_publish_success
+        if msg:
+            self.logger.info(f"Message: {msg}.")
+
+        return object_publish_success, msg
 
     def spawn_component_from_description_callback(self, request: ami_srv.SpawnComponentFromDescription.Request, response: ami_srv.SpawnComponentFromDescription.Response):
         response.success, response.message = self.spawn_component_from_description(request)
@@ -256,10 +261,9 @@ class AssemblyManagerNode(Node):
             spawn_request.rotation.x = mounting_references.get("spawningTransformation").get("rotation").get("X")
             spawn_request.rotation.y = mounting_references.get("spawningTransformation").get("rotation").get("Y")
             spawn_request.rotation.z = mounting_references.get("spawningTransformation").get("rotation").get("Z")
-            spawn_success = self.spawn_component(spawn_request)
+            spawn_success, msg = self.spawn_component(spawn_request)
 
             if not spawn_success:
-                msg = f"Error while spawning component {spawn_request.obj_name}!"
                 self.logger.error(msg)
                 return False, msg
 

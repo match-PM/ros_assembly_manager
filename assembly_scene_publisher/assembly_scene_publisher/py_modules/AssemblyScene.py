@@ -126,28 +126,32 @@ class AssemblyManagerScene():
     def add_obj_to_scene(self, new_comp:ami_msg.Object)-> bool:
         
         if self.assembly_scene_analyzer.check_frame_in_occupied_frames(new_comp.parent_frame, component_name=new_comp.obj_name):
-            self.logger.error(f"Parent frame '{new_comp.parent_frame}' is marked as occupied frame. Object '{new_comp.obj_name}' can not be spawned!")
-            return False
+            message = f"Parent frame '{new_comp.parent_frame}' is marked as occupied frame. Object '{new_comp.obj_name}' can not be spawned! Only one object can be spawned at this chuck."
+            self.logger.error(message)
+            return False, message
         
         # Generate a new UUID if not set
         if new_comp.uuid == "":
             new_comp.uuid = self.generate_id()
 
         if new_comp.obj_name == "":
-            self.logger.error(f"Name of the component should not be empty. Aboarted!")
-            return False
+            message = "Name of the component should not be empty. Aborted!"
+            self.logger.error(message)
+            return False, message
         
         name_conflict = self.assembly_scene_analyzer.check_frames_exist_in_scene([new_comp.obj_name])
 
         if name_conflict:
-            self.logger.error(f'Object can not have the same name as an existing reference frame!')
-            return False
+            message = f"Object '{new_comp.obj_name}' can not have the same name as an existing reference frame!"
+            self.logger.error(message)
+            return False, message
 
         parent_frame_exists = self.check_if_frame_exists(new_comp.parent_frame)
 
         if not parent_frame_exists:
-            self.logger.error(f"Tried to spawn component {new_comp.obj_name}, but parent frame '{new_comp.parent_frame}' does not exist!")
-            return False
+            message = f"Tried to spawn component '{new_comp.obj_name}', but parent frame '{new_comp.parent_frame}' does not exist!"
+            self.logger.error(message)
+            return False, message
 
         parent_is_comp = self.assembly_scene_analyzer.check_component_exists(new_comp.parent_frame)
 
@@ -161,7 +165,9 @@ class AssemblyManagerScene():
             self.scene.objects_in_scene.append(new_comp)
             self.publish_scene()
             self.publish_to_tf()
-            return True
+            message = f"Object '{new_comp.obj_name}' successfully spawned."
+            self.logger.info(message)
+            return True, message
 
         # if exists updated values
         else:
@@ -173,13 +179,14 @@ class AssemblyManagerScene():
                     obj.obj_pose = new_comp.obj_pose
                     obj.parent_frame = new_comp.parent_frame
 
-                    self.logger.warn(f'Service for spawning {new_comp.obj_name} was called, but object does already exist!')
-                    self.logger.warn(f'Information for {new_comp.obj_name} updated!')
+                    message = f"Service for spawning '{new_comp.obj_name}' was called, but object already exists. Information updated!"
+                    self.logger.warn(message)
                     self.publish_scene()
                     self.publish_to_tf()
-                    return True
-            # eventually 
-            return False
+                    return True, message
+            message = f"Object '{new_comp.obj_name}' not found during update."
+            self.logger.error(message)
+            return False, message
 
     def add_ref_frame_to_scene(self, new_ref_frame:ami_msg.RefFrame):
         
