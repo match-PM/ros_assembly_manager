@@ -149,6 +149,11 @@ class AssemblyManagerNode(Node):
         object_publish_success = False
         msg = None
 
+        if self.assembly_scene_analyzer.check_component_exists(SpawnRequest.obj_name):
+            msg = f"Component '{SpawnRequest.obj_name}' already exists in the scene. Spawning aborted."
+            self.logger.error(msg)
+            return False, msg
+
         SpawnRequest.translation.x = SpawnRequest.translation.x + self.SPAWN_COMPONENT_OFFSET_X
         SpawnRequest.translation.y = SpawnRequest.translation.y + self.SPAWN_COMPONENT_OFFSET_Y
         SpawnRequest.translation.z = SpawnRequest.translation.z + self.SPAWN_COMPONENT_OFFSET_Z
