@@ -243,9 +243,9 @@ class AssemblyManagerNode(Node):
             color_data = file_data.get("color", {})
 
             color = ColorRGBA()
-            color.r = color_data.get("R", 0.0)
-            color.g = color_data.get("G", 0.0)
-            color.b = color_data.get("B", 0.0)
+            color.r = float(color_data.get("R", 0.0))
+            color.g = float(color_data.get("G", 0.0))
+            color.b = float(color_data.get("B", 0.0))
             color.a = 1.0
             spawn_request = ami_srv.SpawnObject.Request()
             spawn_request.obj_name = comp_name
