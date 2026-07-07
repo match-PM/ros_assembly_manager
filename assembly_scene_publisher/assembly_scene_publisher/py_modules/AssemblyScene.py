@@ -93,6 +93,7 @@ def vec_to_um(v)-> str:
 class AssemblyManagerScene():
     UNUSED_FRAME_CONST = 'unused_frame'
     GRIPPING_FRAME_IDENTIFICATORS = ['Grip', 'grip']
+    SPAWN_COLLISION_TOLERANCE = 0.00005  # meters; min allowed distance between component origins
 
     def __init__(self, 
                  node: Node, 
@@ -123,6 +124,49 @@ class AssemblyManagerScene():
     def get_scene(self) -> ami_msg.ObjectScene:
         return self.scene
     
+    def check_spawn_collision(self, new_comp:ami_msg.Object) -> tuple:
+        """Checks whether the world origin of 'new_comp' is within SPAWN_COLLISION_TOLERANCE
+        of any already spawned component. This catches overlapping spawns even when a
+        different (but co-located) parent frame is used. Returns (collision_found, message)."""
+
+        new_pos = Vector3()
+        new_pos.x = new_comp.obj_pose.position.x
+        new_pos.y = new_comp.obj_pose.position.y
+        new_pos.z = new_comp.obj_pose.position.z
+
+        try:
+            new_world = transform_vector3_to_world(new_pos, self.tf_buffer, new_comp.parent_frame)
+        except TfFrameLookupError as e:
+            # Without the parent's world transform we cannot evaluate collisions; let the spawn proceed.
+            self.logger.warn(f"Could not compute world position for collision check of '{new_comp.obj_name}': {e}")
+            return False, ""
+
+        for obj in self.scene.objects_in_scene:
+            obj: ami_msg.Object
+            # Skip self (re-spawn/update path).
+            if obj.obj_name == new_comp.obj_name:
+                continue
+
+            try:
+                obj_world = get_transform_for_frame_in_world(obj.obj_name, self.tf_buffer)
+            except TfFrameLookupError:
+                # Existing object not (yet) in TF; nothing to compare against.
+                continue
+
+            distance = np.sqrt(
+                (new_world.x - obj_world.transform.translation.x) ** 2 +
+                (new_world.y - obj_world.transform.translation.y) ** 2 +
+                (new_world.z - obj_world.transform.translation.z) ** 2
+            )
+
+            if distance < self.SPAWN_COLLISION_TOLERANCE:
+                message = (f"Object '{new_comp.obj_name}' collides with already spawned object "
+                           f"'{obj.obj_name}' at the same position (distance {distance:.6f} m < "
+                           f"tolerance {self.SPAWN_COLLISION_TOLERANCE} m). Spawning aborted.")
+                return True, message
+
+        return False, ""
+
     def add_obj_to_scene(self, new_comp:ami_msg.Object)-> bool:
         
         if self.assembly_scene_analyzer.check_frame_in_occupied_frames(new_comp.parent_frame, component_name=new_comp.obj_name):
@@ -152,6 +196,11 @@ class AssemblyManagerScene():
             message = f"Tried to spawn component '{new_comp.obj_name}', but parent frame '{new_comp.parent_frame}' does not exist!"
             self.logger.error(message)
             return False, message
+
+        collision, collision_msg = self.check_spawn_collision(new_comp)
+        if collision:
+            self.logger.error(collision_msg)
+            return False, collision_msg
 
         parent_is_comp = self.assembly_scene_analyzer.check_component_exists(new_comp.parent_frame)
 
@@ -335,7 +384,7 @@ class AssemblyManagerScene():
         for index, obj in enumerate(self.scene.objects_in_scene):
             obj:ami_msg.Object
             if obj.obj_name == obj_id:
-                # change the parent frame for the ref frames connected to the object. This is necessary because the ref frame would reapear if a new obj with the same name would be spawned. 
+                # change the parent frame for the ref frames connected to the object. This is necessary because the ref frame would reapear if a new obj with the same name would be spawned.
                 for ref_frame in obj.ref_frames:
                     ref_frame:ami_msg.RefFrame
                     ref_frame.parent_frame = self.UNUSED_FRAME_CONST
@@ -349,7 +398,11 @@ class AssemblyManagerScene():
                                             parent_frame=self.UNUSED_FRAME_CONST,
                                             translation=obj.obj_pose.position,
                                             rotations=obj.obj_pose.orientation)
-                                
+
+                # free the spawning frame if the parent is not another component
+                if not self.assembly_scene_analyzer.check_component_exists(obj.parent_frame):
+                    self.assembly_scene_modifier.del_from_occupied_frames(obj.parent_frame)
+
                 del self.scene.objects_in_scene[index]
 
                 self.publish_information()
