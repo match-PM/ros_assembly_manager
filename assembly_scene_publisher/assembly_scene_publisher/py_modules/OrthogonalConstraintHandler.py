@@ -72,15 +72,19 @@ class OrthogonalConstraintHandler(ami_msg.FrConstraintOrthogonal):
             return
         
         # check if the dimension is valid
-        if self.frame_orthogonal_connection_axis == self.frame_normal_plane_axis:
+        # Optional '-' prefix on the normal axis means "flip the normal"
+        normal_axis = (self.frame_normal_plane_axis[1:]
+                       if self.frame_normal_plane_axis.startswith('-')
+                       else self.frame_normal_plane_axis)
+        if self.frame_orthogonal_connection_axis == normal_axis:
             self.is_active = False
             if self.logger is not None:
                 self.logger.error('The orthogonal connection axis and the normal plane axis must be different.')
             return
-        
+
         axis_vector = ['x','y','z']
-        
-        if not (self.frame_orthogonal_connection_axis in axis_vector and self.frame_normal_plane_axis in axis_vector):
+
+        if not (self.frame_orthogonal_connection_axis in axis_vector and normal_axis in axis_vector):
             self.is_active = False
             if self.logger is not None:
                 self.logger.error('Invalid axis provided for orthogonal constraint')
@@ -286,10 +290,14 @@ class OrthogonalConstraintHandler(ami_msg.FrConstraintOrthogonal):
         value = normal_unit[index]          # Max value
 
         #self.logger.error(f'{normal_unit}')
-        
+
         if value < 0:
             normal_unit = -normal_unit
             #self.logger.error('Flippping')
+
+        # Optional '-' prefix on frame_normal_plane_axis means: flip the normal once more
+        if self.frame_normal_plane_axis.startswith('-'):
+            normal_unit = -normal_unit
 
         orthogonal_vector = np.cross(connection_unit, normal_unit)
         orthogonal_unit = orthogonal_vector / np.linalg.norm(orthogonal_vector)
@@ -303,12 +311,17 @@ class OrthogonalConstraintHandler(ami_msg.FrConstraintOrthogonal):
         constrained_position = p1 + addition + orthogonal_unit * (self.distance_from_f1_f2_connection / multiplier)
 
         # Assign axes
+        # Strip optional '-' prefix on the normal axis so it maps to a valid axis slot
+        normal_slot = (self.frame_normal_plane_axis[1:]
+                       if self.frame_normal_plane_axis.startswith('-')
+                       else self.frame_normal_plane_axis)
+
         axes = {
             self.frame_orthogonal_connection_axis: orthogonal_unit,
-            self.frame_normal_plane_axis: normal_unit
+            normal_slot: normal_unit
         }
 
-        remaining_axes = {"x", "y", "z"} - {self.frame_orthogonal_connection_axis, self.frame_normal_plane_axis}
+        remaining_axes = {"x", "y", "z"} - {self.frame_orthogonal_connection_axis, normal_slot}
 
         if self.frame_orthogonal_connection_axis == "x":
             index_axis = 0
