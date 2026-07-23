@@ -92,7 +92,7 @@ def vec_to_um(v)-> str:
 
 class AssemblyManagerScene():
     UNUSED_FRAME_CONST = 'unused_frame'
-    GRIPPING_FRAME_IDENTIFICATORS = ['Grip', 'grip']
+    GRIPPING_FRAME_IDENTIFICATORS = ['Gripping', 'gripping']
     SPAWN_COLLISION_TOLERANCE = 0.00005  # meters; min allowed distance between component origins
 
     def __init__(self, 
