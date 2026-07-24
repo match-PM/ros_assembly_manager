@@ -11,6 +11,13 @@ import assembly_manager_interfaces.srv as ami_srv
 import assembly_manager_interfaces.msg as ami_msg
 import assembly_manager_interfaces.action as ami_action
 
+# The adhesive displayer lives in a separate repo (match_pm_robot). Import it
+# optionally so the scene publisher still starts if pm_msgs is not present.
+try:
+    from pm_msgs.srv import EmptyWithSuccess
+except ImportError:
+    EmptyWithSuccess = None
+
 from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
 
 import os
@@ -99,6 +106,19 @@ class AssemblyScenePublisherNode(Node):
                                                                             goal_callback = self.monte_carlo_simulator.goal_callback,
                                                                             cancel_callback = self.monte_carlo_simulator.cancel_callback,
                                                                             callback_group = self.callback_group)
+
+        # Client used to clear the adhesive displayer when the scene is cleared.
+        # The displayer node is launched as 'pm_adhesive_displayer'; expose the
+        # service name as a parameter so a rename/namespace does not break this.
+        self.declare_parameter('clear_adhesive_points_service', '/pm_adhesive_displayer/clear_points')
+        clear_adhesive_service = self.get_parameter('clear_adhesive_points_service').get_parameter_value().string_value
+        if EmptyWithSuccess is not None:
+            self.clear_adhesive_points_client = self.create_client(
+                EmptyWithSuccess,
+                clear_adhesive_service,
+                callback_group=self.callback_group)
+        else:
+            self.clear_adhesive_points_client = None
 
         self.get_logger().info("Assembly scene publisher started!")
 
@@ -273,7 +293,22 @@ class AssemblyScenePublisherNode(Node):
     
     def clear_scene(self, request: ami_srv.ClearScene.Request, response: ami_srv.ClearScene.Response):
         response.success = self.object_scene.clear_scene(request.save_data)
+        self.clear_adhesive_points()
         return response
+
+    def clear_adhesive_points(self):
+        """Notify the adhesive displayer to drop its points so it stops
+        publishing adhesive markers once the scene has been cleared. This is
+        best-effort: if the displayer is not running the scene is still cleared."""
+        if self.clear_adhesive_points_client is None:
+            return
+
+        if not self.clear_adhesive_points_client.service_is_ready():
+            self.get_logger().debug("Adhesive displayer clear service not available; skipping.")
+            return
+
+        # Fire-and-forget so clearing the scene is never blocked by the displayer.
+        self.clear_adhesive_points_client.call_async(EmptyWithSuccess.Request())
     
     def save_scene_to_file(self, request: ami_srv.SaveSceneToFile.Request, response: ami_srv.SaveSceneToFile.Response):
         try:
