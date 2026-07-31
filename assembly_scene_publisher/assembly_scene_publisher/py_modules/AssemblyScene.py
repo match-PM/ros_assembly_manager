@@ -807,6 +807,7 @@ class AssemblyManagerScene():
         pose_to_modify: Pose = Pose()
         frame_name = request.frame_name
         new_world_pose = request.pose
+        modify_orientation = getattr(request, 'modify_orientation', False)
         if not self.check_if_frame_exists(frame_name):
             self.logger.error(f"Error modifing frame position. Frame '{frame_name}' does not exist")
             return False
@@ -840,11 +841,11 @@ class AssemblyManagerScene():
             #self.logger.info(f'Frame {frame_name} updated!') 
             
             frame_to_modify = self.assembly_scene_analyzer.get_ref_frame_by_name(frame_name)
-            # only modify the position !!!!
             frame_to_modify.pose.position = pose_to_modify.position
 
-            # right now there is an error with the orientation. Beside that, the question is, how we would like to handle the orientation (should it actually be modified).
-            # frame.pose = pose_to_modify
+            if modify_orientation:
+                frame_to_modify.pose.orientation = pose_to_modify.orientation
+                self.logger.warning(f"MODIFING ORIENTATION")
             
             component_name = get_component_for_frame_name(self.scene, frame_name)
             
@@ -872,6 +873,7 @@ class AssemblyManagerScene():
     def modify_frame_set_to_frame(self, request:ami_srv.ModifyPoseFromFrame.Request)-> bool:
         frame_to_set = request.frame_to_set
         from_frame = request.from_frame
+        modify_orientation = getattr(request, 'modify_orientation', False)
         
         if not self.assembly_scene_analyzer.is_frame_from_scene(frame_to_set):
             self.logger.error(f"Frame '{frame_to_set}' does not exist in the scene!")
@@ -891,10 +893,11 @@ class AssemblyManagerScene():
         ref_frame.pose.position.x = transform.transform.translation.x
         ref_frame.pose.position.y = transform.transform.translation.y
         ref_frame.pose.position.z = transform.transform.translation.z
-        ref_frame.pose.orientation.x = transform.transform.rotation.x
-        ref_frame.pose.orientation.y = transform.transform.rotation.y
-        ref_frame.pose.orientation.z = transform.transform.rotation.z
-        ref_frame.pose.orientation.w = transform.transform.rotation.w
+        if modify_orientation:
+            ref_frame.pose.orientation.x = transform.transform.rotation.x
+            ref_frame.pose.orientation.y = transform.transform.rotation.y
+            ref_frame.pose.orientation.z = transform.transform.rotation.z
+            ref_frame.pose.orientation.w = transform.transform.rotation.w
           
         if request.set_laser_measured:
                 ref_frame.properties.laser_frame_properties.is_laser_frame = True

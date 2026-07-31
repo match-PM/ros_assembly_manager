@@ -64,6 +64,38 @@ from typing import List, Dict, Any, Optional
 
 from assembly_scene_viewer.py_modules.ComponentDescriptionModifier import *
 
+LINEAR_CONSTRAINT_DECIMALS = 9
+ROTATION_CONSTRAINT_DECIMALS = 9
+LINEAR_CONSTRAINT_STEP = 0.000001
+ROTATION_CONSTRAINT_STEP = 0.000001
+
+
+def configure_double_spinbox(
+    spinbox: QDoubleSpinBox,
+    decimals: int,
+    single_step: float,
+) -> QDoubleSpinBox:
+    spinbox.setDecimals(decimals)
+    spinbox.setSingleStep(single_step)
+    spinbox.setKeyboardTracking(False)
+    return spinbox
+
+
+def configure_linear_constraint_spinbox(spinbox: QDoubleSpinBox) -> QDoubleSpinBox:
+    return configure_double_spinbox(
+        spinbox,
+        LINEAR_CONSTRAINT_DECIMALS,
+        LINEAR_CONSTRAINT_STEP,
+    )
+
+
+def configure_rotation_constraint_spinbox(spinbox: QDoubleSpinBox) -> QDoubleSpinBox:
+    return configure_double_spinbox(
+        spinbox,
+        ROTATION_CONSTRAINT_DECIMALS,
+        ROTATION_CONSTRAINT_STEP,
+    )
+
 # from .ComponentDescriptionModifier import (
 #     ComponentDescriptionModifier, 
 #     CentroidConstraint, 
@@ -836,18 +868,21 @@ class CentroidConstraintDialog(QDialog):
         
         self.offset_x = QDoubleSpinBox()
         self.offset_x.setRange(-1000, 1000)
+        configure_linear_constraint_spinbox(self.offset_x)
         self.offset_x.setValue(offsets[0] if len(offsets) > 0 else 0.0)
         layout.addWidget(QLabel("X:"))
         layout.addWidget(self.offset_x)
         
         self.offset_y = QDoubleSpinBox()
         self.offset_y.setRange(-1000, 1000)
+        configure_linear_constraint_spinbox(self.offset_y)
         self.offset_y.setValue(offsets[1] if len(offsets) > 1 else 0.0)
         layout.addWidget(QLabel("Y:"))
         layout.addWidget(self.offset_y)
         
         self.offset_z = QDoubleSpinBox()
         self.offset_z.setRange(-1000, 1000)
+        configure_linear_constraint_spinbox(self.offset_z)
         self.offset_z.setValue(offsets[2] if len(offsets) > 2 else 0.0)
         layout.addWidget(QLabel("Z:"))
         layout.addWidget(self.offset_z)
@@ -939,6 +974,7 @@ class OrthogonalConstraintDialog(QDialog):
         layout.addWidget(QLabel("Distance from Frame 1:"))
         self.distance_spin = QDoubleSpinBox()
         self.distance_spin.setRange(-10000, 10000)
+        configure_linear_constraint_spinbox(self.distance_spin)
         self.distance_spin.setValue(self.data.get('distance_from_f1', 0.0))
         layout.addWidget(self.distance_spin)
         
@@ -953,6 +989,7 @@ class OrthogonalConstraintDialog(QDialog):
         layout.addWidget(QLabel("Distance F1-F2 Connection:"))
         self.distance_f1_f2_spin = QDoubleSpinBox()
         self.distance_f1_f2_spin.setRange(-1000, 1000)
+        configure_linear_constraint_spinbox(self.distance_f1_f2_spin)
         self.distance_f1_f2_spin.setValue(self.data.get('distance_from_f1_f2_connection', 0.0))
         layout.addWidget(self.distance_f1_f2_spin)
         
@@ -1066,6 +1103,7 @@ class InPlaneConstraintDialog(QDialog):
         layout.addWidget(QLabel("Plane Offset:"))
         self.offset_spin = QDoubleSpinBox()
         self.offset_spin.setRange(-1000, 1000)
+        configure_linear_constraint_spinbox(self.offset_spin)
         self.offset_spin.setValue(self.data.get('planeOffset', 0.0))
         layout.addWidget(self.offset_spin)
         
@@ -1156,18 +1194,21 @@ class TransformConstraintDialog(QDialog):
         layout.addWidget(QLabel("X:"))
         self.trans_x = QDoubleSpinBox()
         self.trans_x.setRange(-10000, 10000)
+        configure_linear_constraint_spinbox(self.trans_x)
         self.trans_x.setValue(translation.get('X', 0.0))
         layout.addWidget(self.trans_x)
         
         layout.addWidget(QLabel("Y:"))
         self.trans_y = QDoubleSpinBox()
         self.trans_y.setRange(-10000, 10000)
+        configure_linear_constraint_spinbox(self.trans_y)
         self.trans_y.setValue(translation.get('Y', 0.0))
         layout.addWidget(self.trans_y)
         
         layout.addWidget(QLabel("Z:"))
         self.trans_z = QDoubleSpinBox()
         self.trans_z.setRange(-10000, 10000)
+        configure_linear_constraint_spinbox(self.trans_z)
         self.trans_z.setValue(translation.get('Z', 0.0))
         layout.addWidget(self.trans_z)
         
@@ -1178,28 +1219,28 @@ class TransformConstraintDialog(QDialog):
         layout.addWidget(QLabel("X:"))
         self.rot_x = QDoubleSpinBox()
         self.rot_x.setRange(-1, 1)
-        self.rot_x.setDecimals(5)
+        configure_rotation_constraint_spinbox(self.rot_x)
         self.rot_x.setValue(rotation.get('X', 0.0))
         layout.addWidget(self.rot_x)
         
         layout.addWidget(QLabel("Y:"))
         self.rot_y = QDoubleSpinBox()
         self.rot_y.setRange(-1, 1)
-        self.rot_y.setDecimals(5)
+        configure_rotation_constraint_spinbox(self.rot_y)
         self.rot_y.setValue(rotation.get('Y', 0.0))
         layout.addWidget(self.rot_y)
         
         layout.addWidget(QLabel("Z:"))
         self.rot_z = QDoubleSpinBox()
         self.rot_z.setRange(-1, 1)
-        self.rot_z.setDecimals(5)
+        configure_rotation_constraint_spinbox(self.rot_z)
         self.rot_z.setValue(rotation.get('Z', 0.0))
         layout.addWidget(self.rot_z)
         
         layout.addWidget(QLabel("W:"))
         self.rot_w = QDoubleSpinBox()
         self.rot_w.setRange(-1, 1)
-        self.rot_w.setDecimals(5)
+        configure_rotation_constraint_spinbox(self.rot_w)
         self.rot_w.setValue(rotation.get('W', 1.0))
         layout.addWidget(self.rot_w)
         

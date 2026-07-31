@@ -1,5 +1,6 @@
 string frame_name
 geometry_msgs/Pose pose
+bool modify_orientation
 bool set_laser_measured
 bool set_vision_measured
 ---
