@@ -254,6 +254,8 @@ class AssemblyManagerNode(Node):
             color.a = 1.0
             spawn_request = ami_srv.SpawnObject.Request()
             spawn_request.obj_name = comp_name
+            if request.uuid_override != "":
+                spawn_request.uuid = request.uuid_override
             spawn_request.apperance_color = color
             spawn_request.component_type_uuid = guid
             spawn_request.parent_frame = mounting_references.get("spawningOrigin")

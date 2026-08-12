@@ -180,6 +180,7 @@ class AssemblyScenePublisherNode(Node):
         new_obj.cad_data = request.cad_data
         new_obj.cad_data_collision = request.cad_data_collision
         new_obj.obj_name = request.obj_name
+        new_obj.uuid = request.uuid
         new_obj.component_type_uuid = request.component_type_uuid
         new_obj.apperance_color = request.apperance_color
         new_obj.parent_frame = request.parent_frame
