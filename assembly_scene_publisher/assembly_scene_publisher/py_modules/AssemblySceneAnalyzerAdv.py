@@ -17,8 +17,20 @@ from assembly_scene_publisher.py_modules.frame_constraints import CentroidConstr
 
 PM_ROBOT_GONIO_LEFT_FRAME_INDICATOR = 'Gonio_Left_Part'
 PM_ROBOT_GONIO_RIGHT_FRAME_INDICATOR = 'Gonio_Right_Part'
-
+SMARPOD_TOP_FRAMES = {
+    'Smarpod_Top_Plate',
+    'Smarpod_Part_Spawn'
+}
+GRIPPER_FRAMES = {
+        'PM_Robot_Tool_TCP',
+    }
 class AssemblySceneAnalyzerAdv(AssemblySceneAnalyzer):
+    # Expose the configured roots on the class because ancestry helpers access
+    # them through ``self``. Keep the module-level names for compatibility with
+    # existing imports.
+    SMARPOD_TOP_FRAMES = SMARPOD_TOP_FRAMES
+    GRIPPER_FRAMES = GRIPPER_FRAMES
+
     def __init__(self, scene_data: ObjectScene, logger: RcutilsLogger = None):
         super().__init__(scene_data, logger)
     
@@ -124,3 +136,60 @@ class AssemblySceneAnalyzerAdv(AssemblySceneAnalyzer):
             if obj.properties.is_placed and not obj.properties.is_assembled:
                 placed_components.append(obj.obj_name)
         return placed_components
+
+    def frame_is_on_smarpod(self, frame_name: str) -> bool:
+        """Determine whether an assembly frame descends from the top platform.
+
+        Args:
+            frame_name: Assembly-scene reference frame to inspect.
+
+        Returns:
+            ``True`` when the frame's component ancestry reaches a configured
+            Smarpod top-platform frame; otherwise ``False``.
+
+        Raises:
+            RefFrameNotFoundError: Propagated by the scene analyzer when the
+                frame does not exist.
+        """
+        _, frame = self.get_frame_from_scene(frame_name)
+        parent = frame.parent_frame
+        visited = set()
+
+        while parent and parent not in visited:
+            if parent in self.SMARPOD_TOP_FRAMES:
+                return True
+            visited.add(parent)
+            if self.check_component_exists(parent):
+                parent = self.get_parent_of_component(parent)
+            else:
+                break
+        return False
+
+    def frames_is_on_gripper(self, frame_name: str) -> bool:
+        """Determine whether an assembly frame descends from the gripper.
+
+        Args:
+            frame_name: Assembly-scene reference frame to inspect.
+
+        Returns:
+            ``True`` when the frame's component ancestry reaches a configured
+            gripper frame; otherwise ``False``.
+
+        Raises:
+            RefFrameNotFoundError: Propagated by the scene analyzer when the
+                frame does not exist.
+        """
+        _, frame = self.get_frame_from_scene(frame_name)
+        parent = frame.parent_frame
+        visited = set()
+
+
+        while parent and parent not in visited:
+            if parent in self.GRIPPER_FRAMES:
+                return True
+            visited.add(parent)
+            if self.check_component_exists(parent):
+                parent = self.get_parent_of_component(parent)
+            else:
+                break
+        return False
