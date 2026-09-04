@@ -1,4 +1,6 @@
 string component_name
+string reference_frame
 ---
 bool success
 string uuid
+string message

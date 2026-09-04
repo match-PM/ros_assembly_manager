@@ -350,11 +350,16 @@ class AssemblyScenePublisherNode(Node):
     
     def correct_component_position(self, request: ami_srv.CorrectComponentPosition.Request, response: ami_srv.CorrectComponentPosition.Response):
         try:
-            response.success = self.position_corrector.correct_component_position(request.component_name)
+            response.success = self.position_corrector.correct_component_position(
+                request.component_name,
+                request.reference_frame,
+            )
+            response.message = ""
         
-        except ComponentNotFoundError as e:
+        except (ComponentNotFoundError, RefFrameNotFoundError) as e:
             self.get_logger().error(f"Error correcting component position: {e}")
             response.success = False
+            response.message = str(e)
         return response
 
     def check_line_of_sight(self, request: ami_srv.CheckLineOfSight.Request, response: ami_srv.CheckLineOfSight.Response):

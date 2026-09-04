@@ -1,4 +1,5 @@
 from assembly_scene_publisher.py_modules.AssemblySceneAnalyzer import AssemblySceneAnalyzer
+from assembly_scene_publisher.py_modules.scene_errors import RefFrameNotFoundError
 from rclpy.node import Node
 import assembly_manager_interfaces.msg as ami_msg
 import assembly_manager_interfaces.srv as ami_srv
@@ -122,17 +123,27 @@ class AssemblyScenePositionCorrector:
                     f"Properties: {self.internal_scene_analyzer.get_property_types_for_frame(frame.frame_name)}"
                 )
 
-    def itentify_relevant_frames(self, component_name: str) -> list[ami_msg.RefFrame]:
+    def itentify_relevant_frames(
+        self,
+        component_name: str,
+        reference_frame: str = "",
+    ) -> list[ami_msg.RefFrame]:
         # Identify frames that are relevant for the position correction of the component
         relevant_frames = []
         component = self.internal_scene_analyzer.get_component_by_name(component_name)  # Ensure the component exists in the internal scene
-        
-        if component is None:
-            self.logger.debug(f"Component {component_name} not found in internal scene when identifying relevant frames")
-            return []
+
+        if reference_frame and not any(
+            frame.frame_name == reference_frame for frame in component.ref_frames
+        ):
+            raise RefFrameNotFoundError(reference_frame)
 
         for frame in component.ref_frames:
             frame: ami_msg.RefFrame
+
+            if reference_frame:
+                if frame.frame_name == reference_frame:
+                    relevant_frames.append(frame)
+                continue
 
             if self.check_frames_equal(frame.frame_name):
                 continue
@@ -155,9 +166,75 @@ class AssemblyScenePositionCorrector:
         self.true_scene = self.get_scene_callback()
         self.true_scene_analyzer.set_scene(self.true_scene)
 
-    def transform_component(self, component_name: str, 
-                            transform: Transform,
-                            frames_to_except: list[str]):
+    @staticmethod
+    def _format_pose(pose_or_transform) -> str:
+        position = getattr(pose_or_transform, "position", None)
+        if position is None:
+            position = pose_or_transform.translation
+
+        orientation = getattr(pose_or_transform, "orientation", None)
+        if orientation is None:
+            orientation = pose_or_transform.rotation
+
+        return (
+            "position_um="
+            f"({position.x * 1e6:.3f}, {position.y * 1e6:.3f}, "
+            f"{position.z * 1e6:.3f}), "
+            "orientation="
+            f"({orientation.x:.9f}, {orientation.y:.9f}, "
+            f"{orientation.z:.9f}, {orientation.w:.9f})"
+        )
+
+    @staticmethod
+    def _pose_delta(current_pose: Pose, target_pose_or_transform) -> tuple[float, float]:
+        current_position = np.array([
+            current_pose.position.x,
+            current_pose.position.y,
+            current_pose.position.z,
+        ])
+        target_position_msg = getattr(target_pose_or_transform, "position", None)
+        if target_position_msg is None:
+            target_position_msg = target_pose_or_transform.translation
+        target_position = np.array([
+            target_position_msg.x,
+            target_position_msg.y,
+            target_position_msg.z,
+        ])
+        translation_delta = float(np.linalg.norm(target_position - current_position))
+
+        current_quaternion = np.array([
+            current_pose.orientation.x,
+            current_pose.orientation.y,
+            current_pose.orientation.z,
+            current_pose.orientation.w,
+        ])
+        target_orientation = getattr(target_pose_or_transform, "orientation", None)
+        if target_orientation is None:
+            target_orientation = target_pose_or_transform.rotation
+        target_quaternion = np.array([
+            target_orientation.x,
+            target_orientation.y,
+            target_orientation.z,
+            target_orientation.w,
+        ])
+
+        current_norm = np.linalg.norm(current_quaternion)
+        target_norm = np.linalg.norm(target_quaternion)
+        if current_norm == 0.0 or target_norm == 0.0:
+            return translation_delta, float("inf")
+
+        quaternion_dot = abs(np.dot(
+            current_quaternion / current_norm,
+            target_quaternion / target_norm,
+        ))
+        rotation_delta = float(2.0 * np.arccos(np.clip(quaternion_dot, 0.0, 1.0)))
+        return translation_delta, rotation_delta
+
+    def transform_component(
+        self,
+        component_name: str,
+        transform: Transform,
+    ):
         
         # o - origin
         # B - component
@@ -167,8 +244,6 @@ class AssemblyScenePositionCorrector:
         # b_T_0_1
         inv_transform = inverse_ros_transform(transform, output_type=Transform)
 
-        key_frame = frames_to_except[0] if len(frames_to_except) > 0 else None
-
         # is equal to the internal component pose, which is the original pose before correction
         true_component = self.true_scene_analyzer.get_component_by_name(component_name)
         
@@ -176,9 +251,6 @@ class AssemblyScenePositionCorrector:
 
         for frame in true_component.ref_frames:
             frame: ami_msg.RefFrame
-
-            if not (frame.frame_name in frames_to_except):
-                continue
             
             o_T_f_0 = multiply_ros_transforms(o_T_b_0, frame.pose, output_type=Transform)
 
@@ -191,27 +263,163 @@ class AssemblyScenePositionCorrector:
         true_component.obj_pose.position.z = transform.translation.z
         true_component.obj_pose.orientation = transform.rotation
 
-    def correct_component_position(self, component_name: str) -> bool:
+    def correct_component_position(
+        self,
+        component_name: str,
+        reference_frame: str = "",
+    ) -> bool:
         self.set_lock(True)
-        self.update_true_scene()
+        try:
+            self.update_true_scene()
 
-        relevant_frames = self.itentify_relevant_frames(component_name)
-        relevant_frames_str = [frame.frame_name for frame in relevant_frames]
+            relevant_frames = self.itentify_relevant_frames(
+                component_name,
+                reference_frame,
+            )
+            relevant_frames_str = [frame.frame_name for frame in relevant_frames]
 
-        if len(relevant_frames) == 0:
-            self.logger.warning(f"No relevant frames found for component {component_name}, skipping position correction.")
-            return True
+            if len(relevant_frames) == 0:
+                frame_suffix = (
+                    f" using reference frame {reference_frame}"
+                    if reference_frame
+                    else ""
+                )
+                self.logger.warning(
+                    f"No relevant frames found for component {component_name}"
+                    f"{frame_suffix}, skipping position correction."
+                )
+                return True
 
-        transform = self.calculate_transform(relevant_frames)
+            transform = self.calculate_transform(relevant_frames)
 
-        self.logger.warn(f"Relevant frames for component {component_name}: {relevant_frames_str}")
+            current_component = self.true_scene_analyzer.get_component_by_name(
+                component_name
+            )
+            current_component_pose = deepcopy(current_component.obj_pose)
+            frame_world_poses_before = {
+                frame.frame_name: multiply_ros_transforms(
+                    current_component_pose,
+                    frame.pose,
+                    output_type=Pose,
+                )
+                for frame in current_component.ref_frames
+            }
+            translation_delta, rotation_delta = self._pose_delta(
+                current_component_pose,
+                transform,
+            )
 
-        self.transform_component(component_name, transform, frames_to_except = relevant_frames_str)
+            self.logger.warning(
+                f"Relevant frames for component {component_name}: {relevant_frames_str}"
+            )
+            self.logger.warning(
+                f"Current pose for component {component_name}: "
+                f"{self._format_pose(current_component_pose)}"
+            )
+            self.logger.warning(
+                f"Calculated target pose for component {component_name}: "
+                f"{self._format_pose(transform)}"
+            )
+            self.logger.warning(
+                f"Calculated movement for component {component_name}: "
+                f"translation={translation_delta * 1e6:.3f} um, "
+                f"rotation={np.degrees(rotation_delta):.9f} deg"
+            )
 
-        self.clear_internal_scene()
-        self.set_lock(False)
+            if (
+                translation_delta <= self.position_tolerance
+                and rotation_delta <= self.orientation_tolerance
+            ):
+                self.logger.warning(
+                    f"Component {component_name} has not been moved because the "
+                    "calculated target pose matches its current pose within "
+                    f"tolerance (position={self.position_tolerance * 1e6:.3f} um, "
+                    f"orientation={np.degrees(self.orientation_tolerance):.9f} deg)."
+                )
 
-        self.update_scene_with_constraints_callback()
+            self.transform_component(
+                component_name,
+                transform,
+            )
+
+            frame_poses_to_preserve = {
+                frame.frame_name: deepcopy(frame.pose)
+                for frame in current_component.ref_frames
+            }
+
+            self.clear_internal_scene()
+        finally:
+            self.set_lock(False)
+
+        self.update_scene_with_constraints_callback(
+            frame_poses_to_preserve=frame_poses_to_preserve
+        )
+
+        self.true_scene = self.get_scene_callback()
+        self.true_scene_analyzer.set_scene(self.true_scene)
+        applied_component = self.true_scene_analyzer.get_component_by_name(
+            component_name
+        )
+        applied_translation_delta, applied_rotation_delta = self._pose_delta(
+            current_component_pose,
+            applied_component.obj_pose,
+        )
+        target_translation_error, target_rotation_error = self._pose_delta(
+            applied_component.obj_pose,
+            transform,
+        )
+
+        self.logger.warning(
+            f"Applied scene pose for component {component_name}: "
+            f"{self._format_pose(applied_component.obj_pose)}"
+        )
+
+        for frame in applied_component.ref_frames:
+            previous_world_pose = frame_world_poses_before.get(frame.frame_name)
+            if previous_world_pose is None:
+                continue
+
+            applied_world_pose = multiply_ros_transforms(
+                applied_component.obj_pose,
+                frame.pose,
+                output_type=Pose,
+            )
+            frame_translation_drift, frame_rotation_drift = self._pose_delta(
+                previous_world_pose,
+                applied_world_pose,
+            )
+            if (
+                frame_translation_drift > self.position_tolerance
+                or frame_rotation_drift > self.orientation_tolerance
+            ):
+                self.logger.warning(
+                    f"World pose changed for frame {frame.frame_name} while "
+                    f"correcting component {component_name}: "
+                    f"translation drift={frame_translation_drift * 1e6:.3f} um, "
+                    f"rotation drift={np.degrees(frame_rotation_drift):.9f} deg."
+                )
+
+        if (
+            translation_delta > self.position_tolerance
+            or rotation_delta > self.orientation_tolerance
+        ) and (
+            applied_translation_delta <= self.position_tolerance
+            and applied_rotation_delta <= self.orientation_tolerance
+        ):
+            self.logger.warning(
+                f"Component {component_name} has not been moved in the scene, "
+                "although the calculated target differs from its previous pose."
+            )
+        elif (
+            target_translation_error > self.position_tolerance
+            or target_rotation_error > self.orientation_tolerance
+        ):
+            self.logger.warning(
+                f"Applied pose for component {component_name} does not match the "
+                "calculated target: "
+                f"translation error={target_translation_error * 1e6:.3f} um, "
+                f"rotation error={np.degrees(target_rotation_error):.9f} deg."
+            )
         return True
     
     def calculate_transform(self, frame_list: list[ami_msg.RefFrame]) -> Transform:
@@ -244,6 +452,12 @@ class AssemblyScenePositionCorrector:
             o_T_b_1 = multiply_ros_transforms(o_T_k_1, 
                                                 k_T_b_0,
                                                 output_type=Transform)
+            self.logger.warning(
+                f"Single-frame correction input for {frame_list[0].frame_name}: "
+                f"stored frame pose [{self._format_pose(b_T_k_0)}], "
+                f"measured frame pose [{self._format_pose(b_T_k_1)}], "
+                f"base component pose [{self._format_pose(internal_component_pose)}]"
+            )
             return o_T_b_1
 
         if len(frame_list) == 2:

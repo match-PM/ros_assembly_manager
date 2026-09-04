@@ -1920,12 +1920,31 @@ class AssemblyManagerScene():
 
         return plane
     
-    def update_scene_with_constraints(self):
+    def update_scene_with_constraints(
+        self,
+        frame_poses_to_preserve: dict[str, Pose] = None,
+    ):
         """
         This function calculates the constraints for all frames in the scene and updates their activation status.
+
+        If component-relative frame poses are supplied, restore them after
+        constraint calculation and before publishing. This allows a component to
+        move without changing the world poses of its attached reference frames.
         """
         self.assembly_scene_modifier.update_all_frame_constraint_activations()
         calculate_constraints_for_scene(self.scene, logger=self.logger)
+
+        for frame_name, preserved_pose in (frame_poses_to_preserve or {}).items():
+            try:
+                _, frame = self.assembly_scene_analyzer.get_frame_from_scene(
+                    frame_name
+                )
+                frame.pose = deepcopy(preserved_pose)
+            except RefFrameNotFoundError:
+                self.logger.warning(
+                    f"Could not preserve pose of frame {frame_name}: frame not found."
+                )
+
         self.publish_information()
     
     def destroy_all_ref_frames(self):
