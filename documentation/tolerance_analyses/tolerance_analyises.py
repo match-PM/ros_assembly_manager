@@ -18,7 +18,9 @@ from geometry_msgs.msg import Pose
 from ros_sequential_action_programmer.submodules.action_classes.ServiceAction import ServiceAction
 
 from assembly_scene_publisher.py_modules.frame_constraints import get_constraint_frames_for_frame, get_identification_order
-from assembly_scene_publisher.py_modules.scene_functions import get_frames_for_planes_of_component, get_ref_frame_by_name
+from assembly_scene_publisher.py_modules.AssemblySceneAnalyzer import (
+    AssemblySceneAnalyzer,
+)
 
 class SimulationParameter():
     def __init__(self, std_camera:float,    # um
@@ -235,7 +237,8 @@ class TolMeasurment():
         self.call_spawning_action()
         list_of_frames = set()
         # get the current frame
-        plane_frames = get_frames_for_planes_of_component(self.scene, self.COMPONENT)
+        plane_frames = AssemblySceneAnalyzer(
+            self.scene).get_frames_for_planes_of_component(self.COMPONENT)
         for frame in plane_frames:
             if not frame.constraints.centroid.is_active and not frame.constraints.orthogonal.is_active:
                 list_of_frames.add(frame.frame_name)
@@ -390,9 +393,10 @@ class TolMeasurment():
                 continue
 
             # get the current frame
-            frame = get_ref_frame_by_name(self.scene, self.SCOPE_FRAME)
+            analyzer = AssemblySceneAnalyzer(self.scene)
+            frame = analyzer.get_ref_frame_by_name(self.SCOPE_FRAME)
             
-            target_frame = get_ref_frame_by_name(self.scene, self.TARGET_FRAME)
+            target_frame = analyzer.get_ref_frame_by_name(self.TARGET_FRAME)
             
             if frame is None:
                 self.ros_node.get_logger().error(f"Frame {self.SCOPE_FRAME} not found in scene!")

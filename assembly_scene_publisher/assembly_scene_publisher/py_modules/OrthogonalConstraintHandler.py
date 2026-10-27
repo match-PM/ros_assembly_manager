@@ -12,13 +12,13 @@ from scipy.spatial.transform import Rotation as R
 from assembly_scene_publisher.py_modules.geometry_type_functions import (rotation_matrix_to_quaternion, 
                                                                          get_normal_vectors_from_quaternion)
 
-from assembly_scene_publisher.py_modules.scene_functions import (check_frames_exist_in_scene, 
-                                                                                    check_for_duplicate_frames, 
-                                                                                    get_ref_frame_by_name,
-                                                                                    check_ref_frames_for_same_parent_frame,
-                                                                                    get_parent_frame_for_ref_frame,
-                                                                                    ConstraintRestriction,
-                                                                                    ConstraintRestrictionList)  
+from assembly_scene_publisher.py_modules.AssemblySceneAnalyzer import (
+    AssemblySceneAnalyzer,
+)
+from assembly_scene_publisher.py_modules.ConstraintRestriction import (
+    ConstraintRestriction,
+    ConstraintRestrictionList,
+)
 
 class OrthogonalConstraintHandler(ami_msg.FrConstraintOrthogonal):
     def __init__(self, logger: RcutilsLogger = None):
@@ -90,15 +90,16 @@ class OrthogonalConstraintHandler(ami_msg.FrConstraintOrthogonal):
                 self.logger.error('Invalid axis provided for orthogonal constraint')
             return
         
-        if scene is not None and not check_frames_exist_in_scene(frame_names=[self.frame_1,self.frame_2,self.frame_3],
-                                                                    scene=scene,
-                                                                    logger=self.logger):
+        analyzer = AssemblySceneAnalyzer(scene, self.logger)
+        if scene is not None and not analyzer.check_frames_exist_in_scene(
+                [self.frame_1, self.frame_2, self.frame_3]):
             self.is_active = False
             if self.logger is not None:
                 self.logger.warn(f'Constraint warning: Reference frames "{self.frame_1}, {self.frame_2}, {self.frame_3}" not found in the scene!')
         
         
-        if check_for_duplicate_frames([self.frame_1, self.frame_2, self.frame_3]):
+        if analyzer.check_for_duplicate_frames(
+                [self.frame_1, self.frame_2, self.frame_3]):
             self.is_active = False
             if self.logger is not None:
                 self.logger.error('asdf Duplicate reference frames provided for orthogonal constraint')
@@ -120,8 +121,8 @@ class OrthogonalConstraintHandler(ami_msg.FrConstraintOrthogonal):
         restriction_collection = ConstraintRestrictionList()
         
         for frame in frame_names:
-            fr: ami_msg.RefFrame = get_ref_frame_by_name(frame_name=frame,
-                                                         scene=scene)
+            fr = AssemblySceneAnalyzer(
+                scene, self.logger).get_ref_frame_by_name(frame)
             
             normal_vectors = get_normal_vectors_from_quaternion(fr.pose.orientation)
             
@@ -262,9 +263,10 @@ class OrthogonalConstraintHandler(ami_msg.FrConstraintOrthogonal):
             return initial_frame_pose
 
         # Get reference frame poses
-        pose_frame_1 = get_ref_frame_by_name(frame_name=self.frame_1, scene=scene).pose
-        pose_frame_2 = get_ref_frame_by_name(frame_name=self.frame_2, scene=scene).pose
-        pose_frame_3 = get_ref_frame_by_name(frame_name=self.frame_3, scene=scene).pose
+        analyzer = AssemblySceneAnalyzer(scene, self.logger)
+        pose_frame_1 = analyzer.get_ref_frame_by_name(self.frame_1).pose
+        pose_frame_2 = analyzer.get_ref_frame_by_name(self.frame_2).pose
+        pose_frame_3 = analyzer.get_ref_frame_by_name(self.frame_3).pose
 
         # Convert positions to numpy arrays
         p1 = np.array([pose_frame_1.position.x, pose_frame_1.position.y, pose_frame_1.position.z])
@@ -401,12 +403,3 @@ class OrthogonalConstraintHandler(ami_msg.FrConstraintOrthogonal):
             constraint_handler.frame_3 = component_name + '_' + constraint_handler.frame_3
 
         return constraint_handler
-        
-    
-    
-    
-    
-    
-    
-    
-    

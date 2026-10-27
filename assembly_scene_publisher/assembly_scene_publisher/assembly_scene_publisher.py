@@ -3,10 +3,7 @@
 import rclpy
 from rclpy.node import Node
 
-from tf2_ros import Buffer, TransformListener, TransformBroadcaster, StaticTransformBroadcaster
-from rclpy.callback_groups import ReentrantCallbackGroup, MutuallyExclusiveCallbackGroup
-
-from std_srvs.srv import Empty
+from rclpy.callback_groups import ReentrantCallbackGroup
 import assembly_manager_interfaces.srv as ami_srv
 import assembly_manager_interfaces.msg as ami_msg
 import assembly_manager_interfaces.action as ami_action
@@ -18,109 +15,181 @@ try:
 except ImportError:
     EmptyWithSuccess = None
 
-from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
+from rclpy.executors import MultiThreadedExecutor
 
 import os
 import json
-from typing import Union
 from assembly_scene_publisher.py_modules.AssemblyScene import AssemblyManagerScene
-from assembly_scene_publisher.py_modules.scene_errors import *
+from assembly_scene_publisher.py_modules.AssemblyDescriptionHandler import (
+    AssemblyDescriptionHandler,
+)
+from assembly_scene_publisher.py_modules.scene_errors import (
+    AddRefFrameError,
+    AssemblyTransformationError,
+    ComponentNotFoundError,
+    RefFrameNotFoundError,
+    RefPlaneNotFoundError,
+)
 from assembly_scene_publisher.py_modules.AssemblyScenePositionCorrector import AssemblyScenePositionCorrector
 from assembly_scene_publisher.py_modules.LineOfSightManager import LineOfSightManager
 from assembly_scene_publisher.py_modules.AssemblySceneMonteCarloSimulator import AssemblySceneMonteCarloSimulator
 
+
 class AssemblyScenePublisherNode(Node):
     def __init__(self):
-        super().__init__("assembly_scene_publisher")
+        super().__init__('assembly_scene_publisher')
 
         assembly_scene_topic = '/assembly_manager/scene'
-        #self.callback_group = MutuallyExclusiveCallbackGroup()
         self.callback_group = ReentrantCallbackGroup()
 
-        self.object_scene = AssemblyManagerScene(node = self, 
-                                                 assembly_scene_topic=assembly_scene_topic)
-        
-        self.position_corrector = AssemblyScenePositionCorrector(node=self, 
-                                                                 get_scene_callback = self.object_scene.get_scene,
-                                                                 assembly_scene_topic=assembly_scene_topic,
-                                                                 update_scene_with_constraints_callback=self.object_scene.update_scene_with_constraints)
-        
-        self.line_of_sight_manager = LineOfSightManager(node=self, 
-                                                        assembly_scene_topic=assembly_scene_topic)
-        
-        self.monte_carlo_simulator = AssemblySceneMonteCarloSimulator(self.object_scene)
+        self.object_scene = AssemblyManagerScene(
+            node=self,
+            assembly_scene_topic=assembly_scene_topic,
+        )
+        self.position_corrector = AssemblyScenePositionCorrector(
+            node=self,
+            get_scene_callback=self.object_scene.get_scene,
+            assembly_scene_topic=assembly_scene_topic,
+            update_scene_with_constraints_callback=(
+                self.object_scene.update_scene_with_constraints),
+        )
+        self.line_of_sight_manager = LineOfSightManager(
+            node=self,
+            assembly_scene_topic=assembly_scene_topic,
+        )
+        self.monte_carlo_simulator = AssemblySceneMonteCarloSimulator(
+            self.object_scene)
+        self.description_handler = AssemblyDescriptionHandler(
+            node=self,
+            object_scene=self.object_scene,
+            spawn_object_callback=self.spawn_object_callback,
+            create_ref_frame_callback=self.create_ref_frame,
+            create_axis_callback=self.create_axis,
+            create_ref_plane_callback=self.create_ref_plane,
+            create_assembly_instructions_callback=(
+                self.srv_create_assembly_instructions),
+        )
 
-        mng_str = "assembly_manager" 
-        pub_str = "assembly_scene_publisher"
-        self.spawn_object_srv = self.create_service(ami_srv.SpawnObject,f'{pub_str}/spawn_object',self.spawn_object_callback,callback_group=self.callback_group)
-        self.destroy_object_srv = self.create_service(ami_srv.DestroyObject,f'{pub_str}/destroy_object',self.destroy_object_callback,callback_group=self.callback_group)
+        self._create_ros_interfaces()
+        self._create_adhesive_client()
+        self.get_logger().info('Assembly scene publisher started!')
 
-        self.create_ref_frame_srv = self.create_service(ami_srv.CreateRefFrame,f'{mng_str}/create_ref_frame',self.create_ref_frame,callback_group=self.callback_group)
-        self.delete_ref_frame_srv = self.create_service(ami_srv.DeleteRefFrame,f'{mng_str}/delete_ref_frame',self.destroy_ref_frame,callback_group=self.callback_group)  
-        self.change_parent_frame_srv = self.create_service(ami_srv.ChangeParentFrame,f'{mng_str}/change_obj_parent_frame',self.change_obj_parent_frame,callback_group=self.callback_group)  
-        
-        self.modify_frame_absolut_srv = self.create_service(ami_srv.ModifyPoseAbsolut,f'{mng_str}/modify_frame_absolut',self.modify_frame_absolut,callback_group=self.callback_group)  
-        
-        self.modify_frame_relative_srv = self.create_service(ami_srv.ModifyPoseRelative,f'{mng_str}/modify_frame_relative',self.modify_frame_relative,callback_group=self.callback_group)  
+    def _create_ros_interfaces(self):
+        """Create service servers, action servers, and required clients."""
+        manager = 'assembly_manager'
+        publisher = 'assembly_scene_publisher'
+        service_specs = (
+            ('spawn_object_srv', ami_srv.SpawnObject,
+             f'{publisher}/spawn_object', self.spawn_object_callback),
+            ('destroy_object_srv', ami_srv.DestroyObject,
+             f'{publisher}/destroy_object', self.destroy_object_callback),
+            ('manager_spawn_object_srv', ami_srv.SpawnObject,
+             f'{manager}/spawn_object', self.spawn_object_callback),
+            ('manager_destroy_object_srv', ami_srv.DestroyObject,
+             f'{manager}/destroy_object', self.destroy_object_callback),
+            ('spawn_component_from_description_srv',
+             ami_srv.SpawnComponentFromDescription,
+             f'{manager}/spawn_component_from_description',
+             self.description_handler.spawn_component_callback),
+            ('create_assembly_instruction_from_description_srv',
+             ami_srv.CreateAssemblyInstructionFromDescription,
+             f'{manager}/create_assembly_instruction_from_description',
+             self.description_handler.create_assembly_instructions_callback),
+            ('create_ref_frame_srv', ami_srv.CreateRefFrame,
+             f'{manager}/create_ref_frame', self.create_ref_frame),
+            ('delete_ref_frame_srv', ami_srv.DeleteRefFrame,
+             f'{manager}/delete_ref_frame', self.destroy_ref_frame),
+            ('change_parent_frame_srv', ami_srv.ChangeParentFrame,
+             f'{manager}/change_obj_parent_frame',
+             self.change_obj_parent_frame),
+            ('modify_frame_absolut_srv', ami_srv.ModifyPoseAbsolut,
+             f'{manager}/modify_frame_absolut', self.modify_frame_absolut),
+            ('modify_frame_relative_srv', ami_srv.ModifyPoseRelative,
+             f'{manager}/modify_frame_relative', self.modify_frame_relative),
+            ('get_info_srv', ami_srv.GetScene,
+             f'{manager}/get_scene', self.get_scene),
+            ('create_ref_plane_srv', ami_srv.CreateRefPlane,
+             f'{manager}/create_ref_plane', self.create_ref_plane),
+            ('create_axis_srv', ami_srv.CreateAxis,
+             f'{manager}/create_axis', self.create_axis),
+            ('create_assembly_instructions_srv',
+             ami_srv.CreateAssemblyInstructions,
+             f'{manager}/create_assembly_instructions',
+             self.srv_create_assembly_instructions),
+            ('calculate_assembly_instructions_srv',
+             ami_srv.CalculateAssemblyInstructions,
+             f'{manager}/calculate_assembly_instructions',
+             self.calculate_assembly_instructions),
+            ('spawn_frames_from_description_srv',
+             ami_srv.SpawnFramesFromDescription,
+             f'{manager}/spawn_frames_from_description',
+             self.spawn_frames_from_description),
+            ('get_frames_for_component_srv', ami_srv.FramesForComponent,
+             f'{manager}/get_frames_for_component',
+             self.get_frames_for_component),
+            ('modify_frame_from_frame_srv', ami_srv.ModifyPoseFromFrame,
+             f'{manager}/modify_frame_from_frame',
+             self.modify_frame_from_frame),
+            ('clear_scene_srv', ami_srv.ClearScene,
+             f'{manager}/clear_scene', self.clear_scene),
+            ('save_scene_to_file_srv', ami_srv.SaveSceneToFile,
+             f'{manager}/save_scene_to_file', self.save_scene_to_file),
+            ('load_scene_from_file_srv', ami_srv.LoadSceneFromFile,
+             f'{manager}/load_scene_from_file', self.load_scene_from_file),
+            ('reset_frame_properties_srv', ami_srv.ResetFrameProperties,
+             f'{manager}/reset_frame_properties',
+             self.reset_frame_properties),
+            ('set_frame_properties_srv', ami_srv.SetFrameProperties,
+             f'{manager}/set_frame_properties', self.set_frame_properties),
+            ('set_component_uuid_srv', ami_srv.SetComponentUuid,
+             f'{manager}/set_component_uuid', self.set_component_uuid),
+            ('check_line_of_sight_srv', ami_srv.CheckLineOfSight,
+             f'{manager}/check_line_of_sight', self.check_line_of_sight),
+            ('set_component_properties_srv', ami_srv.SetComponentProperties,
+             f'{manager}/set_component_properties',
+             self.set_component_properties),
+            ('correct_component_position_srv',
+             ami_srv.CorrectComponentPosition,
+             f'{manager}/correct_component_position',
+             self.correct_component_position),
+        )
 
-        self.get_info_srv = self.create_service(ami_srv.GetScene,f'{mng_str}/get_scene',self.get_scene,callback_group=self.callback_group)      
+        for attribute, service_type, name, callback in service_specs:
+            service = self.create_service(
+                service_type,
+                name,
+                callback,
+                callback_group=self.callback_group,
+            )
+            setattr(self, attribute, service)
 
-        self.create_ref_plane_srv = self.create_service(ami_srv.CreateRefPlane,f'{mng_str}/create_ref_plane',self.create_ref_plane,callback_group=self.callback_group)      
-        
-        self.create_axis_srv = self.create_service(ami_srv.CreateAxis,f'{mng_str}/create_axis',self.create_axis,callback_group=self.callback_group)      
+        self.monte_carlos_simulation_action_srv = rclpy.action.ActionServer(
+            self,
+            ami_action.MonteCarloSimulation,
+            f'{manager}/monte_carlo_simulation',
+            execute_callback=self.monte_carlo_simulator.execute_action,
+            goal_callback=self.monte_carlo_simulator.goal_callback,
+            cancel_callback=self.monte_carlo_simulator.cancel_callback,
+            callback_group=self.callback_group,
+        )
 
-        self.create_assembly_instructions_srv = self.create_service(ami_srv.CreateAssemblyInstructions,f'{mng_str}/create_assembly_instructions',self.srv_create_assembly_instructions,callback_group=self.callback_group)      
-
-        self.calculate_assembly_instructions_srv = self.create_service(ami_srv.CalculateAssemblyInstructions,f'{mng_str}/calculate_assembly_instructions',self.calculate_assembly_instructions,callback_group=self.callback_group)      
-
-        self.spawn_frames_from_description_srv = self.create_service(ami_srv.SpawnFramesFromDescription,f'{mng_str}/spawn_frames_from_description',self.spawn_frames_from_description,callback_group=self.callback_group) 
-
-        self.get_frames_for_component_srv = self.create_service(ami_srv.FramesForComponent,f'{mng_str}/get_frames_for_component', self.get_frames_for_component,callback_group=self.callback_group)
-
-        self.modify_frame_from_frame_srv = self.create_service(ami_srv.ModifyPoseFromFrame,f'{mng_str}/modify_frame_from_frame',self.modify_frame_from_frame,callback_group=self.callback_group)
-
-        self.clear_scene_srv = self.create_service(ami_srv.ClearScene,f'{mng_str}/clear_scene', self.clear_scene,callback_group=self.callback_group)
-
-        self.save_scene_to_file_srv = self.create_service(ami_srv.SaveSceneToFile,f'{mng_str}/save_scene_to_file', self.save_scene_to_file,callback_group=self.callback_group)
-
-        self.load_scene_from_file_srv = self.create_service(ami_srv.LoadSceneFromFile,f'{mng_str}/load_scene_from_file', self.load_scene_from_file,callback_group=self.callback_group)
-
-        self.reset_frame_properties_srv = self.create_service(ami_srv.ResetFrameProperties,f'{mng_str}/reset_frame_properties', self.reset_frame_properties,callback_group=self.callback_group)
-
-        self.set_frame_properties_srv = self.create_service(ami_srv.SetFrameProperties,f'{mng_str}/set_frame_properties', self.set_frame_properties,callback_group=self.callback_group)
-
-        self.set_component_uuid_srv = self.create_service(ami_srv.SetComponentUuid,f'{mng_str}/set_component_uuid', self.set_component_uuid,callback_group=self.callback_group)
-        #self.timer = self.create_timer(5.0, self.object_scene.publish_information,callback_group=self.callback_group)
-
-        self.check_line_of_sight_srv = self.create_service(ami_srv.CheckLineOfSight,f'{mng_str}/check_line_of_sight', self.check_line_of_sight,callback_group=self.callback_group)
-        
-        self.set_component_properties_srv = self.create_service(ami_srv.SetComponentProperties,f'{mng_str}/set_component_properties', self.set_component_properties,callback_group=self.callback_group)
-        
-        self.correct_component_position_srv = self.create_service(ami_srv.CorrectComponentPosition,f'{mng_str}/correct_component_position', self.correct_component_position,callback_group=self.callback_group)
-        
-        # create an action server for the monte carlo simulation
-        self.monte_carlos_simulation_action_srv = rclpy.action.ActionServer(self, 
-                                                                            ami_action.MonteCarloSimulation, 
-                                                                            f'{mng_str}/monte_carlo_simulation', 
-                                                                            execute_callback = self.monte_carlo_simulator.execute_action, 
-                                                                            goal_callback = self.monte_carlo_simulator.goal_callback,
-                                                                            cancel_callback = self.monte_carlo_simulator.cancel_callback,
-                                                                            callback_group = self.callback_group)
-
-        # Client used to clear the adhesive displayer when the scene is cleared.
-        # The displayer node is launched as 'pm_adhesive_displayer'; expose the
-        # service name as a parameter so a rename/namespace does not break this.
-        self.declare_parameter('clear_adhesive_points_service', '/pm_adhesive_displayer/clear_points')
-        clear_adhesive_service = self.get_parameter('clear_adhesive_points_service').get_parameter_value().string_value
-        if EmptyWithSuccess is not None:
-            self.clear_adhesive_points_client = self.create_client(
-                EmptyWithSuccess,
-                clear_adhesive_service,
-                callback_group=self.callback_group)
-        else:
+    def _create_adhesive_client(self):
+        """Create the optional adhesive-displayer integration."""
+        self.declare_parameter(
+            'clear_adhesive_points_service',
+            '/pm_adhesive_displayer/clear_points',
+        )
+        service_name = self.get_parameter(
+            'clear_adhesive_points_service').value
+        if EmptyWithSuccess is None:
             self.clear_adhesive_points_client = None
+            return
 
-        self.get_logger().info("Assembly scene publisher started!")
+        self.clear_adhesive_points_client = self.create_client(
+            EmptyWithSuccess,
+            service_name,
+            callback_group=self.callback_group,
+        )
 
     def get_scene(self, request :ami_srv.GetScene.Request, response:ami_srv.GetScene.Response):
         response.scene = self.object_scene.scene
@@ -344,10 +413,6 @@ class AssemblyScenePublisherNode(Node):
         response = self.object_scene.set_component_properties(request)
         return response
 
-    def set_frame_properties(self, request: ami_srv.SetFrameProperties.Request, response: ami_srv.SetFrameProperties.Response):
-        response = self.object_scene.set_frame_properties(request)
-        return response
-    
     def correct_component_position(self, request: ami_srv.CorrectComponentPosition.Request, response: ami_srv.CorrectComponentPosition.Response):
         try:
             response.success = self.position_corrector.correct_component_position(

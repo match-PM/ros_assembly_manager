@@ -8,15 +8,13 @@ from copy import deepcopy, copy
 import sympy as sp
 from assembly_scene_publisher.py_modules.geometry_type_functions import rotation_matrix_to_quaternion
 
-from assembly_scene_publisher.py_modules.scene_functions import (check_frames_exist_in_scene, 
-                                                                                    check_for_duplicate_frames, 
-                                                                                    get_ref_frame_by_name,
-                                                                                    check_ref_frames_for_same_parent_frame,
-                                                                                    get_parent_frame_for_ref_frame,
-                                                                                    get_ref_frame_poses_by_names,
-                                                                                    ConstraintRestriction,
-                                                                                    ConstraintRestrictionList
-                                                                                    )   
+from assembly_scene_publisher.py_modules.AssemblySceneAnalyzer import (
+    AssemblySceneAnalyzer,
+)
+from assembly_scene_publisher.py_modules.ConstraintRestriction import (
+    ConstraintRestriction,
+    ConstraintRestrictionList,
+)
 
 from assembly_scene_publisher.py_modules.geometry_functions import (create_3D_plane_2,
                                                                     project_pose_on_plane,
@@ -63,22 +61,23 @@ class InPlaneConstraintHandler(ami_msg.FrConstraintInPlane):
                 self.logger.error('Invalid normal axis provided for in_plane constraint')
             return
         
-        if check_for_duplicate_frames(self.ref_frame_names):
+        analyzer = AssemblySceneAnalyzer(scene, self.logger)
+        if analyzer.check_for_duplicate_frames(self.ref_frame_names):
             self.is_active = False
             if self.logger is not None:
                 self.logger.error('Duplicate reference frames provided for in_plane constraint')
             return
         
-        if scene is not None and not check_frames_exist_in_scene(frame_names=self.ref_frame_names, 
-                                                                 scene=scene,
-                                                                 logger=self.logger):
+        if scene is not None and not analyzer.check_frames_exist_in_scene(
+                self.ref_frame_names):
             self.is_active = False
             if self.logger is not None:
                 self.logger.error(f'Reference frames "{self.ref_frame_names}" not found in the scene!')
             return
         
-        if scene is not None and not check_ref_frames_for_same_parent_frame(frame_names=self.ref_frame_names, 
-                                                                            scene=scene):
+        if scene is not None and not \
+                analyzer.check_ref_frames_for_same_parent_frame(
+                    self.ref_frame_names):
             self.is_active = False
             if self.logger is not None:
                 self.logger.error('Reference frames do not have the same parent frame!')
@@ -98,7 +97,9 @@ class InPlaneConstraintHandler(ami_msg.FrConstraintInPlane):
         
         frame_names = self.ref_frame_names
 
-        frames = get_ref_frame_poses_by_names(scene=scene,frame_names=self.ref_frame_names)
+        frames = AssemblySceneAnalyzer(
+            scene, self.logger).get_ref_frame_poses_by_names(
+                self.ref_frame_names)
 
         plane = create_3D_plane_2(frames,
                                   plane_offset=0.0,
@@ -154,7 +155,9 @@ class InPlaneConstraintHandler(ami_msg.FrConstraintInPlane):
 
         self.set_multiplier(unit=unit)
 
-        frames = get_ref_frame_poses_by_names(scene=scene,frame_names=self.ref_frame_names)
+        frames = AssemblySceneAnalyzer(
+            scene, self.logger).get_ref_frame_poses_by_names(
+                self.ref_frame_names)
 
         plane = create_3D_plane_2(frames,
                                   plane_offset=self.plane_offset*self.multiplier,

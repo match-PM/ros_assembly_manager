@@ -14,7 +14,6 @@
 #include "assembly_manager_interfaces/msg/object_scene.hpp"
 #include "assembly_manager_interfaces/msg/object.hpp"
 #include "assembly_manager_interfaces/srv/spawn_object.hpp"
-#include "assembly_manager_interfaces/srv/destroy_object.hpp"
 #include "assembly_manager_interfaces/srv/set_collision_checking.hpp"
 #include <iostream>
 #include <fstream>
@@ -26,7 +25,6 @@
 // #include <moveit/robot_model/robot_model.h>
 // #include <moveit/robot_state/robot_state.h>
 //  #include "spawn_object_interfaces/srv/spawn_object.hpp"
-//  #include "spawn_object_interfaces/srv/destroy_object.hpp"
 //  #include "spawn_object_interfaces/srv/disable_obj_collision.hpp"
 
 using std::placeholders::_1;
@@ -49,7 +47,6 @@ public:
   std::vector<std::string> component_parents_list;
   std::vector<geometry_msgs::msg::Pose> component_pose_list;
   rclcpp::Service<assembly_manager_interfaces::srv::SpawnObject>::SharedPtr spawn_object_service;
-  rclcpp::Service<assembly_manager_interfaces::srv::DestroyObject>::SharedPtr destroy_object_service;
   rclcpp::Service<assembly_manager_interfaces::srv::SetCollisionChecking>::SharedPtr disable_collision_service;
   rclcpp::Subscription<moveit_msgs::msg::PlanningScene>::SharedPtr planning_scene_subscriber;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr robot_description_subscriber_;
@@ -71,7 +68,6 @@ public:
     options.callback_group = tf_callback_group;
 
     spawn_object_service = this->create_service<assembly_manager_interfaces::srv::SpawnObject>("moveit_component_spawner/spawn_object", std::bind(&MoveitObjectSpawnerNode::spawn_object, this, std::placeholders::_1, std::placeholders::_2));
-    destroy_object_service = this->create_service<assembly_manager_interfaces::srv::DestroyObject>("moveit_component_spawner/destroy_object", std::bind(&MoveitObjectSpawnerNode::destroy_object, this, std::placeholders::_1, std::placeholders::_2));
     disable_collision_service = this->create_service<assembly_manager_interfaces::srv::SetCollisionChecking>("moveit_component_spawner/set_collision_checking", std::bind(&MoveitObjectSpawnerNode::disable_collision, this, std::placeholders::_1, std::placeholders::_2));
 
     // tf_subscriber_ = this->create_subscription<tf2_msgs::msg::TFMessage>("/tf_static", 10, std::bind(&MoveitObjectSpawnerNode::tfCallback, this, _1),options);
@@ -718,32 +714,6 @@ private:
   //     }
   //   }
   // }
-
-  void destroy_object(const std::shared_ptr<assembly_manager_interfaces::srv::DestroyObject::Request> request, std::shared_ptr<assembly_manager_interfaces::srv::DestroyObject::Response> response)
-  {
-    // response->success = false;
-    // for (const auto& obj_name : component_names_list) {
-    //   if (obj_name == request->obj_name){
-    //     //Deleting stl from stl_path_list
-    //     int index;
-    //     index = get_index_component_in_list(obj_name);
-
-    //     if (index != -1) {
-    //       component_stl_paths_list.erase(component_stl_paths_list.begin() + index);
-    //       component_names_list.erase(component_names_list.begin()+index);
-    //       component_parents_list.erase(component_parents_list.begin()+index);
-    //       component_pose_list.erase(component_pose_list.begin()+index);
-    //     }
-    //     else {
-    //       RCLCPP_ERROR(this->get_logger(),"Error in Destroy Object. Stl not found in list!");
-    //     }
-    //     response->success = remove_object_from_moveit(request->obj_name);
-    //     RCLCPP_INFO(this->get_logger(), "Destroying Object %s", request->obj_name.c_str());
-    //     break;
-    //   }
-    // }
-    response->success = true;
-  }
 
   // std::vector<std::string> getSceneObjects()
   // {

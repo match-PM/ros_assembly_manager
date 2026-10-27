@@ -29,15 +29,6 @@ from assembly_scene_publisher.py_modules.frame_constraints import (FrameConstrai
                                                                     get_identification_order)
 from copy import deepcopy,copy
 
-# substite all these imports by using the AssemblySceneAnalyzer class
-from assembly_scene_publisher.py_modules.scene_functions import (get_parent_frame_for_ref_frame,
-                                                                 get_axis_from_scene,
-                                                                 get_plane_from_scene,
-                                                                 get_component_for_frame_name,
-                                                                 get_component_by_name,
-                                                                 get_plane_intersection_from_scene_num)
-
-
 from assembly_scene_publisher.py_modules.geometry_functions import (get_point_of_plane_intersection, 
                                                                     get_euler_rotation_matrix, 
                                                                     quaternion_multiply, 
@@ -572,8 +563,12 @@ class AssemblyManagerScene():
                 self.logger.error(f"Not enough input arguments. Plane could not be created!")
                 return False
             
-            parent_frame_1 = get_parent_frame_for_ref_frame(self.scene, axis.point_names[0], logger=self.logger)
-            parent_frame_2 = get_parent_frame_for_ref_frame(self.scene, axis.point_names[1], logger=self.logger)
+            parent_frame_1 = \
+                self.assembly_scene_analyzer.get_parent_frame_for_ref_frame(
+                    axis.point_names[0])
+            parent_frame_2 = \
+                self.assembly_scene_analyzer.get_parent_frame_for_ref_frame(
+                    axis.point_names[1])
 
             if (not (parent_frame_1 == parent_frame_2) or 
                 parent_frame_1 is None or 
@@ -626,20 +621,20 @@ class AssemblyManagerScene():
                 plane.point_names[1]!='' and 
                 plane.point_names[2]!=''):
                 mode = 'PlanePPP'
-                parent_frame_1 = get_parent_frame_for_ref_frame(self.scene, plane.point_names[0], logger=self.logger)
-                parent_frame_2 = get_parent_frame_for_ref_frame(self.scene, plane.point_names[1], logger=self.logger)
-                parent_frame_3 = get_parent_frame_for_ref_frame(self.scene, plane.point_names[2], logger=self.logger)
+                parent_frame_1 = self.assembly_scene_analyzer.get_parent_frame_for_ref_frame(plane.point_names[0])
+                parent_frame_2 = self.assembly_scene_analyzer.get_parent_frame_for_ref_frame(plane.point_names[1])
+                parent_frame_3 = self.assembly_scene_analyzer.get_parent_frame_for_ref_frame(plane.point_names[2])
 
             elif (plane.axis_names[0]!='' and
                 plane.point_names[0]!='' and 
                 plane.point_names[1]=='' and 
                 plane.point_names[2]==''):
                 mode = 'PlaneAP'
-                axis_msg = get_axis_from_scene(scene=self.scene, 
-                                               axis_name=plane.axis_names[0])
-                parent_frame_1 = get_parent_frame_for_ref_frame(self.scene, axis_msg.point_names[0], logger=self.logger)
-                parent_frame_2 = get_parent_frame_for_ref_frame(self.scene, axis_msg.point_names[1], logger=self.logger)
-                parent_frame_3 = get_parent_frame_for_ref_frame(self.scene, plane.point_names[0], logger=self.logger)
+                axis_msg = self.assembly_scene_analyzer.get_axis_from_scene(
+                    plane.axis_names[0])
+                parent_frame_1 = self.assembly_scene_analyzer.get_parent_frame_for_ref_frame(axis_msg.point_names[0])
+                parent_frame_2 = self.assembly_scene_analyzer.get_parent_frame_for_ref_frame(axis_msg.point_names[1])
+                parent_frame_3 = self.assembly_scene_analyzer.get_parent_frame_for_ref_frame(plane.point_names[0])
             else:
                 self.logger.error(f"Invalid input for creation of reference plane. Plane should be defined by 3 x frames or by 1 x axis + 1 x frame!")
                 return False
@@ -750,11 +745,15 @@ class AssemblyManagerScene():
             return False
         
         # Find the parent Frame
-        parent_frame = get_parent_frame_for_ref_frame(scene=self.scene, frame_name=frame_name, logger=self.logger)
+        parent_frame = \
+            self.assembly_scene_analyzer.get_parent_frame_for_ref_frame(
+                frame_name)
         frame_to_modify = self.assembly_scene_analyzer.get_ref_frame_by_name(frame_name)
         pose_to_modify = frame_to_modify.pose
         
-        component_name = get_component_for_frame_name(self.scene, frame_name)
+        component_name = \
+            self.assembly_scene_analyzer.get_component_for_frame_name(
+                frame_name)
         
         if parent_frame is None:
             self.logger.error(f"Pose of frame '{frame_name}' will be updated relative to the world frame!")
@@ -813,7 +812,9 @@ class AssemblyManagerScene():
             return False
         
         # Find the parent Frame
-        parent_frame = get_parent_frame_for_ref_frame(self.scene, frame_name , logger=self.logger)
+        parent_frame = \
+            self.assembly_scene_analyzer.get_parent_frame_for_ref_frame(
+                frame_name)
         
         #self.logger(f"{pose_to_modify},{parent_frame}")
         if  parent_frame is not None:
@@ -847,7 +848,9 @@ class AssemblyManagerScene():
                 frame_to_modify.pose.orientation = pose_to_modify.orientation
                 self.logger.warning(f"MODIFING ORIENTATION")
             
-            component_name = get_component_for_frame_name(self.scene, frame_name)
+            component_name = \
+                self.assembly_scene_analyzer.get_component_for_frame_name(
+                    frame_name)
             
             if request.set_laser_measured:
                 frame_to_modify.properties.laser_frame_properties.is_laser_frame = True
@@ -879,7 +882,9 @@ class AssemblyManagerScene():
             self.logger.error(f"Frame '{frame_to_set}' does not exist in the scene!")
             return False
         
-        frame_parent = get_parent_frame_for_ref_frame(self.scene, frame_to_set, logger=self.logger)
+        frame_parent = \
+            self.assembly_scene_analyzer.get_parent_frame_for_ref_frame(
+                frame_to_set)
         
         # Transform of point in world 
         try:      
@@ -907,7 +912,9 @@ class AssemblyManagerScene():
             ref_frame.properties.vision_frame_properties.is_vision_frame = True
             ref_frame.properties.vision_frame_properties.has_been_measured = True
 
-        component_name = get_component_for_frame_name(self.scene, frame_to_set)
+        component_name = \
+            self.assembly_scene_analyzer.get_component_for_frame_name(
+                frame_to_set)
         
         if component_name is not None:
             calculate_constraints_for_component(scene=self.scene,
@@ -995,13 +1002,11 @@ class AssemblyManagerScene():
         obj2_plane2_msg = self.assembly_scene_analyzer.get_plane_from_scene(plane_name=instruction.plane_match_2.plane_name_component_2)
         obj2_plane3_msg = self.assembly_scene_analyzer.get_plane_from_scene(plane_name=instruction.plane_match_3.plane_name_component_2) 
         
-        obj_1_name = get_parent_frame_for_ref_frame(self.scene, 
-                                                    get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_1).point_names[0],
-                                                    logger=self.logger)
+        obj_1_name = self.assembly_scene_analyzer.get_parent_frame_for_ref_frame(
+            obj1_plane1_msg.point_names[0])
         
-        obj_2_name = get_parent_frame_for_ref_frame(self.scene,
-                                                    get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_2).point_names[0],
-                                                    logger=self.logger)
+        obj_2_name = self.assembly_scene_analyzer.get_parent_frame_for_ref_frame(
+            obj2_plane1_msg.point_names[0])
 
         # return false if planes are linked to the same component
         if obj_1_name == obj_2_name:
@@ -1011,7 +1016,8 @@ class AssemblyManagerScene():
         return True
         
     def _get_plane_obj_from_scene(self, plane_name:str, parent_frame:str = None)-> sp.Plane:
-        plane_msg = get_plane_from_scene(self.scene, plane_name)
+        plane_msg = self.assembly_scene_analyzer.get_plane_from_scene(
+            plane_name)
         plane_msg: ami_msg.Plane
         if (plane_msg.axis_names[0]=='' and
             plane_msg.point_names[0]!='' and 
@@ -1058,13 +1064,17 @@ class AssemblyManagerScene():
         The first Vector3 corresponds to the intersection point of the planes of component 1 and the second Vector3 corresponds to the intersection point of the planes of component 2.
 
         """
-        component_1 = get_parent_frame_for_ref_frame(self.scene,
-                                                     get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_1).point_names[0],
-                                                     logger=self.logger)
-        
-        component_2 = get_parent_frame_for_ref_frame(self.scene,
-                                                     get_plane_from_scene(self.scene, instruction.plane_match_1.plane_name_component_2).point_names[0],
-                                                     logger=self.logger)
+        plane_1 = self.assembly_scene_analyzer.get_plane_from_scene(
+            instruction.plane_match_1.plane_name_component_1)
+        component_1 = \
+            self.assembly_scene_analyzer.get_parent_frame_for_ref_frame(
+                plane_1.point_names[0])
+
+        plane_2 = self.assembly_scene_analyzer.get_plane_from_scene(
+            instruction.plane_match_1.plane_name_component_2)
+        component_2 = \
+            self.assembly_scene_analyzer.get_parent_frame_for_ref_frame(
+                plane_2.point_names[0])
 
         obj_1_plane_1 = self._get_plane_obj_from_scene(instruction.plane_match_1.plane_name_component_1, parent_frame=component_1)
         obj_1_plane_2 = self._get_plane_obj_from_scene(instruction.plane_match_2.plane_name_component_1, parent_frame=component_1)
@@ -1507,19 +1517,17 @@ class AssemblyManagerScene():
     def _calculate_plane_intersections_world(self, instruction: ami_msg.AssemblyInstruction)-> tuple[Vector3, Vector3]:
         """Compute plane intersection points in world frame with numpy fallback."""
         # Try numpy calculation
-        intersection_obj_1 = get_plane_intersection_from_scene_num(
-            self.scene,
+        intersection_obj_1 = \
+            self.assembly_scene_analyzer.get_plane_intersection_from_scene_num(
             instruction.plane_match_1.plane_name_component_1,
             instruction.plane_match_2.plane_name_component_1,
             instruction.plane_match_3.plane_name_component_1,
-            self.logger
         )
-        intersection_obj_2 = get_plane_intersection_from_scene_num(
-            self.scene,
+        intersection_obj_2 = \
+            self.assembly_scene_analyzer.get_plane_intersection_from_scene_num(
             instruction.plane_match_1.plane_name_component_2,
             instruction.plane_match_2.plane_name_component_2,
             instruction.plane_match_3.plane_name_component_2,
-            self.logger
         )
 
         # Transform to world frame
@@ -1904,8 +1912,7 @@ class AssemblyManagerScene():
             self.logger.warn(f"Ref Frames: {obj.ref_frames}")
 
     def get_plane_from_axis_and_frame(self, axis_name: str, frame_name: str, parent_frame:str = None)-> sp.Plane:
-        axis_msg = get_axis_from_scene(scene=self.scene, 
-                                       axis_name=axis_name)
+        axis_msg = self.assembly_scene_analyzer.get_axis_from_scene(axis_name)
 
         line3d:sp.Line3D = get_line3d_from_frame_names(axis_msg.point_names, tf_buffer=self.tf_buffer, parent_frame=parent_frame, logger=self.logger)
 
@@ -1999,7 +2006,8 @@ class AssemblyManagerScene():
         #self.publish_information()
         final_list = []
         
-        component = get_component_by_name(self.scene, component_name)
+        component = self.assembly_scene_analyzer.get_component_by_name(
+            component_name)
         
         #list_res = get_identification_order(self.scene, component.ref_frames, self.logger)
         

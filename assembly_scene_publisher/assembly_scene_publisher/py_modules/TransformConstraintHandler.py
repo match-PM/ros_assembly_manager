@@ -9,11 +9,13 @@ import sympy as sp
 from assembly_scene_publisher.py_modules.geometry_type_functions import (rotation_matrix_to_quaternion, 
                                                                          get_normal_vectors_from_quaternion)
 
-from assembly_scene_publisher.py_modules.scene_functions import (check_frames_exist_in_scene, 
-                                                                                    get_ref_frame_by_name,
-                                                                                    get_ref_frame_poses_by_names,
-                                                                                    ConstraintRestriction,
-                                                                                    ConstraintRestrictionList)    
+from assembly_scene_publisher.py_modules.AssemblySceneAnalyzer import (
+    AssemblySceneAnalyzer,
+)
+from assembly_scene_publisher.py_modules.ConstraintRestriction import (
+    ConstraintRestriction,
+    ConstraintRestrictionList,
+)
 
 from assembly_scene_publisher.py_modules.geometry_functions import (get_transformed_pose, 
                                                                     compute_eigenvectors_and_centroid,
@@ -62,9 +64,8 @@ class TransformConstraintHandler(ami_msg.FrConstraintTransform):
 
             return
         
-        if check_frames_exist_in_scene(scene=scene, 
-                                       frame_names=[self.ref_frame], 
-                                       logger=self.logger):
+        analyzer = AssemblySceneAnalyzer(scene, self.logger)
+        if analyzer.check_frames_exist_in_scene([self.ref_frame]):
             self.is_active = True
 
         else:
@@ -87,8 +88,8 @@ class TransformConstraintHandler(ami_msg.FrConstraintTransform):
         restriction_collection = ConstraintRestrictionList()
         
         for frame in frame_names:
-            fr: ami_msg.RefFrame = get_ref_frame_by_name(frame_name=frame,
-                                                         scene=scene)
+            fr = AssemblySceneAnalyzer(
+                scene, self.logger).get_ref_frame_by_name(frame)
             
             normal_vectors = get_normal_vectors_from_quaternion(fr.pose.orientation)
             
@@ -134,7 +135,9 @@ class TransformConstraintHandler(ami_msg.FrConstraintTransform):
 
         tansform_m.rotation = self.transform.rotation
 
-        ref_frame_pose = get_ref_frame_poses_by_names(scene=scene, frame_names=[self.ref_frame])[0]
+        ref_frame_pose = AssemblySceneAnalyzer(
+            scene, self.logger).get_ref_frame_poses_by_names(
+                [self.ref_frame])[0]
         result_pose = multiply_ros_transforms(a = ref_frame_pose, 
                                               b = tansform_m, 
                                               output_type=Pose)

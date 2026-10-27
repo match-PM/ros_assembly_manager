@@ -9,14 +9,13 @@ import sympy as sp
 from assembly_scene_publisher.py_modules.geometry_type_functions import (rotation_matrix_to_quaternion, 
                                                                          get_normal_vectors_from_quaternion)
 
-from assembly_scene_publisher.py_modules.scene_functions import (check_frames_exist_in_scene, 
-                                                                                    check_for_duplicate_frames, 
-                                                                                    get_ref_frame_by_name,
-                                                                                    check_ref_frames_for_same_parent_frame,
-                                                                                    get_parent_frame_for_ref_frame,
-                                                                                    get_ref_frame_poses_by_names,
-                                                                                    ConstraintRestriction,
-                                                                                    ConstraintRestrictionList)    
+from assembly_scene_publisher.py_modules.AssemblySceneAnalyzer import (
+    AssemblySceneAnalyzer,
+)
+from assembly_scene_publisher.py_modules.ConstraintRestriction import (
+    ConstraintRestriction,
+    ConstraintRestrictionList,
+)
 
 from assembly_scene_publisher.py_modules.geometry_functions import (get_transformed_pose, 
                                                                     compute_eigenvectors_and_centroid )
@@ -86,7 +85,8 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
         else:
             self.is_active = True
         
-        if check_for_duplicate_frames(self.ref_frame_names):
+        analyzer = AssemblySceneAnalyzer(scene, self.logger)
+        if analyzer.check_for_duplicate_frames(self.ref_frame_names):
             self.is_active = False
             
             if self.logger is not None:
@@ -94,16 +94,16 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
                 
             return
         
-        if scene is not None and not check_frames_exist_in_scene(frame_names=self.ref_frame_names, 
-                                                                 scene=scene,
-                                                                 logger=self.logger):
+        if scene is not None and not analyzer.check_frames_exist_in_scene(
+                self.ref_frame_names):
             self.is_active = False
             if self.logger is not None:
                 self.logger.warn(f'Constraint warning: Reference frames "{self.ref_frame_names}" not found in the scene!')
             return
         
-        if scene is not None and not check_ref_frames_for_same_parent_frame(frame_names=self.ref_frame_names, 
-                                                                            scene=scene):
+        if scene is not None and not \
+                analyzer.check_ref_frames_for_same_parent_frame(
+                    self.ref_frame_names):
             self.is_active = False
             if self.logger is not None:
                 self.logger.error('Reference frames do not have the same parent frame!')
@@ -126,8 +126,8 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
         restriction_collection = ConstraintRestrictionList()
         
         for frame in frame_names:
-            fr: ami_msg.RefFrame = get_ref_frame_by_name(frame_name=frame,
-                                                         scene=scene)
+            fr = AssemblySceneAnalyzer(
+                scene, self.logger).get_ref_frame_by_name(frame)
             
             normal_vectors = get_normal_vectors_from_quaternion(fr.pose.orientation)
             
@@ -245,8 +245,9 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
 
             #self.logger.warn(f'Centroid constraint with one reference frame: {frame_name} constraint by {self.ref_frame_names[0]}')
                         
-            ref_frame = get_ref_frame_by_name(frame_name=self.ref_frame_names[0],
-                                                         scene=scene)
+            ref_frame = AssemblySceneAnalyzer(
+                scene, self.logger).get_ref_frame_by_name(
+                    self.ref_frame_names[0])
             if ref_frame is None:
                 centroid_pose.position.x = initial_frame_pose.position.x
                 centroid_pose.position.y = initial_frame_pose.position.y
@@ -268,7 +269,9 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
             result_pose = get_transformed_pose(centroid_pose, vector)
         
         else:
-            poses_list = get_ref_frame_poses_by_names(scene=scene, frame_names=self.ref_frame_names, logger=self.logger)
+            poses_list = AssemblySceneAnalyzer(
+                scene, self.logger).get_ref_frame_poses_by_names(
+                    self.ref_frame_names)
             orientation, centroid = compute_eigenvectors_and_centroid(poses_list, logger=self.logger)
             orientation: Quaternion
             centroid: Vector3

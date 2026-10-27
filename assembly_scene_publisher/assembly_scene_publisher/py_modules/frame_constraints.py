@@ -8,13 +8,12 @@ from copy import deepcopy, copy
 import sympy as sp
 from assembly_scene_publisher.py_modules.geometry_type_functions import rotation_matrix_to_quaternion
 
-from assembly_scene_publisher.py_modules.scene_functions import     (check_frames_exist_in_scene, 
-                                                                    check_for_duplicate_frames, 
-                                                                    get_ref_frame_by_name,
-                                                                    check_ref_frames_for_same_parent_frame,
-                                                                    get_parent_frame_for_ref_frame,
-                                                                    get_component_by_name,
-                                                                    ConstraintRestrictionList)                                    
+from assembly_scene_publisher.py_modules.AssemblySceneAnalyzer import (
+    AssemblySceneAnalyzer,
+)
+from assembly_scene_publisher.py_modules.ConstraintRestriction import (
+    ConstraintRestrictionList,
+)
 
 from assembly_scene_publisher.py_modules.CentroidConstraintHandler import CentroidConstraintHandler
 from assembly_scene_publisher.py_modules.OrthogonalConstraintHandler import OrthogonalConstraintHandler
@@ -319,11 +318,8 @@ def get_constraint_frames_for_frame(scene: ami_msg.ObjectScene,
     
     if len(ref_frame_names) > 0:
         for ref_frame_name in ref_frame_names:
-            ref_frame = get_ref_frame_by_name(scene, ref_frame_name)
-            
-            if ref_frame is None:
-                raise ValueError(f"Error. There is no '{ref_frame_name}' in the assembly scene. However it is used in a constraint definition!")
-            
+            ref_frame = AssemblySceneAnalyzer(
+                scene, logger).get_ref_frame_by_name(ref_frame_name)
             final_list.append(ref_frame)
     
     return final_list
@@ -399,7 +395,8 @@ def calculate_frame_contrains_for_frame_list(scene: ami_msg.ObjectScene,
                     #logger.warn(f"Update ref frame constraints for frame '{frame_name}'")
                     pass
 
-                frame = get_ref_frame_by_name(scene, frame_name)
+                frame = AssemblySceneAnalyzer(
+                    scene, logger).get_ref_frame_by_name(frame_name)
                 update_ref_frame_by_constraint(scene, frame, component_name=component_name, logger=logger)
                 calculated_frames.append(frame_name)
     return True
@@ -415,9 +412,9 @@ def calculate_constraints_for_component(scene: ami_msg.ObjectScene,
     if component_name is None:
         frame_list = scene.ref_frames_in_scene
     else:
-        comp = get_component_by_name(scene, component_name, logger=logger)
-        if comp is not None:
-            frame_list = comp.ref_frames
+        comp = AssemblySceneAnalyzer(
+            scene, logger).get_component_by_name(component_name)
+        frame_list = comp.ref_frames
 
     if logger is not None:
         #logger.warn(f"list:{frame_list}")
@@ -480,7 +477,8 @@ def get_identification_order(scene: ami_msg.ObjectScene,
             
             if frame_name not in calculated_frames:
                 
-                frame = get_ref_frame_by_name(scene, frame_name)
+                frame = AssemblySceneAnalyzer(
+                    scene, logger).get_ref_frame_by_name(frame_name)
                 frame_constraints_handler = FrameConstraintsHandler.return_handler_from_msg(frame.constraints, scene=scene, logger=logger)
                 test_list = frame_constraints_handler.get_frame_references_const(scene=scene)
                 if logger is not None:
