@@ -1,1331 +1,464 @@
-import rclpy
-from rclpy.node import Node
-from PyQt6.QtWidgets import QApplication
+"""Edit assembly and component descriptions in one adaptive workspace."""
+
 import sys
-from rclpy.executors import MultiThreadedExecutor
-from threading import Thread 
-import json
-from pathlib import Path
+from copy import deepcopy
 
-
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QThread, pyqtSlot, QRunnable, QObject, QThreadPool, QSize, QMimeData
-from PyQt6.QtWidgets import (QScrollArea, 
-                             QMessageBox, 
-                             QDialog, 
-                             QHBoxLayout, 
-                             QDialog, 
-                             QInputDialog, 
-                             QTreeWidget, 
-                             QTreeWidgetItem, 
-                             QApplication, 
-                             QGridLayout, 
-                             QFrame, 
-                             QMainWindow, 
-                             QListWidget, 
-                             QListWidgetItem, 
-                             QDoubleSpinBox, 
-                             QWidget, 
-                             QVBoxLayout, 
-                             QPushButton, 
-                             QCheckBox, 
-                             QLineEdit, 
-                             QComboBox, 
-                             QTextEdit,
-                             QLabel,
-                             QSlider, 
-                             QSpinBox, 
-                             QFontDialog, 
-                             QFileDialog,
-                             QTableWidgetItem,
-                            QTableWidget,
-                            QGroupBox,
-                            QStackedWidget,
-                            QStyledItemDelegate,
-                            QScrollArea as QScrollAreaImport,
-                            QGraphicsView,
-                            QGraphicsScene,
-                            QGraphicsPixmapItem,
-                            )
-
-
-from scipy.spatial.transform import Rotation as R
-from PyQt6.QtGui import QColor, QTextCursor, QFont, QAction, QIcon, QPainter, QPixmap, QDragEnterEvent, QDropEvent, QBrush
-from functools import partial
-from rclpy.node import Node
-from tf2_ros.buffer import Buffer
-from tf2_ros.transform_listener import TransformListener
-
-from geometry_msgs.msg import TransformStamped, Transform
-import assembly_manager_interfaces.msg as am_msgs
 import rclpy
-import yaml
-from dataclasses import dataclass, asdict, field
-from typing import List, Dict, Any, Optional
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import (
+    QApplication, QFileDialog, QHBoxLayout, QInputDialog, QLabel,
+    QMainWindow, QMessageBox, QPushButton, QScrollArea, QSizePolicy, QSplitter, QToolBar,
+    QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget,
+)
+from rclpy.node import Node
 
-from assembly_scene_viewer.py_modules.ComponentDescriptionModifier import *
-
-LINEAR_CONSTRAINT_DECIMALS = 9
-ROTATION_CONSTRAINT_DECIMALS = 9
-LINEAR_CONSTRAINT_STEP = 0.000001
-ROTATION_CONSTRAINT_STEP = 0.000001
-
-
-def configure_double_spinbox(
-    spinbox: QDoubleSpinBox,
-    decimals: int,
-    single_step: float,
-) -> QDoubleSpinBox:
-    spinbox.setDecimals(decimals)
-    spinbox.setSingleStep(single_step)
-    spinbox.setKeyboardTracking(False)
-    return spinbox
-
-
-def configure_linear_constraint_spinbox(spinbox: QDoubleSpinBox) -> QDoubleSpinBox:
-    return configure_double_spinbox(
-        spinbox,
-        LINEAR_CONSTRAINT_DECIMALS,
-        LINEAR_CONSTRAINT_STEP,
-    )
-
-
-def configure_rotation_constraint_spinbox(spinbox: QDoubleSpinBox) -> QDoubleSpinBox:
-    return configure_double_spinbox(
-        spinbox,
-        ROTATION_CONSTRAINT_DECIMALS,
-        ROTATION_CONSTRAINT_STEP,
-    )
-
-# from .ComponentDescriptionModifier import (
-#     ComponentDescriptionModifier, 
-#     CentroidConstraint, 
-#     OrthogonalConstraint, 
-#     InPlaneConstraint, 
-#     TransformConstraint,
-#     RefFrameConstraints,
-#     RefFrame
-# )
-
-
-class SpawningTransformationWidget(QGroupBox):
-    """Widget for editing the spawning transformation (translation and rotation)"""
-    
-    def __init__(self, parent=None):
-        super().__init__("Spawning Transformation", parent)
-        self.init_ui()
-    
-    def init_ui(self):
-        """Initialize the UI with translation and rotation fields"""
-        layout = QGridLayout()
-        
-        # Translation section
-        layout.addWidget(QLabel("Translation (mm):"), 0, 0, 1, 3)
-        
-        layout.addWidget(QLabel("X:"), 1, 0)
-        self.trans_x = QDoubleSpinBox()
-        self.trans_x.setRange(-10000, 10000)
-        self.trans_x.setDecimals(6)
-        layout.addWidget(self.trans_x, 1, 1)
-        
-        layout.addWidget(QLabel("Y:"), 1, 2)
-        self.trans_y = QDoubleSpinBox()
-        self.trans_y.setRange(-10000, 10000)
-        self.trans_y.setDecimals(6)
-        layout.addWidget(self.trans_y, 1, 3)
-        
-        layout.addWidget(QLabel("Z:"), 2, 0)
-        self.trans_z = QDoubleSpinBox()
-        self.trans_z.setRange(-10000, 10000)
-        self.trans_z.setDecimals(6)
-        layout.addWidget(self.trans_z, 2, 1)
-        
-        # Rotation section (Quaternion)
-        layout.addWidget(QLabel("Rotation (Quaternion):"), 3, 0, 1, 3)
-        
-        layout.addWidget(QLabel("X:"), 4, 0)
-        self.rot_x = QDoubleSpinBox()
-        self.rot_x.setRange(-1.0, 1.0)
-        self.rot_x.setDecimals(6)
-        layout.addWidget(self.rot_x, 4, 1)
-        
-        layout.addWidget(QLabel("Y:"), 4, 2)
-        self.rot_y = QDoubleSpinBox()
-        self.rot_y.setRange(-1.0, 1.0)
-        self.rot_y.setDecimals(6)
-        layout.addWidget(self.rot_y, 4, 3)
-        
-        layout.addWidget(QLabel("Z:"), 5, 0)
-        self.rot_z = QDoubleSpinBox()
-        self.rot_z.setRange(-1.0, 1.0)
-        self.rot_z.setDecimals(6)
-        layout.addWidget(self.rot_z, 5, 1)
-        
-        layout.addWidget(QLabel("W:"), 5, 2)
-        self.rot_w = QDoubleSpinBox()
-        self.rot_w.setRange(-1.0, 1.0)
-        self.rot_w.setDecimals(6)
-        self.rot_w.setValue(1.0)
-        layout.addWidget(self.rot_w, 5, 3)
-        
-        self.setLayout(layout)
-    
-    def set_transformation(self, transformation: Dict[str, Any]):
-        """Load transformation data into the widget"""
-        if not transformation:
-            return
-        
-        # Load translation
-        translation = transformation.get('translation', {})
-        self.trans_x.setValue(translation.get('X', 0.0))
-        self.trans_y.setValue(translation.get('Y', 0.0))
-        self.trans_z.setValue(translation.get('Z', 0.0))
-        
-        # Load rotation (quaternion)
-        rotation = transformation.get('rotation', {})
-        self.rot_x.setValue(rotation.get('X', 0.0))
-        self.rot_y.setValue(rotation.get('Y', 0.0))
-        self.rot_z.setValue(rotation.get('Z', 0.0))
-        self.rot_w.setValue(rotation.get('W', 1.0))
-    
-    def get_transformation(self) -> Dict[str, Any]:
-        """Get the current transformation data"""
-        return {
-            'translation': {
-                'X': self.trans_x.value(),
-                'Y': self.trans_y.value(),
-                'Z': self.trans_z.value()
-            },
-            'rotation': {
-                'X': self.rot_x.value(),
-                'Y': self.rot_y.value(),
-                'Z': self.rot_z.value(),
-                'W': self.rot_w.value(),
-                'IsIdentity': (self.rot_w.value() == 1.0 and 
-                              self.rot_x.value() == 0.0 and
-                              self.rot_y.value() == 0.0 and
-                              self.rot_z.value() == 0.0)
-            }
-        }
+from assembly_scene_viewer.py_modules.AssemblyDescriptionModifier import (
+    AssemblyDescriptionModifier, IDENTITY_TRANSFORM,
+)
+from assembly_scene_viewer.py_modules.DescriptionForms import NoWheelComboBox, ObjectForm
 
 
 class AssemblyModifierWidget(QWidget):
+    """Show the relevant contents of either description without separate tabs."""
+
     def __init__(self):
         super().__init__()
         self.setAcceptDrops(True)
-        self.component_modifier: Optional[ComponentDescriptionModifier] = None
-        self.current_frame_name = None
-        self.init_ui()
-    
-    def init_ui(self):
-        """Initialize the user interface"""
-        main_layout = QHBoxLayout()
-        
-        # Left side layout
-        left_layout = QVBoxLayout()
-        
-        # File operations buttons at the top
-        file_buttons_layout = QHBoxLayout()
-        
-        self.new_btn = QPushButton("New")
-        self.new_btn.clicked.connect(self.on_new_click)
-        file_buttons_layout.addWidget(self.new_btn)
-        
-        self.open_btn = QPushButton("Open")
-        self.open_btn.clicked.connect(self.on_open_click)
-        file_buttons_layout.addWidget(self.open_btn)
-        
-        left_layout.addLayout(file_buttons_layout)
-        
-        # Drag and drop area at the top
-        drop_label = QLabel("Drag and drop JSON file here")
-        drop_label.setStyleSheet("""
-            QLabel {
-                border: 2px dashed #cccccc;
-                border-radius: 5px;
-                padding: 30px;
-                background-color: #f5f5f5;
-                text-align: center;
-            }
-        """)
-        drop_label.setMinimumHeight(80)
-        drop_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        left_layout.addWidget(drop_label)
-        
-        # Spawning Transformation Widget
-        self.spawning_transform_widget = SpawningTransformationWidget()
-        left_layout.addWidget(self.spawning_transform_widget)
-        
-        # List widget for ref_frames
-        list_label = QLabel("Reference Frames:")
-        left_layout.addWidget(list_label)
-        self.ref_frames_list = QListWidget()
-        self.ref_frames_list.itemClicked.connect(self.on_refframe_selected)
-        left_layout.addWidget(self.ref_frames_list)
-        
-        # Add/Delete frame buttons
-        frame_buttons_layout = QHBoxLayout()
-        
-        self.add_frame_btn = QPushButton("Add New Frame")
-        self.add_frame_btn.clicked.connect(self.add_new_frame)
-        frame_buttons_layout.addWidget(self.add_frame_btn)
-        
-        self.delete_frame_btn = QPushButton("Delete Frame")
-        self.delete_frame_btn.clicked.connect(self.delete_current_frame)
-        frame_buttons_layout.addWidget(self.delete_frame_btn)
-        
-        left_layout.addLayout(frame_buttons_layout)
-        
-        # Right side layout for details
-        right_layout = QVBoxLayout()
-        right_layout.addWidget(QLabel("Frame Details:"))
-        
-        # Details display area
-        self.details_text = QTextEdit()
-        self.details_text.setReadOnly(True)
-        right_layout.addWidget(self.details_text)
-        
-        # Constraint editing section
-        constraints_label = QLabel("Edit Constraints:")
-        right_layout.addWidget(constraints_label)
-        
-        constraints_layout = QGridLayout()
-        self.edit_centroid_btn = QPushButton("Edit Centroid")
-        self.edit_centroid_btn.clicked.connect(self.edit_centroid_constraint)
-        constraints_layout.addWidget(self.edit_centroid_btn, 0, 0)
-        
-        self.edit_orthogonal_btn = QPushButton("Edit Orthogonal")
-        self.edit_orthogonal_btn.clicked.connect(self.edit_orthogonal_constraint)
-        constraints_layout.addWidget(self.edit_orthogonal_btn, 0, 1)
-        
-        self.edit_inplane_btn = QPushButton("Edit In-Plane")
-        self.edit_inplane_btn.clicked.connect(self.edit_inplane_constraint)
-        constraints_layout.addWidget(self.edit_inplane_btn, 1, 0)
-        
-        self.edit_transform_btn = QPushButton("Edit Transform")
-        self.edit_transform_btn.clicked.connect(self.edit_transform_constraint)
-        constraints_layout.addWidget(self.edit_transform_btn, 1, 1)
-        
-        right_layout.addLayout(constraints_layout)
-        
-        # Save button
-        self.save_btn = QPushButton("Save JSON")
-        self.save_btn.clicked.connect(self.save_json)
-        right_layout.addWidget(self.save_btn)
-        
-        # Reload button
-        self.reload_btn = QPushButton("Reload JSON")
-        self.reload_btn.clicked.connect(self.reload_json)
-        right_layout.addWidget(self.reload_btn)
-        
-        # Set layout proportions
-        left_widget = QWidget()
-        left_widget.setLayout(left_layout)
-        right_widget = QWidget()
-        right_widget.setLayout(right_layout)
-        
-        main_layout.addWidget(left_widget, 1)
-        main_layout.addWidget(right_widget, 1)
-        
-        self.setLayout(main_layout)
-        
-        # Disable buttons initially
-        self.enable_constraint_buttons(False)
-        self.add_frame_btn.setEnabled(False)
-        self.delete_frame_btn.setEnabled(False)
-    
-    def dropEvent(self, event: QDropEvent):
-        """Handle drop event for loading JSON files"""
-        for url in event.mimeData().urls():
-            file_path = url.toLocalFile()
-            if file_path.endswith('.json'):
-                self.load_json(file_path)
-                break
-    
-    def on_open_click(self):
-        """Handle Open button click - opens file dialog"""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Open Component Description",
-            "",
-            "JSON Files (*.json);;All Files (*)"
-        )
-        if file_path:
-            self.load_json(file_path)
-    
-    def on_new_click(self):
-        """Handle New button click - creates new component"""
-        # Prompt for component name
-        name, ok = QInputDialog.getText(
-            self,
-            "New Component",
-            "Enter component name:",
-            text="New Component"
-        )
-        if ok and name:
-            self.create_new_component(name)
-    
-    def create_new_component(self, name: str = "New Component"):
-        """Create a new component description"""
+        self.model = None
+        self._path = None
+        self._dirty = False
+        self._form_modified = False
+        self.form = None
+        self._excluded = {}
+        self.setStyleSheet('''
+            QLineEdit, QDoubleSpinBox, QComboBox { min-height: 30px; padding: 2px 6px; }
+            QPushButton { min-height: 30px; padding: 3px 10px; }
+            QGroupBox { margin-top: 14px; padding-top: 12px; font-weight: bold; }
+            QGroupBox::title { subcontrol-origin: margin; left: 10px; }
+            QTreeWidget::item { min-height: 30px; }
+        ''')
+        layout = QVBoxLayout(self)
+        self.path_label = QLabel('Open or drop an assembly or component JSON file')
+        self.path_label.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.path_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+        layout.addWidget(self.path_label)
+        self.status_label = QLabel()
+        self.status_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        layout.addWidget(self.status_label)
+        self.workspace = QSplitter(Qt.Orientation.Horizontal)
+        self.workspace.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        navigation = QWidget()
+        nav_layout = QVBoxLayout(navigation)
+        self.tree = QTreeWidget()
+        self.tree.setHeaderLabel('Description contents')
+        self.tree.currentItemChanged.connect(self._select)
+        nav_layout.addWidget(self.tree, 1)
+        self.add_type = NoWheelComboBox()
+        nav_layout.addWidget(self.add_type)
+        buttons = QHBoxLayout()
+        for label, callback in (
+                ('Add', self.add_item), ('Duplicate', self.duplicate_item),
+                ('Remove', self.remove_item)):
+            button = QPushButton(label)
+            button.clicked.connect(callback)
+            buttons.addWidget(button)
+        nav_layout.addLayout(buttons)
+        self.workspace.addWidget(navigation)
+        details = QWidget()
+        detail_layout = QVBoxLayout(details)
+        self.detail_title = QLabel('Select an item')
+        self.detail_title.setStyleSheet('font-size: 14pt; font-weight: bold; padding: 8px;')
+        self.detail_title.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        detail_layout.addWidget(self.detail_title)
+        self.unit_hint = QLabel()
+        self.unit_hint.setWordWrap(True)
+        self.unit_hint.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        detail_layout.addWidget(self.unit_hint)
+        self.form_scroll = QScrollArea()
+        self.form_scroll.setWidgetResizable(True)
+        detail_layout.addWidget(self.form_scroll, 1)
+        apply_button = QPushButton('Apply changes')
+        apply_button.clicked.connect(self.apply_changes)
+        detail_layout.addWidget(apply_button)
+        self.workspace.addWidget(details)
+        self.workspace.setStretchFactor(0, 1)
+        self.workspace.setStretchFactor(1, 3)
+        self.workspace.setSizes([300, 850])
+        layout.addWidget(self.workspace, 1)
+        self.workspace.setEnabled(False)
+
+    def _edited(self):
+        self._form_modified = True
+        self.status_label.setText('Unsaved changes')
+        self.window().setWindowTitle('Description Editor *')
+
+    def set_dirty(self, dirty):
+        self._dirty = dirty
+        self.status_label.setText('Unsaved changes' if dirty else 'Saved')
+        self.window().setWindowTitle(
+            'Description Editor' + (' *' if dirty else ''))
+
+    def _data(self):
+        # Draft templates may be incomplete until their required fields are edited.
+        return deepcopy(self.model._data)
+
+    @staticmethod
+    def _at(data, path):
+        for key in path:
+            data = data[key]
+        return data
+
+    def _refresh(self, selected_path=()):
+        data = self._data()
+        mounting = data['mountingDescription']
+        self.tree.blockSignals(True)
+        self.tree.clear()
+        selected = None
+
+        def entry(parent, label, path):
+            nonlocal selected
+            item = QTreeWidgetItem(parent, [label])
+            item.setData(0, Qt.ItemDataRole.UserRole, path)
+            if path == selected_path:
+                selected = item
+            return item
+
+        entry(self.tree, 'Document settings', ())
+        if data['type'] == 'Assembly':
+            for key, label in (
+                    ('components', 'Component instances'),
+                    ('assemblyConstraints', 'Assembly instructions')):
+                path = ('mountingDescription', key)
+                group = entry(self.tree, label, path)
+                for index, value in enumerate(mounting.get(key, [])):
+                    suffix = (f" [{value.get('type', 'PlaneMatch')}]"
+                              if key == 'assemblyConstraints' else '')
+                    entry(group, value.get('name', '<unnamed>') + suffix,
+                          path + (index,))
+        references_path = ('mountingDescription', 'mountingReferences')
+        references = entry(self.tree, 'Spawning and reference geometry', references_path)
+        for key, label in (('ref_frames', 'Reference frames'),
+                           ('ref_axes', 'Axes'), ('ref_planes', 'Planes')):
+            path = references_path + (key,)
+            group = entry(references, label, path)
+            for index, value in enumerate(mounting.get('mountingReferences', {}).get(key, [])):
+                entry(group, value.get('name', '<unnamed>'), path + (index,))
+        self.tree.expandAll()
+        self.tree.setCurrentItem(selected or self.tree.topLevelItem(0))
+        self.tree.blockSignals(False)
+        self._show_item(self.tree.currentItem())
+
+    def _show_item(self, item):
+        self._path = item.data(0, Qt.ItemDataRole.UserRole)
+        data = self._data()
         try:
-            # Create new component
-            self.component_modifier = ComponentDescriptionModifier.create_new(name)
-            
-            # Enable buttons when new component is created
-            self.add_frame_btn.setEnabled(True)
-            self.delete_frame_btn.setEnabled(True)
-            
-            # Load spawning transformation
-            spawning_transform = self.component_modifier.get_spawning_transformation()
-            self.spawning_transform_widget.set_transformation(spawning_transform)
-            
-            self.populate_refframes_list()
-            QMessageBox.information(self, "Success", f"Created new component: {name}")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to create component: {str(e)}")
-    
+            value = self._at(data, self._path)
+        except KeyError:
+            value = {} if self._path[-1] == 'mountingReferences' else []
+        self.detail_title.setText(item.text(0))
+        units = self.model.metadata.get('documentUnits', 'mm')
+        self.unit_hint.setText(
+            f'Distances in {units}; rotations as quaternion X, Y, Z, W. '
+            'Distance precision: 10 nm. Enable only the constraints and properties you need.')
+        self._excluded = {}
+        self.form = None
+        if not self._path:
+            self._excluded = {'mountingDescription': value['mountingDescription']}
+            value = {key: item for key, item in value.items() if key not in self._excluded}
+            kind = 'metadata'
+        elif self._path[-1] == 'mountingReferences':
+            self._excluded = {key: item for key, item in value.items()
+                              if key in ('ref_frames', 'ref_axes', 'ref_planes')}
+            value = {key: item for key, item in value.items() if key not in self._excluded}
+            kind = 'spawning'
+        else:
+            kind = self._path[-2] if isinstance(self._path[-1], int) else self._path[-1]
+        if isinstance(value, dict):
+            self.form = ObjectForm(value, kind, self._form_context())
+            self.form.changed.connect(self._edited)
+            self.form_scroll.setWidget(self.form)
+        else:
+            hint = QLabel('Select an item on the left to edit it.\n'
+                          'Use Add to create a frame, axis, plane, component or instruction.')
+            hint.setWordWrap(True)
+            self.form_scroll.setWidget(hint)
+        self._form_modified = False
+
+    def _form_context(self):
+        data = self._data()
+        references = data['mountingDescription'].get('mountingReferences', {})
+        context = {
+            'frames': [item['name'] for item in references.get('ref_frames', [])],
+            'axes': [item['name'] for item in references.get('ref_axes', [])],
+            'planes': [item['name'] for item in references.get('ref_planes', [])],
+            'components': [item['name'] for item in
+                           data['mountingDescription'].get('components', [])],
+        }
+        if data['type'] == 'Assembly' and self.model.file_path:
+            # Resolve exported component instance names using the same database
+            # directory convention as the publisher's description importer.
+            import re
+            import json
+            directory = self.model.file_path.parent.parent / 'components'
+            for name in context['components']:
+                path = directory / (re.sub(r'-\d+$', '', name) + '.json')
+                try:
+                    with path.open(encoding='utf-8') as stream:
+                        component = json.load(stream)
+                    refs = component['mountingDescription']['mountingReferences']
+                    for target, source in (('frames', 'ref_frames'), ('axes', 'ref_axes'),
+                                           ('planes', 'ref_planes')):
+                        context[target].extend(item['name'] for item in refs.get(source, []))
+                except (OSError, ValueError, KeyError, TypeError):
+                    continue
+        context = {key: list(dict.fromkeys(values)) for key, values in context.items()}
+        context['unit'] = data.get('documentUnits', 'mm')
+        return context
+
+    def _select(self, item, previous):
+        if item is None:
+            return
+        if not self._apply_pending():
+            self.tree.blockSignals(True)
+            self.tree.setCurrentItem(previous)
+            self.tree.blockSignals(False)
+            return
+        self._show_item(item)
+
+    def _apply_pending(self):
+        if not self._form_modified:
+            return True
+        return self.apply_changes(refresh=False)
+
+    def apply_changes(self, checked=False, refresh=True):
+        if not self.model or self._path is None:
+            return False
+        try:
+            if self.form is None:
+                return True
+            value = {**self.form.value(), **self._excluded}
+            candidate = self._data()
+            if not self._path:
+                candidate = value
+            else:
+                parent = candidate
+                for key in self._path[:-1]:
+                    if isinstance(key, str):
+                        parent = parent.setdefault(key, {})
+                    else:
+                        parent = parent[key]
+                parent[self._path[-1]] = value
+            if candidate.get('type') != self.model.metadata['type']:
+                raise ValueError('Document type cannot be changed while editing.')
+            self.model.replace_document(candidate)
+            self._form_modified = False
+            self.set_dirty(True)
+            if refresh:
+                self._refresh(self._path)
+            return True
+        except (ValueError, TypeError, KeyError, AttributeError) as error:
+            QMessageBox.warning(self, 'Cannot apply changes', str(error))
+            return False
+
+    def _confirm_replace(self):
+        if not self._dirty and not self._form_modified:
+            return True
+        answer = QMessageBox.question(
+            self, 'Unsaved changes', 'Save changes before continuing?',
+            QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard |
+            QMessageBox.StandardButton.Cancel)
+        if answer == QMessageBox.StandardButton.Save:
+            return bool(self.save_document())
+        return answer == QMessageBox.StandardButton.Discard
+
+    def new_document(self):
+        if not self._confirm_replace():
+            return
+        kind, accepted = QInputDialog.getItem(
+            self, 'New description', 'File type:', ['Component', 'Assembly'], 0, False)
+        if not accepted:
+            return
+        name, accepted = QInputDialog.getText(
+            self, 'New description', 'Name:', text=f'New {kind}')
+        if accepted and name.strip():
+            self._load_model(AssemblyDescriptionModifier.create_new(name.strip(), kind))
+            self.set_dirty(True)
+
+    def open_document(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, 'Open assembly or component description', '', 'JSON files (*.json)')
+        if path:
+            self.load_json(path)
+
     def load_json(self, file_path):
-        """Load and parse JSON file"""
+        if not self._confirm_replace():
+            return
         try:
-            self.component_modifier = ComponentDescriptionModifier.from_file(file_path)
-            
-            # Enable buttons when file is loaded
-            self.add_frame_btn.setEnabled(True)
-            self.delete_frame_btn.setEnabled(True)
-            
-            # Load spawning transformation if available
-            spawning_transform = self.component_modifier.get_spawning_transformation()
-            self.spawning_transform_widget.set_transformation(spawning_transform)
-            
-            self.populate_refframes_list()
-            QMessageBox.information(self, "Success", f"Loaded: {Path(file_path).name}")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to load JSON: {str(e)}")
-    
-    def populate_refframes_list(self):
-        """Populate the list widget with reference frames"""
-        self.ref_frames_list.clear()
-        
-        if not self.component_modifier:
+            self._load_model(AssemblyDescriptionModifier.from_file(file_path))
+        except (ValueError, OSError) as error:
+            QMessageBox.critical(self, 'Cannot open description', str(error))
+
+    def _load_model(self, model):
+        self.model = model
+        self._path = None
+        self._form_modified = False
+        self.workspace.setEnabled(True)
+        self.path_label.setText(
+            f"{model.metadata['type']} — {model.file_path or 'New unsaved description'}")
+        self.add_type.clear()
+        self.add_type.addItems(['Reference frame', 'Axis', 'Plane'])
+        if model.metadata['type'] == 'Assembly':
+            self.add_type.addItems(['Component instance', 'PlaneMatch', 'FrameMatch'])
+        self._refresh()
+        self.set_dirty(False)
+
+    def add_item(self):
+        if not self._apply_pending():
             return
-        
+        kind = self.add_type.currentText()
+        if kind == 'Component instance':
+            index = self.model.add_component()
+            path = ('mountingDescription', 'components', index)
+        elif kind in ('PlaneMatch', 'FrameMatch'):
+            index = self.model.add_instruction(kind)
+            path = ('mountingDescription', 'assemblyConstraints', index)
+        else:
+            key = {'Reference frame': 'ref_frames', 'Axis': 'ref_axes',
+                   'Plane': 'ref_planes'}[kind]
+            items = self.model.mounting_references.setdefault(key, [])
+            name, accepted = QInputDialog.getText(self, f'Add {kind}', 'Name:')
+            if not accepted or not name.strip():
+                return
+            if any(item.get('name') == name.strip() for item in items):
+                QMessageBox.warning(self, 'Duplicate name', 'This name already exists.')
+                return
+            value = {'name': name.strip()}
+            if key == 'ref_frames':
+                value.update(type='frame', transformation=deepcopy(IDENTITY_TRANSFORM),
+                             constraints={}, properties={})
+            elif key == 'ref_axes':
+                value['refPointNames'] = ['', '']
+            else:
+                value.update(refPointNames=['', '', ''], refAxisNames=[],
+                             normalVector={'X': 0.0, 'Y': 0.0, 'Z': 1.0})
+            items.append(value)
+            path = ('mountingDescription', 'mountingReferences', key, len(items) - 1)
+        self.set_dirty(True)
+        self._refresh(path)
+
+    def duplicate_item(self):
+        if not self._path or not isinstance(self._path[-1], int):
+            return
+        if not self._apply_pending():
+            return
+        data = self._data()
+        items = self._at(data, self._path[:-1])
+        value = deepcopy(items[self._path[-1]])
+        names = {item.get('name') for item in items}
+        base = value.get('name', 'item') + '_copy'
+        name = base
+        index = 2
+        while name in names:
+            name = f'{base}_{index}'
+            index += 1
+        value['name'] = name
+        items.append(value)
+        self.model._data = data
+        self.set_dirty(True)
+        self._refresh(self._path[:-1] + (len(items) - 1,))
+
+    def remove_item(self):
+        if not self._path or not isinstance(self._path[-1], int):
+            return
+        answer = QMessageBox.question(
+            self, 'Remove item', 'Remove the selected item?',
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        data = self._data()
+        del self._at(data, self._path[:-1])[self._path[-1]]
+        self.model._data = data
+        self.set_dirty(True)
+        self._refresh(self._path[:-1])
+
+    def save_document(self):
+        if not self.model or not self._apply_pending():
+            return False
+        if not self.model.file_path:
+            return self.save_document_as()
+        return self._save()
+
+    def save_document_as(self):
+        if not self.model or not self._apply_pending():
+            return False
+        path, _ = QFileDialog.getSaveFileName(
+            self, 'Save description', f"{self.model.metadata.get('name', 'description')}.json",
+            'JSON files (*.json)')
+        return self._save(path) if path else False
+
+    def _save(self, path=None):
         try:
-            ref_frames = self.component_modifier.get_ref_frames()
-            
-            for frame in ref_frames:
-                frame_name = frame.name
-                frame_type = frame.type
-                item_text = f"{frame_name} ({frame_type})"
-                
-                item = QListWidgetItem(item_text)
-                item.setData(Qt.ItemDataRole.UserRole, frame_name)  # Store frame name for later retrieval
-                
-                # Check if frame has constraints and color it green
-                if frame.has_constraints():
-                    item.setData(Qt.ItemDataRole.BackgroundRole, QBrush(QColor(144, 238, 144)))  # Light green
-                    item.setData(Qt.ItemDataRole.ForegroundRole, QBrush(QColor(0, 0, 0)))  # Black text for contrast
-                
-                self.ref_frames_list.addItem(item)
-        except Exception as e:
-            QMessageBox.warning(self, "Warning", f"Error populating frames: {str(e)}")
-    
-    def update_frame_item_color(self):
-        """Update the color of the currently selected frame item based on constraint status"""
-        if not self.current_frame_name or not self.component_modifier:
-            return
-        
-        frame = self.component_modifier.get_ref_frame(self.current_frame_name)
-        if not frame:
-            return
-        
-        # Find and update the list item
-        for i in range(self.ref_frames_list.count()):
-            item = self.ref_frames_list.item(i)
-            if item.data(Qt.ItemDataRole.UserRole) == self.current_frame_name:
-                if frame.has_constraints():
-                    item.setData(Qt.ItemDataRole.BackgroundRole, QBrush(QColor(144, 238, 144)))  # Light green
-                    item.setData(Qt.ItemDataRole.ForegroundRole, QBrush(QColor(0, 0, 0)))  # Black text for contrast
-                else:
-                    item.setData(Qt.ItemDataRole.BackgroundRole, QBrush())  # Default color
-                    item.setData(Qt.ItemDataRole.ForegroundRole, QBrush())  # Default text color
-                break
-    
-    def dragEnterEvent(self, event: QDragEnterEvent):
-        """Handle drag enter event"""
-        if event.mimeData().hasUrls():
+            saved = self.model.save(path)
+            self.path_label.setText(f"{self.model.metadata['type']} — {saved}")
+            self.set_dirty(False)
+            return True
+        except (ValueError, OSError) as error:
+            QMessageBox.critical(self, 'Cannot save description', str(error))
+            return False
+
+    def dragEnterEvent(self, event):
+        if any(url.toLocalFile().lower().endswith('.json')
+               for url in event.mimeData().urls()):
             event.acceptProposedAction()
-    
-    def on_refframe_selected(self, item):
-        """Handle selection of a reference frame"""
-        frame_name = item.data(Qt.ItemDataRole.UserRole)
-        self.current_frame_name = frame_name
-        
-        try:
-            if not self.component_modifier:
+
+    def dropEvent(self, event):
+        for url in event.mimeData().urls():
+            if url.toLocalFile().lower().endswith('.json'):
+                self.load_json(url.toLocalFile())
+                event.acceptProposedAction()
                 return
-            
-            frame = self.component_modifier.get_ref_frame(frame_name)
-            
-            if frame:
-                self.display_frame_details(frame)
-                self.enable_constraint_buttons(True)
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Error displaying frame: {str(e)}")
-    
-    def enable_constraint_buttons(self, enabled: bool):
-        """Enable or disable constraint editing buttons"""
-        self.edit_centroid_btn.setEnabled(enabled)
-        self.edit_orthogonal_btn.setEnabled(enabled)
-        self.edit_inplane_btn.setEnabled(enabled)
-        self.edit_transform_btn.setEnabled(enabled)
-    
-    def get_current_frame(self) -> Optional[RefFrame]:
-        """Get the currently selected frame"""
-        if not self.current_frame_name or not self.component_modifier:
-            return None
-        
-        return self.component_modifier.get_ref_frame(self.current_frame_name)
-    
-    def add_new_frame(self):
-        """Open dialog to add a new reference frame"""
-        if not self.component_modifier:
-            QMessageBox.warning(self, "Warning", "No data loaded. Please load a file first.")
-            return
-        
-        # Create a dialog to get frame name and type
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Add New Reference Frame")
-        dialog.setModal(True)
-        dialog.setGeometry(100, 100, 400, 180)
-        
-        layout = QVBoxLayout()
-        
-        # Frame name input
-        layout.addWidget(QLabel("Frame Name:"))
-        name_input = QLineEdit()
-        layout.addWidget(name_input)
-        
-        # Frame type input
-        layout.addWidget(QLabel("Frame Type:"))
-        type_combo = QComboBox()
-        type_combo.addItems(["frame", "point"])
-        type_combo.setToolTip("'frame' has position and orientation, 'point' has position only")
-        layout.addWidget(type_combo)
-        
-        # Buttons
-        button_layout = QHBoxLayout()
-        ok_btn = QPushButton("OK")
-        cancel_btn = QPushButton("Cancel")
-        button_layout.addWidget(ok_btn)
-        button_layout.addWidget(cancel_btn)
-        layout.addLayout(button_layout)
-        
-        dialog.setLayout(layout)
-        
-        def on_ok():
-            frame_name = name_input.text().strip()
-            frame_type = type_combo.currentText()
-            
-            if not frame_name:
-                QMessageBox.warning(dialog, "Error", "Frame name cannot be empty")
-                return
-            
-            try:
-                self.component_modifier.add_ref_frame(frame_name, frame_type)
-                self.populate_refframes_list()
-                QMessageBox.information(self, "Success", f"Reference frame '{frame_name}' ({frame_type}) added successfully")
-                dialog.accept()
-            except ValueError as e:
-                QMessageBox.warning(dialog, "Error", str(e))
-        
-        ok_btn.clicked.connect(on_ok)
-        cancel_btn.clicked.connect(dialog.reject)
-        
-        dialog.exec()
-    
-    def delete_current_frame(self):
-        """Delete the currently selected reference frame"""
-        if not self.current_frame_name:
-            QMessageBox.warning(self, "Warning", "No frame selected")
-            return
-        
-        if not self.component_modifier:
-            QMessageBox.warning(self, "Warning", "No data loaded")
-            return
-        
-        # Confirm deletion
-        reply = QMessageBox.question(
-            self,
-            "Delete Frame",
-            f"Are you sure you want to delete the frame '{self.current_frame_name}'?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
-        )
-        
-        if reply == QMessageBox.StandardButton.No:
-            return
-        
-        try:
-            self.component_modifier.remove_ref_frame(self.current_frame_name)
-            self.current_frame_name = None
-            self.enable_constraint_buttons(False)
-            self.details_text.clear()
-            self.populate_refframes_list()
-            QMessageBox.information(self, "Success", "Frame deleted successfully")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to delete frame: {str(e)}")
-    
-    def edit_centroid_constraint(self):
-        """Open editor for centroid constraint"""
-        frame = self.get_current_frame()
-        if not frame:
-            QMessageBox.warning(self, "Warning", "No frame selected")
-            return
-        
-        centroid_data = frame.constraints.centroid.to_dict()
-        
-        # Get all available frame names for reference
-        frame_names = self.component_modifier.get_ref_frame_names()
-        
-        dialog = CentroidConstraintDialog(centroid_data, frame_names, self)
-        if dialog.exec():
-            self.component_modifier.update_frame_constraint(
-                self.current_frame_name, 
-                'centroid', 
-                dialog.get_data()
-            )
-            frame = self.get_current_frame()
-            if frame:
-                self.display_frame_details(frame)
-                self.update_frame_item_color()
-    
-    def edit_orthogonal_constraint(self):
-        """Open editor for orthogonal constraint"""
-        frame = self.get_current_frame()
-        if not frame:
-            QMessageBox.warning(self, "Warning", "No frame selected")
-            return
-        
-        orthogonal_data = frame.constraints.orthogonal.to_dict()
-        
-        # Get all available frame names for reference
-        frame_names = self.component_modifier.get_ref_frame_names()
-        
-        dialog = OrthogonalConstraintDialog(orthogonal_data, frame_names, self)
-        if dialog.exec():
-            self.component_modifier.update_frame_constraint(
-                self.current_frame_name, 
-                'orthogonal', 
-                dialog.get_data()
-            )
-            frame = self.get_current_frame()
-            if frame:
-                self.display_frame_details(frame)
-                self.update_frame_item_color()
-    
-    def edit_inplane_constraint(self):
-        """Open editor for in-plane constraint"""
-        frame = self.get_current_frame()
-        if not frame:
-            QMessageBox.warning(self, "Warning", "No frame selected")
-            return
-        
-        inplane_data = frame.constraints.inPlane.to_dict()
-        
-        # Get all available frame names for reference
-        frame_names = self.component_modifier.get_ref_frame_names()
-        
-        dialog = InPlaneConstraintDialog(inplane_data, frame_names, self)
-        if dialog.exec():
-            self.component_modifier.update_frame_constraint(
-                self.current_frame_name, 
-                'inPlane', 
-                dialog.get_data()
-            )
-            frame = self.get_current_frame()
-            if frame:
-                self.display_frame_details(frame)
-                self.update_frame_item_color()
-    
-    def edit_transform_constraint(self):
-        """Open editor for transform constraint"""
-        frame = self.get_current_frame()
-        if not frame:
-            QMessageBox.warning(self, "Warning", "No frame selected")
-            return
-        
-        transform_data = frame.constraints.transform.to_dict() if frame.constraints.transform else {}
-        
-        # Get all available frame names for reference
-        frame_names = self.component_modifier.get_ref_frame_names()
-        
-        dialog = TransformConstraintDialog(transform_data, frame_names, self)
-        if dialog.exec():
-            self.component_modifier.update_frame_constraint(
-                self.current_frame_name, 
-                'transform', 
-                dialog.get_data()
-            )
-            frame = self.get_current_frame()
-            if frame:
-                self.display_frame_details(frame)
-                self.update_frame_item_color()
-    
-    def save_json(self):
-        """Save the current data to the loaded JSON file"""
-        if not self.component_modifier:
-            QMessageBox.warning(self, "Warning", "No data loaded")
-            return
-        
-        if not self.component_modifier.get_file_path():
-            QMessageBox.warning(self, "Warning", "No file loaded. Please load a file first.")
-            return
-        
-        # Show confirmation dialog
-        reply = QMessageBox.question(
-            self,
-            "Save Changes",
-            "Do you want to save all changes to the JSON file?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.Yes
-        )
-        
-        if reply == QMessageBox.StandardButton.No:
-            return
-        
-        # Update spawning transformation in component modifier before saving
-        try:
-            spawning_transform = self.spawning_transform_widget.get_transformation()
-            self.component_modifier.set_spawning_transformation(spawning_transform)
-        except Exception as e:
-            QMessageBox.warning(self, "Warning", f"Error updating spawning transformation: {str(e)}")
-        
-        try:
-            self.component_modifier.save_to_file()
-            QMessageBox.information(self, "Success", "File saved successfully")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to save: {str(e)}")
-    
-    def reload_json(self):
-        """Reload the currently loaded JSON file from disk"""
-        if not self.component_modifier:
-            QMessageBox.warning(self, "Warning", "No file loaded. Please load a file first.")
-            return
-        
-        # Show confirmation dialog
-        reply = QMessageBox.question(
-            self,
-            "Reload File",
-            "Reload the file from disk? Any unsaved changes will be lost.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
-        )
-        
-        if reply == QMessageBox.StandardButton.No:
-            return
-        
-        try:
-            self.component_modifier.reload_from_file()
-            
-            # Reload spawning transformation
-            spawning_transform = self.component_modifier.get_spawning_transformation()
-            self.spawning_transform_widget.set_transformation(spawning_transform)
-            
-            self.populate_refframes_list()
-            self.current_frame_name = None
-            self.enable_constraint_buttons(False)
-            self.details_text.clear()
-            QMessageBox.information(self, "Success", "File reloaded successfully")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to reload: {str(e)}")
-    
-    def display_frame_details(self, frame: RefFrame):
-        """Display detailed information about a reference frame"""
-        details = []
-        details.append(f"<b>Name:</b> {frame.name}")
-        details.append(f"<b>Type:</b> {frame.type.upper()} {'(Position Only)' if frame.is_point() else '(Position + Orientation)'}")
-        
-        # Translation
-        translation = frame.transformation.get('translation', {})
-        details.append(f"<b>Translation:</b>")
-        details.append(f"  X: {translation.get('X', 'N/A')}")
-        details.append(f"  Y: {translation.get('Y', 'N/A')}")
-        details.append(f"  Z: {translation.get('Z', 'N/A')}")
-        
-        # Rotation (always show for all frame types - data structure is consistent)
-        rotation = frame.transformation.get('rotation', {})
-        details.append(f"<b>Rotation (Quaternion):</b>")
-        details.append(f"  X: {rotation.get('X', 'N/A')}")
-        details.append(f"  Y: {rotation.get('Y', 'N/A')}")
-        details.append(f"  Z: {rotation.get('Z', 'N/A')}")
-        details.append(f"  W: {rotation.get('W', 'N/A')}")
-        details.append(f"  IsIdentity: {rotation.get('IsIdentity', 'N/A')}")
-        
-        # Constraints
-        details.append(f"<b>Constraints:</b>")
-        
-        # Centroid constraint
-        centroid = frame.constraints.centroid
-        details.append(f"  <b>Centroid:</b>")
-        details.append(f"    Ref Frames: {', '.join(centroid.refFrameNames)}")
-        details.append(f"    Dimension: {centroid.dim}")
-        details.append(f"    Offset: {centroid.offsetValues}")
-        
-        # Orthogonal constraint
-        orthogonal = frame.constraints.orthogonal
-        if any([orthogonal.frame_1, orthogonal.frame_2, orthogonal.frame_3]):
-            details.append(f"  <b>Orthogonal:</b>")
-            details.append(f"    Frame 1: {orthogonal.frame_1}")
-            details.append(f"    Frame 2: {orthogonal.frame_2}")
-            details.append(f"    Frame 3: {orthogonal.frame_3}")
-            details.append(f"    Distance from F1: {orthogonal.distance_from_f1} {orthogonal.unit_distance_from_f1}")
-        
-        # In-plane constraint
-        in_plane = frame.constraints.inPlane
-        if in_plane.refFrameNames:
-            details.append(f"  <b>In Plane:</b>")
-            details.append(f"    Ref Frames: {', '.join(in_plane.refFrameNames)}")
-            details.append(f"    Plane Offset: {in_plane.planeOffset}")
-            details.append(f"    Normal Axis: {in_plane.normalAxis}")
-        
-        # Transform constraint
-        transform_constraint = frame.constraints.transform
-        if transform_constraint:
-            details.append(f"  <b>Transform Constraint:</b>")
-            details.append(f"    Ref Frame: {transform_constraint.refFrame}")
-            transform_data = transform_constraint.transform
-            translation = transform_data.get('translation', {})
-            rotation = transform_data.get('rotation', {})
-            details.append(f"    Translation: X={translation.get('X', 'N/A')}, Y={translation.get('Y', 'N/A')}, Z={translation.get('Z', 'N/A')}")
-            details.append(f"    Rotation: X={rotation.get('X', 'N/A')}, Y={rotation.get('Y', 'N/A')}, Z={rotation.get('Z', 'N/A')}, W={rotation.get('W', 'N/A')}")
-        
-        html_content = "<br>".join(details)
-        self.details_text.setHtml(html_content)
-
-
-class CentroidConstraintDialog(QDialog):
-    """Dialog for editing centroid constraints"""
-    def __init__(self, data: Dict[str, Any], frame_names: List[str], parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Edit Centroid Constraint")
-        self.setModal(True)
-        self.setGeometry(100, 100, 700, 500)
-        self.data = data
-        self.frame_names = frame_names
-        self.selected_frames = data.get('refFrameNames', [])
-        self.init_ui()
-    
-    def init_ui(self):
-        layout = QVBoxLayout()
-        
-        # Reference frames selector
-        layout.addWidget(QLabel("<b>Select Reference Frames:</b>"))
-        
-        # Dual list layout
-        frames_layout = QHBoxLayout()
-        
-        # Available frames
-        frames_layout.addWidget(QLabel("Available Frames:"))
-        self.available_list = QListWidget()
-        self.available_list.setMinimumSize(200, 150)
-        available_frames = [f for f in self.frame_names if f not in self.selected_frames]
-        self.available_list.addItems(available_frames)
-        frames_layout.addWidget(self.available_list)
-        
-        # Add/Remove buttons
-        button_column = QVBoxLayout()
-        button_column.addStretch()
-        
-        add_btn = QPushButton("Add >>>")
-        add_btn.clicked.connect(self.add_frame)
-        button_column.addWidget(add_btn)
-        
-        remove_btn = QPushButton("<<< Remove")
-        remove_btn.clicked.connect(self.remove_frame)
-        button_column.addWidget(remove_btn)
-        
-        button_column.addStretch()
-        frames_layout.addLayout(button_column)
-        
-        # Selected frames
-        frames_layout.addWidget(QLabel("Selected Frames:"))
-        self.selected_list = QListWidget()
-        self.selected_list.setMinimumSize(200, 150)
-        self.selected_list.addItems(self.selected_frames)
-        frames_layout.addWidget(self.selected_list)
-        
-        layout.addLayout(frames_layout)
-        
-        # Dimension input
-        layout.addWidget(QLabel("Dimension:"))
-        self.dim_combo = QComboBox()
-        self.dim_combo.addItems(["xyz", "xy", "xz", "yz", "x", "y", "z"])
-        self.dim_combo.setCurrentText(self.data.get('dim', 'xyz'))
-        layout.addWidget(self.dim_combo)
-        
-        # Offset values
-        layout.addWidget(QLabel("Offset Values (X, Y, Z):"))
-        offsets = self.data.get('offsetValues', [0.0, 0.0, 0.0])
-        
-        self.offset_x = QDoubleSpinBox()
-        self.offset_x.setRange(-1000, 1000)
-        configure_linear_constraint_spinbox(self.offset_x)
-        self.offset_x.setValue(offsets[0] if len(offsets) > 0 else 0.0)
-        layout.addWidget(QLabel("X:"))
-        layout.addWidget(self.offset_x)
-        
-        self.offset_y = QDoubleSpinBox()
-        self.offset_y.setRange(-1000, 1000)
-        configure_linear_constraint_spinbox(self.offset_y)
-        self.offset_y.setValue(offsets[1] if len(offsets) > 1 else 0.0)
-        layout.addWidget(QLabel("Y:"))
-        layout.addWidget(self.offset_y)
-        
-        self.offset_z = QDoubleSpinBox()
-        self.offset_z.setRange(-1000, 1000)
-        configure_linear_constraint_spinbox(self.offset_z)
-        self.offset_z.setValue(offsets[2] if len(offsets) > 2 else 0.0)
-        layout.addWidget(QLabel("Z:"))
-        layout.addWidget(self.offset_z)
-        
-        # Buttons
-        button_layout = QHBoxLayout()
-        clear_btn = QPushButton("Clear")
-        clear_btn.clicked.connect(self.clear_constraint)
-        ok_btn = QPushButton("OK")
-        ok_btn.clicked.connect(self.accept)
-        cancel_btn = QPushButton("Cancel")
-        cancel_btn.clicked.connect(self.reject)
-        button_layout.addWidget(clear_btn)
-        button_layout.addWidget(ok_btn)
-        button_layout.addWidget(cancel_btn)
-        layout.addLayout(button_layout)
-        
-        self.setLayout(layout)
-    
-    def add_frame(self):
-        """Move selected item from available to selected list"""
-        current_row = self.available_list.currentRow()
-        if current_row >= 0:
-            item = self.available_list.takeItem(current_row)
-            self.selected_list.addItem(item)
-    
-    def remove_frame(self):
-        """Move selected item from selected to available list"""
-        current_row = self.selected_list.currentRow()
-        if current_row >= 0:
-            item = self.selected_list.takeItem(current_row)
-            self.available_list.addItem(item)
-    
-    def clear_constraint(self):
-        """Reset constraint to default values"""
-        while self.selected_list.count() > 0:
-            item = self.selected_list.takeItem(0)
-            self.available_list.addItem(item)
-        self.dim_combo.setCurrentText("xyz")
-        self.offset_x.setValue(0.0)
-        self.offset_y.setValue(0.0)
-        self.offset_z.setValue(0.0)
-    
-    def get_data(self) -> Dict[str, Any]:
-        ref_frames = [self.selected_list.item(i).text() for i in range(self.selected_list.count())]
-        return {
-            'refFrameNames': ref_frames,
-            'dim': self.dim_combo.currentText(),
-            'offsetValues': [self.offset_x.value(), self.offset_y.value(), self.offset_z.value()]
-        }
-
-
-class OrthogonalConstraintDialog(QDialog):
-    """Dialog for editing orthogonal constraints"""
-    def __init__(self, data: Dict[str, Any], frame_names: List[str], parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Edit Orthogonal Constraint")
-        self.setModal(True)
-        self.setGeometry(100, 100, 500, 500)
-        self.data = data
-        self.frame_names = frame_names
-        self.init_ui()
-    
-    def init_ui(self):
-        layout = QVBoxLayout()
-        
-        # Frame 1
-        layout.addWidget(QLabel("Frame 1:"))
-        self.frame_1_combo = QComboBox()
-        self.frame_1_combo.addItems([""] + self.frame_names)
-        self.frame_1_combo.setCurrentText(self.data.get('frame_1', ''))
-        layout.addWidget(self.frame_1_combo)
-        
-        # Frame 2
-        layout.addWidget(QLabel("Frame 2:"))
-        self.frame_2_combo = QComboBox()
-        self.frame_2_combo.addItems([""] + self.frame_names)
-        self.frame_2_combo.setCurrentText(self.data.get('frame_2', ''))
-        layout.addWidget(self.frame_2_combo)
-        
-        # Frame 3
-        layout.addWidget(QLabel("Frame 3:"))
-        self.frame_3_combo = QComboBox()
-        self.frame_3_combo.addItems([""] + self.frame_names)
-        self.frame_3_combo.setCurrentText(self.data.get('frame_3', ''))
-        layout.addWidget(self.frame_3_combo)
-        
-        # Distance from F1
-        layout.addWidget(QLabel("Distance from Frame 1:"))
-        self.distance_spin = QDoubleSpinBox()
-        self.distance_spin.setRange(-10000, 10000)
-        configure_linear_constraint_spinbox(self.distance_spin)
-        self.distance_spin.setValue(self.data.get('distance_from_f1', 0.0))
-        layout.addWidget(self.distance_spin)
-        
-        # Unit
-        layout.addWidget(QLabel("Unit:"))
-        self.unit_combo = QComboBox()
-        self.unit_combo.addItems(["%", "mm", "m"])
-        self.unit_combo.setCurrentText(self.data.get('unit_distance_from_f1', '%'))
-        layout.addWidget(self.unit_combo)
-        
-        # Distance F1-F2 connection
-        layout.addWidget(QLabel("Distance F1-F2 Connection:"))
-        self.distance_f1_f2_spin = QDoubleSpinBox()
-        self.distance_f1_f2_spin.setRange(-1000, 1000)
-        configure_linear_constraint_spinbox(self.distance_f1_f2_spin)
-        self.distance_f1_f2_spin.setValue(self.data.get('distance_from_f1_f2_connection', 0.0))
-        layout.addWidget(self.distance_f1_f2_spin)
-        
-        # Frame normal plane axis
-        layout.addWidget(QLabel("Frame Normal Plane Axis:"))
-        self.normal_axis_combo = QComboBox()
-        self.normal_axis_combo.addItems(["x", "y", "z"])
-        self.normal_axis_combo.setCurrentText(self.data.get('frame_normal_plane_axis', 'z'))
-        layout.addWidget(self.normal_axis_combo)
-        
-        # Frame orthogonal connection axis
-        layout.addWidget(QLabel("Frame Orthogonal Connection Axis:"))
-        self.connection_axis_combo = QComboBox()
-        self.connection_axis_combo.addItems(["x", "y", "z"])
-        self.connection_axis_combo.setCurrentText(self.data.get('frame_orthogonal_connection_axis', 'x'))
-        layout.addWidget(self.connection_axis_combo)
-        
-        # Buttons
-        button_layout = QHBoxLayout()
-        clear_btn = QPushButton("Clear")
-        clear_btn.clicked.connect(self.clear_constraint)
-        ok_btn = QPushButton("OK")
-        ok_btn.clicked.connect(self.accept)
-        cancel_btn = QPushButton("Cancel")
-        cancel_btn.clicked.connect(self.reject)
-        button_layout.addWidget(clear_btn)
-        button_layout.addWidget(ok_btn)
-        button_layout.addWidget(cancel_btn)
-        layout.addLayout(button_layout)
-        
-        self.setLayout(layout)
-    
-    def clear_constraint(self):
-        """Reset constraint to default values"""
-        self.frame_1_combo.setCurrentText("")
-        self.frame_2_combo.setCurrentText("")
-        self.frame_3_combo.setCurrentText("")
-        self.distance_spin.setValue(0.0)
-        self.unit_combo.setCurrentText("%")
-        self.distance_f1_f2_spin.setValue(0.0)
-        self.normal_axis_combo.setCurrentText("z")
-        self.connection_axis_combo.setCurrentText("x")
-    
-    def get_data(self) -> Dict[str, Any]:
-        return {
-            'frame_1': self.frame_1_combo.currentText(),
-            'frame_2': self.frame_2_combo.currentText(),
-            'frame_3': self.frame_3_combo.currentText(),
-            'distance_from_f1': self.distance_spin.value(),
-            'unit_distance_from_f1': self.unit_combo.currentText(),
-            'distance_from_f1_f2_connection': self.distance_f1_f2_spin.value(),
-            'frame_normal_plane_axis': self.normal_axis_combo.currentText(),
-            'frame_orthogonal_connection_axis': self.connection_axis_combo.currentText()
-        }
-
-
-class InPlaneConstraintDialog(QDialog):
-    """Dialog for editing in-plane constraints"""
-    def __init__(self, data: Dict[str, Any], frame_names: List[str], parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Edit In-Plane Constraint")
-        self.setModal(True)
-        self.setGeometry(100, 100, 700, 450)
-        self.data = data
-        self.frame_names = frame_names
-        self.selected_frames = data.get('refFrameNames', [])
-        self.init_ui()
-    
-    def init_ui(self):
-        layout = QVBoxLayout()
-        
-        # Reference frames selector
-        layout.addWidget(QLabel("<b>Select Reference Frames:</b>"))
-        
-        # Dual list layout
-        frames_layout = QHBoxLayout()
-        
-        # Available frames
-        frames_layout.addWidget(QLabel("Available Frames:"))
-        self.available_list = QListWidget()
-        self.available_list.setMinimumSize(200, 150)
-        available_frames = [f for f in self.frame_names if f not in self.selected_frames]
-        self.available_list.addItems(available_frames)
-        frames_layout.addWidget(self.available_list)
-        
-        # Add/Remove buttons
-        button_column = QVBoxLayout()
-        button_column.addStretch()
-        
-        add_btn = QPushButton("Add >>>")
-        add_btn.clicked.connect(self.add_frame)
-        button_column.addWidget(add_btn)
-        
-        remove_btn = QPushButton("<<< Remove")
-        remove_btn.clicked.connect(self.remove_frame)
-        button_column.addWidget(remove_btn)
-        
-        button_column.addStretch()
-        frames_layout.addLayout(button_column)
-        
-        # Selected frames
-        frames_layout.addWidget(QLabel("Selected Frames:"))
-        self.selected_list = QListWidget()
-        self.selected_list.setMinimumSize(200, 150)
-        self.selected_list.addItems(self.selected_frames)
-        frames_layout.addWidget(self.selected_list)
-        
-        layout.addLayout(frames_layout)
-        
-        # Plane offset
-        layout.addWidget(QLabel("Plane Offset:"))
-        self.offset_spin = QDoubleSpinBox()
-        self.offset_spin.setRange(-1000, 1000)
-        configure_linear_constraint_spinbox(self.offset_spin)
-        self.offset_spin.setValue(self.data.get('planeOffset', 0.0))
-        layout.addWidget(self.offset_spin)
-        
-        # Normal axis
-        layout.addWidget(QLabel("Normal Axis:"))
-        self.normal_axis_combo = QComboBox()
-        self.normal_axis_combo.addItems(["x", "y", "z"])
-        self.normal_axis_combo.setCurrentText(self.data.get('normalAxis', 'z'))
-        layout.addWidget(self.normal_axis_combo)
-        
-        # Buttons
-        button_layout = QHBoxLayout()
-        clear_btn = QPushButton("Clear")
-        clear_btn.clicked.connect(self.clear_constraint)
-        ok_btn = QPushButton("OK")
-        ok_btn.clicked.connect(self.accept)
-        cancel_btn = QPushButton("Cancel")
-        cancel_btn.clicked.connect(self.reject)
-        button_layout.addWidget(clear_btn)
-        button_layout.addWidget(ok_btn)
-        button_layout.addWidget(cancel_btn)
-        layout.addLayout(button_layout)
-        
-        self.setLayout(layout)
-    
-    def add_frame(self):
-        """Move selected item from available to selected list"""
-        current_row = self.available_list.currentRow()
-        if current_row >= 0:
-            item = self.available_list.takeItem(current_row)
-            self.selected_list.addItem(item)
-    
-    def remove_frame(self):
-        """Move selected item from selected to available list"""
-        current_row = self.selected_list.currentRow()
-        if current_row >= 0:
-            item = self.selected_list.takeItem(current_row)
-            self.available_list.addItem(item)
-    
-    def clear_constraint(self):
-        """Reset constraint to default values"""
-        while self.selected_list.count() > 0:
-            item = self.selected_list.takeItem(0)
-            self.available_list.addItem(item)
-        self.offset_spin.setValue(0.0)
-        self.normal_axis_combo.setCurrentText("z")
-    
-    def get_data(self) -> Dict[str, Any]:
-        ref_frames = [self.selected_list.item(i).text() for i in range(self.selected_list.count())]
-        return {
-            'refFrameNames': ref_frames,
-            'planeOffset': self.offset_spin.value(),
-            'normalAxis': self.normal_axis_combo.currentText()
-        }
-
-
-class TransformConstraintDialog(QDialog):
-    """Dialog for editing transform constraints"""
-    def __init__(self, data: Dict[str, Any], frame_names: List[str], parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Edit Transform Constraint")
-        self.setModal(True)
-        self.setGeometry(100, 100, 500, 600)
-        self.data = data
-        self.frame_names = frame_names
-        self.init_ui()
-    
-    def init_ui(self):
-        layout = QVBoxLayout()
-        
-        # Ref Frame
-        layout.addWidget(QLabel("Ref Frame:"))
-        self.frame_combo = QComboBox()
-        self.frame_combo.addItems([""] + self.frame_names)
-        self.frame_combo.setCurrentText(self.data.get('refFrame', ''))
-        layout.addWidget(self.frame_combo)
-        
-        # Transform data
-        transform = self.data.get('transform', {
-            'translation': {'X': 0.0, 'Y': 0.0, 'Z': 0.0},
-            'rotation': {'X': 0.0, 'Y': 0.0, 'Z': 0.0, 'W': 1.0}
-        })
-        
-        translation = transform.get('translation', {'X': 0.0, 'Y': 0.0, 'Z': 0.0})
-        
-        # Translation
-        layout.addWidget(QLabel("<b>Translation:</b>"))
-        layout.addWidget(QLabel("X:"))
-        self.trans_x = QDoubleSpinBox()
-        self.trans_x.setRange(-10000, 10000)
-        configure_linear_constraint_spinbox(self.trans_x)
-        self.trans_x.setValue(translation.get('X', 0.0))
-        layout.addWidget(self.trans_x)
-        
-        layout.addWidget(QLabel("Y:"))
-        self.trans_y = QDoubleSpinBox()
-        self.trans_y.setRange(-10000, 10000)
-        configure_linear_constraint_spinbox(self.trans_y)
-        self.trans_y.setValue(translation.get('Y', 0.0))
-        layout.addWidget(self.trans_y)
-        
-        layout.addWidget(QLabel("Z:"))
-        self.trans_z = QDoubleSpinBox()
-        self.trans_z.setRange(-10000, 10000)
-        configure_linear_constraint_spinbox(self.trans_z)
-        self.trans_z.setValue(translation.get('Z', 0.0))
-        layout.addWidget(self.trans_z)
-        
-        # Rotation (Quaternion)
-        rotation = transform.get('rotation', {'X': 0.0, 'Y': 0.0, 'Z': 0.0, 'W': 1.0})
-        
-        layout.addWidget(QLabel("<b>Rotation (Quaternion):</b>"))
-        layout.addWidget(QLabel("X:"))
-        self.rot_x = QDoubleSpinBox()
-        self.rot_x.setRange(-1, 1)
-        configure_rotation_constraint_spinbox(self.rot_x)
-        self.rot_x.setValue(rotation.get('X', 0.0))
-        layout.addWidget(self.rot_x)
-        
-        layout.addWidget(QLabel("Y:"))
-        self.rot_y = QDoubleSpinBox()
-        self.rot_y.setRange(-1, 1)
-        configure_rotation_constraint_spinbox(self.rot_y)
-        self.rot_y.setValue(rotation.get('Y', 0.0))
-        layout.addWidget(self.rot_y)
-        
-        layout.addWidget(QLabel("Z:"))
-        self.rot_z = QDoubleSpinBox()
-        self.rot_z.setRange(-1, 1)
-        configure_rotation_constraint_spinbox(self.rot_z)
-        self.rot_z.setValue(rotation.get('Z', 0.0))
-        layout.addWidget(self.rot_z)
-        
-        layout.addWidget(QLabel("W:"))
-        self.rot_w = QDoubleSpinBox()
-        self.rot_w.setRange(-1, 1)
-        configure_rotation_constraint_spinbox(self.rot_w)
-        self.rot_w.setValue(rotation.get('W', 1.0))
-        layout.addWidget(self.rot_w)
-        
-        # Buttons
-        button_layout = QHBoxLayout()
-        clear_btn = QPushButton("Clear")
-        clear_btn.clicked.connect(self.clear_constraint)
-        ok_btn = QPushButton("OK")
-        ok_btn.clicked.connect(self.accept)
-        cancel_btn = QPushButton("Cancel")
-        cancel_btn.clicked.connect(self.reject)
-        button_layout.addWidget(clear_btn)
-        button_layout.addWidget(ok_btn)
-        button_layout.addWidget(cancel_btn)
-        layout.addLayout(button_layout)
-        
-        self.setLayout(layout)
-    
-    def clear_constraint(self):
-        """Reset constraint to default values"""
-        self.frame_combo.setCurrentText("")
-        self.trans_x.setValue(0.0)
-        self.trans_y.setValue(0.0)
-        self.trans_z.setValue(0.0)
-        self.rot_x.setValue(0.0)
-        self.rot_y.setValue(0.0)
-        self.rot_z.setValue(0.0)
-        self.rot_w.setValue(1.0)
-    
-    def get_data(self) -> Dict[str, Any]:
-        return {
-            'refFrame': self.frame_combo.currentText(),
-            'transform': {
-                'translation': {
-                    'X': self.trans_x.value(),
-                    'Y': self.trans_y.value(),
-                    'Z': self.trans_z.value()
-                },
-                'rotation': {
-                    'X': self.rot_x.value(),
-                    'Y': self.rot_y.value(),
-                    'Z': self.rot_z.value(),
-                    'W': self.rot_w.value()
-                }
-            }
-        }
 
 
 class AssemblyModifierMainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Assembly Scene Modifier")
-        self.setGeometry(100, 100, 1200, 800)
-        self._main_widget = AssemblyModifierWidget()
-        self.setCentralWidget(self._main_widget)
+        self.setWindowTitle('Description Editor')
+        self.resize(1250, 800)
+        self.editor = AssemblyModifierWidget()
+        self.setCentralWidget(self.editor)
+        toolbar = QToolBar('File')
+        toolbar.setMovable(False)
+        self.addToolBar(toolbar)
+        for label, callback in (
+                ('New', self.editor.new_document), ('Open', self.editor.open_document),
+                ('Save', self.editor.save_document), ('Save as', self.editor.save_document_as)):
+            toolbar.addAction(label).triggered.connect(callback)
+
+    def closeEvent(self, event):
+        if self.editor._confirm_replace():
+            event.accept()
+        else:
+            event.ignore()
+
 
 class AssemblyJsonModifierNode(Node):
-
     def __init__(self):
         super().__init__('assembly_json_modifier_node')
-        self.get_logger().info('Assembly Json Modifier Node has been started.')
-
         self.qt_window = AssemblyModifierMainWindow()
-        
+
+
 def main(args=None):
     rclpy.init(args=args)
-    executor = MultiThreadedExecutor(num_threads=6) 
-
-    app = QApplication(sys.argv)
-
-    assembly_json_modifier_node = AssemblyJsonModifierNode()
-    executor.add_node(assembly_json_modifier_node)
-
-    thread = Thread(target=executor.spin)
-    thread.start()
-    
+    app = QApplication.instance() or QApplication(sys.argv)
+    node = AssemblyJsonModifierNode()
+    node.qt_window.show()
     try:
-        assembly_json_modifier_node.qt_window.show()
-        sys.exit(app.exec())
-
+        app.exec()
     finally:
-        assembly_json_modifier_node.destroy_node()
-        executor.shutdown()
+        node.destroy_node()
         rclpy.shutdown()
-    
+
+
 if __name__ == '__main__':
     main()
-    

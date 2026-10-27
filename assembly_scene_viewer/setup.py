@@ -27,7 +27,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'assembly_scene_viewer = assembly_scene_viewer.assembly_scene_viewer:main'
+            'assembly_scene_viewer = assembly_scene_viewer.assembly_scene_viewer:main',
+            'assembly_json_modifier = assembly_scene_viewer.py_modules.AssemblyJsonModifier:main',
         ],
     },
 )

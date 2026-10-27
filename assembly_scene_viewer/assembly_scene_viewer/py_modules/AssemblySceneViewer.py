@@ -30,6 +30,8 @@ from PyQt6.QtWidgets import (QScrollArea,
                             QTableWidget,
                             QGroupBox,
                             QStackedWidget,
+                            QSplitter,
+                            QTabWidget,
                             QStyledItemDelegate,
                             QScrollArea as QScrollAreaImport,
                             QGraphicsView,
@@ -60,6 +62,14 @@ from assembly_scene_publisher.py_modules.AssemblySceneAnalyzerAdv import Assembl
 from assembly_scene_publisher.py_modules.AssemblySceneAnalyzer import UnInitializedScene
 from assembly_scene_viewer.py_modules.STLViewerWidget import STLViewerWidget
 from assembly_scene_publisher.py_modules.frame_constraints import FrameConstraintsHandler
+from assembly_scene_viewer.py_modules.scene_display import (
+    axis_html,
+    frame_properties_html,
+    instruction_html,
+    object_html,
+    plane_html,
+    scene_overview_html,
+)
 # import vtk
 # from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 
@@ -199,7 +209,7 @@ class AssemblySceneViewerMainWindow(QMainWindow):
         super().__init__()
         self.ros_node = ros_node
         self.setWindowTitle("Assembly Scene Viewer")
-        self.setGeometry(100, 100, 800, 600)
+        self.setGeometry(80, 80, 1400, 850)
         self._main_widget = AssemblyScenceViewerWidget(ros_node)
         self.setCentralWidget(self._main_widget)
 
@@ -279,8 +289,17 @@ class ObjectsListPanel(QWidget):
         self._current_selected_object = obj_name
 
     def update_scene(self, msg: am_msgs.ObjectScene):
+        selected = (self.list_widget.currentItem().text()
+                    if self.list_widget.currentItem() else None)
         self.scene_message = msg
+        self.list_widget.blockSignals(True)
         self.populate()
+        if selected:
+            for index in range(self.list_widget.count()):
+                if self.list_widget.item(index).text() == selected:
+                    self.list_widget.setCurrentRow(index)
+                    break
+        self.list_widget.blockSignals(False)
     
     def populate(self):
         self.list_widget.clear()
@@ -365,15 +384,45 @@ class InstructionListPanel(QWidget):
             self.logger.warn(str(msg))
 
     def update_scene(self, msg: am_msgs.ObjectScene):
+        selected = (self.list_widget.currentItem().data(Qt.ItemDataRole.UserRole)
+                    if self.list_widget.currentItem() else None)
         self.scene_message = msg
+        self.list_widget.blockSignals(True)
         self.populate()
+        if selected:
+            for index in range(self.list_widget.count()):
+                if (self.list_widget.item(index).data(Qt.ItemDataRole.UserRole)
+                        == selected):
+                    self.list_widget.setCurrentRow(index)
+                    break
+        self.list_widget.blockSignals(False)
 
     def populate(self):
         self.list_widget.clear()
-        for ins in (*self.scene_message.assembly_instructions,
-                    *self.scene_message.frame_assembly_instructions):
-            item = QListWidgetItem(f"{ins.id}")
+        for ins in self.scene_message.assembly_instructions:
+            item = QListWidgetItem(f"{ins.id}\nPlaneMatch")
+            item.setData(Qt.ItemDataRole.UserRole, ins.id)
             self.list_widget.addItem(item)
+        for ins in self.scene_message.frame_assembly_instructions:
+            item = QListWidgetItem(f"{ins.id}\nFrameMatch")
+            item.setData(Qt.ItemDataRole.UserRole, ins.id)
+            self.list_widget.addItem(item)
+
+
+class SceneOverviewPanel(QWidget):
+    """Summary of the top-level ObjectScene collections."""
+
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(6, 6, 6, 6)
+        self.text = QTextEdit()
+        self.text.setReadOnly(True)
+        layout.addWidget(self.text)
+        self.update_scene(am_msgs.ObjectScene())
+
+    def update_scene(self, scene):
+        self.text.setHtml(scene_overview_html(scene))
 
 class ObjectsElementPanel(QWidget):
     def __init__(self, obj: am_msgs.Object, 
@@ -744,19 +793,20 @@ class InstructionDetailPanel(QWidget):
         self.logger = logger
         self.instruction = instruction
         self.analyzer = analyzer
+        self.scene = am_msgs.ObjectScene()
         
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         
         # Header with instruction ID
-        header_label = QLabel(f"Instruction: {instruction.id}")
-        header_label.setStyleSheet("""
+        self.header_label = QLabel(f"Instruction: {instruction.id}")
+        self.header_label.setStyleSheet("""
             font-size: 14pt;
             font-weight: bold;
             padding: 4px;
             background-color: #f0f0f0;
         """)
-        layout.addWidget(header_label)
+        layout.addWidget(self.header_label)
         
         # ---- Properties Section ----
         properties_label = QLabel("Instruction Details")
@@ -784,22 +834,9 @@ class InstructionDetailPanel(QWidget):
     def _display_instruction_properties(self):
         """Display all instruction details in the properties text box"""
         try:
-            component_1, component_2, first_moves = instruction_components(
-                self.instruction)
-            moving_part = 'Component 1' if first_moves else 'Component 2'
-            
-            html = f"""
-            <b>Instruction ID:</b> {self.instruction.id}<br>
-            <br>
-            <b>Components:</b><br>
-            &nbsp;&nbsp;<b>Component 1:</b> {component_1 or 'N/A'}<br>
-            &nbsp;&nbsp;<b>Component 2:</b> {component_2 or 'N/A'}<br>
-            &nbsp;&nbsp;<b>Moving Part:</b> {moving_part}<br>
-            <br>
-
-            """
-            
-            self.properties_text.setHtml(html)
+            self.header_label.setText(f'Instruction: {self.instruction.id}')
+            self.properties_text.setHtml(
+                instruction_html(self.instruction, self.scene))
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Error displaying instruction properties: {e}")
@@ -1096,55 +1133,21 @@ class PropertiesPanel(QWidget):
         text += f"<br><b>Constraints:</b><br>"
         text += constriant_handler.get_info()
         
-        text += f"<br><b>Frame Properties:</b><br>"
-        
-        if frame.properties.vision_frame_properties.is_vision_frame:
-            text += f"  <b>Vision Frame:</b><br>"
-            text += f"    Has Been Measured: {frame.properties.vision_frame_properties.has_been_measured}<br>"
-        
-        if frame.properties.glue_pt_frame_properties.is_glue_point:
-            text += f"  <b>Glue Point Frame:</b><br>"
-            text += f"    Has Been Placed: {frame.properties.glue_pt_frame_properties.has_been_placed}<br>"
-            text += f"    Dispense Offset (mm): {frame.properties.glue_pt_frame_properties.dispense_offset_mm}<br>"
-            text += f"    Curing Time (ms): {frame.properties.glue_pt_frame_properties.time_ms}<br>"
-            text += f"    Has Been Cured: {frame.properties.glue_pt_frame_properties.has_been_cured}<br>"
-        
-        if frame.properties.laser_frame_properties.is_laser_frame:
-            text += f"  <b>Laser Frame:</b><br>"
-            text += f"    Has Been Measured: {frame.properties.laser_frame_properties.has_been_measured}<br>"
-        
-        if frame.properties.gripping_frame_properties.is_gripping_frame:
-            text += f"  <b>Gripping Frame:</b><br>"
-            text += f"    Compatible Gripper Tips: {frame.properties.gripping_frame_properties.compatible_gripper_tips}<br>"
-            text += f"    Compatible Grippers: {frame.properties.gripping_frame_properties.compatible_grippers}<br>"
-
-        
-        if frame.properties.glue_line_frame_properties.is_glue_line_frame:
-            glue_line = frame.properties.glue_line_frame_properties
-            text += '<b>Glue Line Properties:</b><br>'
-            text += f'    G-code file: {glue_line.g_code_file_name}<br>'
-            text += f'    Use 1K dispenser: {glue_line.use_1k_dispenser}<br>'
-            text += f'    Has Been Placed: {glue_line.has_been_placed}<br>'
-
-        if frame.properties.assembly_frame_properties.is_assembly_frame:
-            text += f"  <b>Assembly Frame:</b><br>"
-            text += f"    Associated Frame: {frame.properties.assembly_frame_properties.associated_frame}<br>"
-
-        if frame.properties.assembly_frame_properties.is_target_frame:
-            text += f"  <b>Assembly Target Frame:</b><br>"
-            text += f"    Associated Frame: {frame.properties.assembly_frame_properties.associated_frame}<br>"        
+        text += '<br><b>Frame Properties:</b><br>'
+        text += frame_properties_html(frame)
         
         self.properties_text.setHtml(text)
     
     def display_axis_properties(self, axis: am_msgs.Axis):
         """Display properties of an axis"""
-        text = f"<b>Axis: {axis.axis_name}</b><br>"
-        self.properties_text.setHtml(text)
+        self.properties_text.setHtml(axis_html(axis))
     
     def display_plane_properties(self, plane: am_msgs.Plane):
         """Display properties of a plane"""
-        text = f"<b>Plane: {plane.ref_plane_name}</b><br>"
-        self.properties_text.setHtml(text)
+        self.properties_text.setHtml(plane_html(plane))
+
+    def display_object_properties(self, obj: am_msgs.Object):
+        self.properties_text.setHtml(object_html(obj))
     
     def clear(self):
         """Clear the properties display"""
@@ -1155,6 +1158,8 @@ class PropertiesPanel(QWidget):
 # Main scene viewer widget
 # ---------------------------------------------------------------------------
 class AssemblyScenceViewerWidget(QWidget):
+    scene_received = pyqtSignal(object)
+
     def __init__(self, ros_node: Node):
         super().__init__()
         self.ros_node = ros_node
@@ -1165,6 +1170,11 @@ class AssemblyScenceViewerWidget(QWidget):
         self._current_selected_frame = None  # Track selected frame
         self._current_selected_axis = None  # Track selected axis
         self._current_selected_plane = None  # Track selected plane
+
+        # ROS callbacks run on executor threads. Queue all scene processing on
+        # this widget's GUI thread, including analyzer and selection updates.
+        self.scene_received.connect(
+            self._apply_scene, Qt.ConnectionType.QueuedConnection)
 
         # Subscribe to /assembly_manager/scene
         self._scene_sub = self.ros_node.create_subscription(
@@ -1180,14 +1190,16 @@ class AssemblyScenceViewerWidget(QWidget):
         self.anylzer = AssemblySceneAnalyzerAdv(scene_data=self._assembly_scene,
                                                 logger=self.ros_node.get_logger())
         
-        # Main grid layout
-        self.layout = QGridLayout(self)
+        # A resizable navigation/detail/visualization workspace.
+        self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(6, 6, 6, 6)
 
         # ----- Panels -----
         self.objects_panel = ObjectsListPanel(analyzer=self.anylzer, 
                                               logger=self.ros_node.get_logger())
         
         self.instructions_panel = InstructionListPanel(logger=self.ros_node.get_logger())
+        self.scene_overview_panel = SceneOverviewPanel()
 
         # Middle column: we'll switch between object details (frames/axis/planes)
         # and instruction properties.
@@ -1251,18 +1263,53 @@ class AssemblyScenceViewerWidget(QWidget):
         self.right_stack.addWidget(self.object_right_container)       # index 0: object mode
         self.right_stack.addWidget(self.instruction_stl_panel)        # index 1: instruction mode
 
-        # Layout setup
-        self.layout.addWidget(self.objects_panel, 0, 0, 2, 1)              # Left: objects (2 rows)
-        self.layout.addWidget(self.instructions_panel, 2, 0, 2, 1)         # Left: instructions (2 rows)
-        self.layout.addWidget(self.middle_stack, 0, 1, 4, 1)               # Middle: object/instruction details
-        self.layout.addWidget(self.right_stack, 0, 2, 4, 1)                # Right: takes all 4 rows
+        self.empty_details = QLabel('Select an object to view its details.')
+        self.empty_details.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.empty_visualization = QWidget()
+        self.middle_stack.addWidget(self.empty_details)
+        self.right_stack.addWidget(self.empty_visualization)
+
+        self.navigation_tabs = QTabWidget()
+        self.navigation_tabs.addTab(self.objects_panel, 'Objects')
+        self.navigation_tabs.addTab(self.instructions_panel, 'Instructions')
+        self.navigation_tabs.addTab(self.scene_overview_panel, 'Scene')
+
+        workspace = QSplitter(Qt.Orientation.Horizontal)
+        workspace.addWidget(self.navigation_tabs)
+        workspace.addWidget(self.middle_stack)
+        workspace.addWidget(self.right_stack)
+        workspace.setStretchFactor(0, 1)
+        workspace.setStretchFactor(1, 2)
+        workspace.setStretchFactor(2, 4)
+        workspace.setSizes([260, 360, 760])
+        self.layout.addWidget(workspace)
 
         # Connect signals
         self.objects_panel.list_widget.itemSelectionChanged.connect(self.on_object_selected)
         self.instructions_panel.list_widget.itemSelectionChanged.connect(self.on_instruction_selected)
+        self.navigation_tabs.currentChanged.connect(self.on_navigation_tab_changed)
+        self.on_navigation_tab_changed(self.navigation_tabs.currentIndex())
+
+    def on_navigation_tab_changed(self, index):
+        """Keep details and visualization in sync with the navigation tab."""
+        if index == 0 and self.objects_panel.list_widget.selectedItems():
+            self.on_object_selected()
+        elif index == 1 and self.instructions_panel.list_widget.selectedItems():
+            self.on_instruction_selected()
+        else:
+            message = ('Select an object to view its details.' if index == 0
+                       else 'Select an instruction to view its details.'
+                       if index == 1 else 'Select the Objects or Instructions tab to inspect an item.')
+            self.empty_details.setText(message)
+            self.middle_stack.setCurrentWidget(self.empty_details)
+            self.right_stack.setCurrentWidget(self.empty_visualization)
+            self._current_panel = None
+            self._current_item_text = None
 
 
     def on_object_selected(self):
+        if self.navigation_tabs.currentIndex() != 0:
+            return
         item = self.objects_panel.list_widget.currentItem()
         if not item:
             return
@@ -1276,7 +1323,6 @@ class AssemblyScenceViewerWidget(QWidget):
             pass
 
 
-        self.instructions_panel.list_widget.clearSelection()
         self.clear_middle_panel()
         self.properties_panel.clear()
 
@@ -1286,6 +1332,7 @@ class AssemblyScenceViewerWidget(QWidget):
         )
         
         self.objects_panel.set_current_selected_object(obj.obj_name)
+        self.properties_panel.display_object_properties(obj)
 
         element_panel = ObjectsElementPanel(obj, 
                                            scene_message=self._assembly_scene,
@@ -1736,16 +1783,15 @@ class AssemblyScenceViewerWidget(QWidget):
     # Instruction selection handler
     # ----------------------------------------------------------------------
     def on_instruction_selected(self):
+        if self.navigation_tabs.currentIndex() != 1:
+            return
         item = self.instructions_panel.list_widget.currentItem()
         if item is None:
             return
 
-        self.ros_node.get_logger().warn(f"Selected instruction: {item.text()}")
-
-        # Deselect object list (avoid recursion)
-        self.objects_panel.list_widget.blockSignals(True)
-        self.objects_panel.list_widget.clearSelection()
-        self.objects_panel.list_widget.blockSignals(False)
+        instruction_id = item.data(Qt.ItemDataRole.UserRole) or item.text()
+        self.ros_node.get_logger().info(
+            f"Selected instruction: {instruction_id}")
 
         # Switch UI to instruction view (middle: instruction properties, right: two STL viewers)
         try:
@@ -1758,17 +1804,18 @@ class AssemblyScenceViewerWidget(QWidget):
         self.clear_middle_panel()
         self.properties_panel.clear()
 
-        item_text = item.text()
         try:
-            inst = self.anylzer.get_assembly_instruction_by_name(item_text)
+            inst = self.anylzer.get_assembly_instruction_by_name(instruction_id)
         except Exception as e:
-            self.ros_node.get_logger().error(f"Failed to get instruction '{item_text}': {e}")
+            self.ros_node.get_logger().error(
+                f"Failed to get instruction '{instruction_id}': {e}")
             return
 
         # Update middle instruction properties panel
         try:
             self.instruction_properties_panel.instruction = inst
             self.instruction_properties_panel.analyzer = self.anylzer
+            self.instruction_properties_panel.scene = self._assembly_scene
             self.instruction_properties_panel._display_instruction_properties()
         except Exception as e:
             self.ros_node.get_logger().error(f"Error updating instruction properties panel: {e}")
@@ -1787,6 +1834,7 @@ class AssemblyScenceViewerWidget(QWidget):
     # Clear middle panel safely
     # ----------------------------------------------------------------------
     def clear_middle_panel(self):
+        self._current_element_panel = None
         while self.middle_layout.count():
             child = self.middle_layout.takeAt(0)
             if child.widget():
@@ -1797,6 +1845,10 @@ class AssemblyScenceViewerWidget(QWidget):
     # ----------------------------------------------------------------------
 
     def scene_callback(self, msg: am_msgs.ObjectScene):
+        self.scene_received.emit(msg)
+
+    @pyqtSlot(object)
+    def _apply_scene(self, msg: am_msgs.ObjectScene):
         self._assembly_scene = msg
         self.anylzer.set_scene(msg)
         
@@ -1807,6 +1859,21 @@ class AssemblyScenceViewerWidget(QWidget):
         
         self.objects_panel.update_scene(self._assembly_scene)
         self.instructions_panel.update_scene(self._assembly_scene)
+        self.scene_overview_panel.update_scene(self._assembly_scene)
+        if self._current_panel is self.instructions_panel:
+            selected = self.instructions_panel.list_widget.currentItem()
+            if selected:
+                instruction_id = selected.data(Qt.ItemDataRole.UserRole)
+                try:
+                    self.instruction_properties_panel.instruction = \
+                        self.anylzer.get_assembly_instruction_by_name(
+                            instruction_id)
+                    self.instruction_properties_panel.scene = msg
+                    self.instruction_properties_panel \
+                        ._display_instruction_properties()
+                except Exception as error:
+                    self.ros_node.get_logger().warn(
+                        f'Could not refresh instruction details: {error}')
 
 
     # ----------------------------------------------------------------------
@@ -1817,6 +1884,7 @@ class AssemblyScenceViewerWidget(QWidget):
         if self._current_element_panel is not None:
             self._restore_element_selection(self._current_element_panel)
         self.instructions_panel.update_scene(self._assembly_scene)
+        self.scene_overview_panel.update_scene(self._assembly_scene)
 
     # ----------------------------------------------------------------------
     # Restore selection after scene update
