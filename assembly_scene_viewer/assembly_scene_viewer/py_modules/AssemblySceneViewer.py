@@ -40,6 +40,10 @@ from PyQt6.QtWidgets import (QScrollArea,
 
 from scipy.spatial.transform import Rotation as R
 from PyQt6.QtGui import QColor, QTextCursor, QFont, QAction, QIcon, QPainter, QPixmap
+from assembly_scene_publisher.py_modules.assembly_instructions import (
+    AssemblyInstructionType,
+    instruction_components,
+)
 from functools import partial
 from rclpy.node import Node
 from ament_index_python.packages import get_package_share_directory
@@ -366,8 +370,8 @@ class InstructionListPanel(QWidget):
 
     def populate(self):
         self.list_widget.clear()
-        for ins in self.scene_message.assembly_instructions:
-            ins: am_msgs.AssemblyInstruction
+        for ins in (*self.scene_message.assembly_instructions,
+                    *self.scene_message.frame_assembly_instructions):
             item = QListWidgetItem(f"{ins.id}")
             self.list_widget.addItem(item)
 
@@ -534,7 +538,13 @@ class FramesElementPanel(QListWidget):
         Returns (None, None) if frame doesn't have these properties.
         """
         props = frame.properties
-        
+
+        if props.glue_line_frame_properties.is_glue_line_frame:
+            glue_line = props.glue_line_frame_properties
+            if glue_line.has_been_placed:
+                return (QColor('green'), 'Glue line placed')
+            return (QColor('red'), 'Glue line not placed')
+
         # Check if this is a glue point frame
         if props.glue_pt_frame_properties.is_glue_point:
             if props.glue_pt_frame_properties.has_been_cured:
@@ -587,6 +597,8 @@ class FramesElementPanel(QListWidget):
             if props.vision_frame_properties.is_vision_frame:
                 icon = icon_map['vision']
             elif props.glue_pt_frame_properties.is_glue_point:
+                icon = icon_map['glue']
+            elif props.glue_line_frame_properties.is_glue_line_frame:
                 icon = icon_map['glue']
             elif props.laser_frame_properties.is_laser_frame:
                 icon = icon_map['laser']
@@ -727,7 +739,7 @@ class PlanesElementPanel(QListWidget):
 # Widget: Instruction Detail Panel with properties
 # ---------------------------------------------------------------------------
 class InstructionDetailPanel(QWidget):
-    def __init__(self, instruction: am_msgs.AssemblyInstruction, analyzer, logger=None):
+    def __init__(self, instruction: AssemblyInstructionType, analyzer, logger=None):
         super().__init__()
         self.logger = logger
         self.instruction = instruction
@@ -772,14 +784,16 @@ class InstructionDetailPanel(QWidget):
     def _display_instruction_properties(self):
         """Display all instruction details in the properties text box"""
         try:
-            moving_part = "Component 1" if self.instruction.component_1_is_moving_part else "Component 2"
+            component_1, component_2, first_moves = instruction_components(
+                self.instruction)
+            moving_part = 'Component 1' if first_moves else 'Component 2'
             
             html = f"""
             <b>Instruction ID:</b> {self.instruction.id}<br>
             <br>
             <b>Components:</b><br>
-            &nbsp;&nbsp;<b>Component 1:</b> {self.instruction.component_1 or 'N/A'}<br>
-            &nbsp;&nbsp;<b>Component 2:</b> {self.instruction.component_2 or 'N/A'}<br>
+            &nbsp;&nbsp;<b>Component 1:</b> {component_1 or 'N/A'}<br>
+            &nbsp;&nbsp;<b>Component 2:</b> {component_2 or 'N/A'}<br>
             &nbsp;&nbsp;<b>Moving Part:</b> {moving_part}<br>
             <br>
 
@@ -889,12 +903,11 @@ class InstructionStlPanel(QWidget):
         
         return plane_data
 
-    def set_instruction(self, inst: am_msgs.AssemblyInstruction, analyzer: AssemblySceneAnalyzerAdv):
+    def set_instruction(self, inst: AssemblyInstructionType, analyzer: AssemblySceneAnalyzerAdv):
         """Load STL files for the two components and draw planes from all plane matches."""
         self.clear()
 
-        comp1_name = inst.component_1
-        comp2_name = inst.component_2
+        comp1_name, comp2_name, first_moves = instruction_components(inst)
 
         if not comp1_name or not comp2_name:
             if self.logger:
@@ -902,7 +915,7 @@ class InstructionStlPanel(QWidget):
             return
 
         try:
-            if inst.component_1_is_moving_part:
+            if first_moves:
                 moving_component = comp1_name
                 stationary_component = comp2_name
                 frame_top = analyzer.get_assembly_frame_for_instruction(inst.id)
@@ -997,7 +1010,7 @@ class InstructionStlPanel(QWidget):
         # Draw assembly and target frames for both components
         try:
             if frame_top and frame_bottom:
-                is_top_assembly = inst.component_1_is_moving_part
+                is_top_assembly = first_moves
                 self._draw_assembly_and_target_frames(frame_top, frame_bottom, frame_top_is_assembly=is_top_assembly)
         except Exception as e:
             if self.logger:
@@ -1106,6 +1119,13 @@ class PropertiesPanel(QWidget):
             text += f"    Compatible Grippers: {frame.properties.gripping_frame_properties.compatible_grippers}<br>"
 
         
+        if frame.properties.glue_line_frame_properties.is_glue_line_frame:
+            glue_line = frame.properties.glue_line_frame_properties
+            text += '<b>Glue Line Properties:</b><br>'
+            text += f'    G-code file: {glue_line.g_code_file_name}<br>'
+            text += f'    Use 1K dispenser: {glue_line.use_1k_dispenser}<br>'
+            text += f'    Has Been Placed: {glue_line.has_been_placed}<br>'
+
         if frame.properties.assembly_frame_properties.is_assembly_frame:
             text += f"  <b>Assembly Frame:</b><br>"
             text += f"    Associated Frame: {frame.properties.assembly_frame_properties.associated_frame}<br>"
@@ -1740,7 +1760,7 @@ class AssemblyScenceViewerWidget(QWidget):
 
         item_text = item.text()
         try:
-            inst: am_msgs.AssemblyInstruction = self.anylzer.get_assembly_instruction_by_name(item_text)
+            inst = self.anylzer.get_assembly_instruction_by_name(item_text)
         except Exception as e:
             self.ros_node.get_logger().error(f"Failed to get instruction '{item_text}': {e}")
             return

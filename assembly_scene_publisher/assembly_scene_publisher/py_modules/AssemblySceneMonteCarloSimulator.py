@@ -1,6 +1,10 @@
 from importlib_metadata import distribution
 
 from assembly_scene_publisher.py_modules.AssemblySceneAnalyzer import AssemblySceneAnalyzer
+from assembly_scene_publisher.py_modules.assembly_instructions import (
+    AssemblyInstructionType,
+    instruction_components,
+)
 from rclpy.node import Node
 import assembly_manager_interfaces.msg as ami_msg
 import assembly_manager_interfaces.srv as ami_srv
@@ -72,7 +76,7 @@ def compare_poses(pose1: Pose, pose2: Pose, position_tolerance: float = 1e-6, or
 class MonteCarloSimulationParameters:
     def __init__(self, num_simulations: int, param_file: str):
         self.num_simulations = num_simulations
-        self._instruction: ami_msg.AssemblyInstruction = None
+        self._instruction: AssemblyInstructionType = None
         self._instruction_id=None
         self.param_file = param_file
         self.tol_unit = "mm"
@@ -85,10 +89,10 @@ class MonteCarloSimulationParameters:
         self.exclude_frames_laser:list[str] = []
         self.exclude_components:list[str] = []
 
-    def set_instruction(self, instruction: ami_msg.AssemblyInstruction):
+    def set_instruction(self, instruction: AssemblyInstructionType):
         self._instruction = instruction
 
-    def get_instruction(self) -> ami_msg.AssemblyInstruction:
+    def get_instruction(self) -> AssemblyInstructionType:
         if self._instruction is None:
             raise Exception("Instruction must be set before getting it")
         return self._instruction
@@ -324,7 +328,7 @@ class MonteCarloSimulationResults:
     POSES_FILE_NAME = "poses.yaml"
     RESULTS_FILE_NAME = "results.yaml"
 
-    def __init__(self, instruction: ami_msg.AssemblyInstruction,
+    def __init__(self, instruction: AssemblyInstructionType,
                  file_path:str,
                  logger: Any = None):
         
@@ -339,7 +343,7 @@ class MonteCarloSimulationResults:
         self._total_simulation_time: float = 0.0
         self._failure_count: int = 0
         self.prev_avg_tick_time: float = None
-        self.instruction: ami_msg.AssemblyInstruction = instruction
+        self.instruction: AssemblyInstructionType = instruction
         self._file_name: str = os.path.basename(file_path)
         self._file_dir: str = os.path.dirname(file_path)
         self._results_dir: str = os.path.join(self._file_dir, f"results_{self._file_name.split('.')[0]}")
@@ -615,8 +619,8 @@ class AssemblySceneMonteCarloSimulator:
         # start tick time
         start_time = time.time()
         # Modify frames
-        component_1 = simulation_params.get_instruction().component_1
-        component_2 = simulation_params.get_instruction().component_2
+        component_1, component_2, _ = instruction_components(
+            simulation_params.get_instruction())
 
         c1_frames = []
         c2_frames = []
@@ -690,10 +694,11 @@ class AssemblySceneMonteCarloSimulator:
             simulation_params = MonteCarloSimulationParameters(num_simulations=goal.num_simulations, 
                                                             param_file=goal.param_file)
 
-            instruction: ami_msg.AssemblyInstruction = self.assembly_manager_scene.assembly_scene_analyzer.get_assembly_instruction_by_name(simulation_params.get_instruction_id())  # Validate instruction name
+            instruction = self.assembly_manager_scene.assembly_scene_analyzer.get_assembly_instruction_by_name(simulation_params.get_instruction_id())
             
-            if not (self.assembly_manager_scene.assembly_scene_analyzer.check_component_exists(instruction.component_1) and
-                    self.assembly_manager_scene.assembly_scene_analyzer.check_component_exists(instruction.component_2)):
+            component_1, component_2, _ = instruction_components(instruction)
+            if not (self.assembly_manager_scene.assembly_scene_analyzer.check_component_exists(component_1) and
+                    self.assembly_manager_scene.assembly_scene_analyzer.check_component_exists(component_2)):
                 raise Exception("One or both components in the instruction do not exist in the current scene")
             
             simulation_params.set_instruction(instruction)

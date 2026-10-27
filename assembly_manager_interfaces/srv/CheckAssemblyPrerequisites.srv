@@ -1,0 +1,6 @@
+string instruction_id
+---
+bool success
+bool satisfied
+string[] unmet_prerequisites
+string message

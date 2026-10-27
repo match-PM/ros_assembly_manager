@@ -67,7 +67,8 @@ class TolMeasurment():
             frames = data.get("mountingDescription").get("mountingReferences").get("ref_frames")
 
             for index, frame in enumerate(frames):
-                if 'Vision' in frame.get("name"):
+                if frame.get('properties', {}).get(
+                        'visionProperties', {}).get('isVisionFrame', False):
                     frame["transformation"]["translation"]["X"] = ideal_frames[index]["transformation"]["translation"]["X"] + random.uniform(-self.random_max_x, self.random_max_x)
                     frame["transformation"]["translation"]["Y"] = ideal_frames[index]["transformation"]["translation"]["Y"] + random.uniform(-self.random_max_y, self.random_max_y)
                     frame["transformation"]["translation"]["Z"] = ideal_frames[index]["transformation"]["translation"]["Z"] + random.uniform(-self.random_max_z, self.random_max_z)

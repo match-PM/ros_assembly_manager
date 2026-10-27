@@ -21,6 +21,11 @@ from dataclasses import dataclass
 import matplotlib.pyplot as plt
 from assembly_scene_publisher.py_modules.AssemblySceneAnalyzer import AssemblySceneAnalyzer
 from assembly_scene_publisher.py_modules.AssemblySceneModifier import AssemblySceneModifier
+from assembly_scene_publisher.py_modules.FrameMatchHandler import FrameMatchHandler
+from assembly_scene_publisher.py_modules.assembly_instructions import (
+    AssemblyInstructionType,
+)
+from assembly_scene_publisher.py_modules.frame_properties import import_frame_properties
 
 from scipy.optimize import minimize, least_squares
 from assembly_scene_publisher.py_modules.frame_constraints import (FrameConstraintsHandler, 
@@ -83,7 +88,6 @@ def vec_to_um(v)-> str:
 
 class AssemblyManagerScene():
     UNUSED_FRAME_CONST = 'unused_frame'
-    GRIPPING_FRAME_IDENTIFICATORS = ['Gripping', 'gripping']
     SPAWN_COLLISION_TOLERANCE = 0.00005  # meters; min allowed distance between component origins
 
     def __init__(self, 
@@ -101,6 +105,8 @@ class AssemblyManagerScene():
         self.tf_broadcaster = StaticTransformBroadcaster(node)
         #self.tf_broadcaster = TransformBroadcaster(node)
         self.tf_buffer = Buffer(cache_time=rclpy.duration.Duration(seconds=10.0))
+        self.frame_match_handler = FrameMatchHandler(
+            self.assembly_scene_analyzer, self.tf_buffer)
         self.tf_listener = TransformListener(self.tf_buffer, node,spin_thread=True)
     
     def publish_information(self):
@@ -253,21 +259,6 @@ class AssemblyManagerScene():
             self.logger.warn(f'Tried to spawn ref frame {new_ref_frame.frame_name}, but parent frame {new_ref_frame.parent_frame} does not exist!')
             raise AddRefFrameError("Parent frame does not exist.")
         
-        # Check if the new ref frame is a gripping frame, derived by its name
-        for identificador in self.GRIPPING_FRAME_IDENTIFICATORS:
-            # check if string is part of string
-            if identificador in new_ref_frame.frame_name:
-                new_ref_frame.properties.gripping_frame_properties.is_gripping_frame = True         
-
-        if 'Vision' in new_ref_frame.frame_name or 'vision' in new_ref_frame.frame_name:
-            new_ref_frame.properties.vision_frame_properties.is_vision_frame = True
-
-        if 'Laser' in new_ref_frame.frame_name or 'laser' in new_ref_frame.frame_name:
-            new_ref_frame.properties.laser_frame_properties.is_laser_frame = True
-
-        if 'Glue' in new_ref_frame.frame_name or 'glue' in new_ref_frame.frame_name:
-            new_ref_frame.properties.glue_pt_frame_properties.is_glue_point = True
-        
         # Check if the new ref frame should be connected to an existing object or not.
         frame_is_obj_frame = self.assembly_scene_analyzer.check_component_exists(new_ref_frame.parent_frame)
 
@@ -357,6 +348,8 @@ class AssemblyManagerScene():
                 frame_constraint_handler.unit = document_units
                 msg = frame_constraint_handler.return_as_msg()
                 new_ref_frame.constraints = msg
+                new_ref_frame.properties = import_frame_properties(
+                    frame.get('properties', {}), new_ref_frame.parent_frame)
 
                 self.add_ref_frame_to_scene(new_ref_frame)
             
@@ -941,36 +934,56 @@ class AssemblyManagerScene():
         :raises RefPlaneNotFoundError: Raised when a plane specified in the instruction does not exist in the scene.
         """
 
-        if not self._check_create_instruction(instruction):
-            return False
-        
         try:
-            transfrom = self.calculate_assembly_transformation(instruction)
+            self._check_instruction_id_available(
+                instruction.id, self.scene.frame_assembly_instructions)
+            if not self._check_create_instruction(instruction):
+                return False
+            self.calculate_assembly_transformation(instruction)
 
         except (AssemblyTransformationError,
                 ComponentNotFoundError,
                 RefPlaneNotFoundError,
+                RefFrameNotFoundError,
+                TfFrameLookupError,
                 AddRefFrameError,
                 ValueError) as e:
             self.logger.error(f"Error occured in creating assembly instruction: {str(e)}")
             return False    
 
         
-        inst_exists = False
-        for index, _inst in enumerate(self.scene.assembly_instructions):
-            _inst : ami_msg.AssemblyInstruction
-            if _inst.id == instruction.id:
-                del self.scene.assembly_instructions[index]
-                self.scene.assembly_instructions.append(instruction)
-                _inst = instruction
-                inst_exists=True
-                break
-        if not inst_exists:
-            self.scene.assembly_instructions.append(instruction)
-
-        self.publish_scene()
+        self._store_instruction(instruction, self.scene.assembly_instructions)
+        self.publish_information()
         
         return True
+
+    def create_frame_assembly_instructions(
+            self, instruction: ami_msg.FrameAssemblyInstruction) -> bool:
+        """Associate existing frames and store a frame-only instruction."""
+        self._check_instruction_id_available(
+            instruction.id, self.scene.assembly_instructions)
+        self.frame_match_handler.attach(instruction)
+        self._store_instruction(
+            instruction, self.scene.frame_assembly_instructions)
+        self.publish_information()
+        return True
+
+    @staticmethod
+    def _check_instruction_id_available(instruction_id, other_instructions):
+        if not instruction_id:
+            raise ValueError('Instruction ID must not be empty.')
+        if any(item.id == instruction_id for item in other_instructions):
+            raise ValueError(
+                f'Instruction ID {instruction_id!r} is already used by the '
+                'other assembly instruction type.')
+
+    @staticmethod
+    def _store_instruction(instruction, instructions):
+        for index, existing in enumerate(instructions):
+            if existing.id == instruction.id:
+                instructions[index] = instruction
+                return
+        instructions.append(instruction)
     
     def _check_create_instruction(self, instruction: ami_msg.AssemblyInstruction)->bool:
         """
@@ -985,13 +998,14 @@ class AssemblyManagerScene():
                 self.logger.error(f"ID of the instruction shoud not be empty. Aboarted!")
                 return False
         
-        instruction.plane_match_1.plane_name_component_1
-
         if not self.assembly_scene_analyzer.check_component_exists(instruction.component_1):
             raise ComponentNotFoundError(f"Component 1 '{instruction.component_1}' does not exist in the scene!")
         
         if not self.assembly_scene_analyzer.check_component_exists(instruction.component_2):
             raise ComponentNotFoundError(f"Component 2 '{instruction.component_2}' does not exist in the scene!")
+
+        if instruction.component_1 == instruction.component_2:
+            raise ValueError('Assembly instructions require two distinct components.')
 
         # Check if planes exist in the scene
         obj1_plane1_msg = self.assembly_scene_analyzer.get_plane_from_scene(plane_name=instruction.plane_match_1.plane_name_component_1)
@@ -1042,9 +1056,8 @@ class AssemblyManagerScene():
         return plane
     
 
-    def get_assembly_instruction_by_id(self, instruction_id:str)->ami_msg.AssemblyInstruction:
-        for instruction in self.scene.assembly_instructions:
-            instruction: ami_msg.AssemblyInstruction
+    def get_assembly_instruction_by_id(self, instruction_id: str):
+        for instruction in self.assembly_scene_analyzer.get_all_assembly_instructions():
             if instruction.id == instruction_id:
                 return instruction
         return None
@@ -1055,7 +1068,6 @@ class AssemblyManagerScene():
             return None
         else:
             assembly_transform = self.calculate_assembly_transformation(instruction)
-            self.logger.error(f"THIS IS CURRENTLY NOT WORKING CORRECTLY!!!")
             return assembly_transform
     
     def calculate_plane_intersections(self, instruction: ami_msg.AssemblyInstruction)-> tuple[Vector3, Vector3]:
@@ -1345,11 +1357,13 @@ class AssemblyManagerScene():
         
     #     return assembly_transform
     
-    def calculate_assembly_transformation(self, instruction: ami_msg.AssemblyInstruction) -> Pose:
+    def calculate_assembly_transformation(self, instruction: AssemblyInstructionType) -> Pose:
         """
-        Calculates the assembly transformation (Pose) between two components based on
-        plane matches from the assembly instruction.
+        Calculate the transformation using the instruction's plane or frame match.
         """
+
+        if isinstance(instruction, ami_msg.FrameAssemblyInstruction):
+            return self.frame_match_handler.calculate(instruction)
 
         obj_1_name = instruction.component_1
         obj_2_name = instruction.component_2
@@ -1737,6 +1751,7 @@ class AssemblyManagerScene():
         assembly_frame.pose.orientation = moving_component_quat
         assembly_frame.properties.assembly_frame_properties.is_assembly_frame = True
         assembly_frame.properties.assembly_frame_properties.associated_frame = target_frame.frame_name
+        assembly_frame.properties.assembly_frame_properties.associated_component = static_component
 
         assembly_frame_quad_world = multiply_quaternions(moving_component_world_transform.transform.rotation, assembly_frame.pose.orientation)
                 
@@ -1752,6 +1767,7 @@ class AssemblyManagerScene():
         target_frame.parent_frame = static_component
         target_frame.properties.assembly_frame_properties.is_target_frame = True
         target_frame.properties.assembly_frame_properties.associated_frame = assembly_frame.frame_name
+        target_frame.properties.assembly_frame_properties.associated_component = moving_component
         
         static_component_world_transform = get_transform_for_frame_in_world(static_component, self.tf_buffer)
         static_component_world_transform_inv = inverse_ros_transform(static_component_world_transform, output_type=TransformStamped)

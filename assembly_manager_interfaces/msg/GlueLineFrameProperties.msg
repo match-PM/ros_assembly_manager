@@ -1,0 +1,4 @@
+bool is_glue_line_frame False
+string g_code_file_name
+bool use_1k_dispenser False
+bool has_been_placed False

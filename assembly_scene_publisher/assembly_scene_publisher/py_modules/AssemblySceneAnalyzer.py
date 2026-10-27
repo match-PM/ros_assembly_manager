@@ -14,6 +14,12 @@ from assembly_scene_publisher.py_modules.helper_functions import (extract_graph,
 from copy import copy, deepcopy
 from typing import Union
 import time
+from assembly_scene_publisher.py_modules.frame_properties import scene_frame_name
+from assembly_scene_publisher.py_modules.assembly_instructions import (
+    AssemblyInstructionType,
+    instruction_components,
+    moving_and_target_components,
+)
 
 class UnInitializedScene():
     def __init__(self):
@@ -50,7 +56,8 @@ class AssemblySceneAnalyzer():
             len(self._get_scene().axis_in_scene) == 0 and
             len(self._get_scene().planes_in_scene) == 0 and
             len(self._get_scene().ref_frames_in_scene) == 0 and
-            len(self._get_scene().assembly_instructions) == 0):
+            len(self._get_scene().assembly_instructions) == 0 and
+            len(self._get_scene().frame_assembly_instructions) == 0):
             return True
         return False
 
@@ -590,6 +597,8 @@ class AssemblySceneAnalyzer():
         active_properties = []
         if properties.glue_pt_frame_properties.is_glue_point:
             active_properties.append("glue_point")
+        if properties.glue_line_frame_properties.is_glue_line_frame:
+            active_properties.append('glue_line')
         if properties.gripping_frame_properties.is_gripping_frame:
             active_properties.append("gripping")
         if properties.laser_frame_properties.is_laser_frame:
@@ -644,16 +653,8 @@ class AssemblySceneAnalyzer():
         # check if component exists
         self.get_component_by_name(component_name)
 
-        is_stationary = True
-        for instruction in self._get_scene().assembly_instructions:
-            instruction:ami_msg.AssemblyInstruction
-            if component_name == instruction.component_1 and instruction.component_1_is_moving_part:
-                is_stationary = False
-
-            if component_name == instruction.component_2 and not instruction.component_1_is_moving_part:
-                is_stationary = False
-
-        return is_stationary
+        return all(moving_and_target_components(instruction)[0] != component_name
+                   for instruction in self.get_all_assembly_instructions())
 
     # def find_matches_for_component(self, component_name:str, only_unassembled = True) -> list[str]:
     #     """
@@ -724,14 +725,9 @@ class AssemblySceneAnalyzer():
 
         components_to_assembly = []
 
-        for instruction in self._get_scene().assembly_instructions:
-            instruction:ami_msg.AssemblyInstruction
-            if instruction.component_1_is_moving_part:
-                moving_object = instruction.component_1
-                stationary_object = instruction.component_2
-            else:
-                moving_object = instruction.component_2
-                stationary_object = instruction.component_1
+        for instruction in self.get_all_assembly_instructions():
+            moving_object, stationary_object = moving_and_target_components(
+                instruction)
             
             parent = self.get_parent_of_component(component_name=moving_object)
 
@@ -830,6 +826,18 @@ class AssemblySceneAnalyzer():
                 assembly_frames.append(frame.frame_name)    
 
         if len(assembly_frames) > 1:
+            # Components may export several candidate assembly frames. Prefer
+            # the one explicitly selected by an instruction when unambiguous.
+            selected = []
+            for instruction in self.get_all_assembly_instructions():
+                moving, _ = moving_and_target_components(instruction)
+                if moving == component_name:
+                    frame = self.get_assembly_frame_for_instruction(instruction.id)
+                    if frame.frame_name in assembly_frames:
+                        selected.append(frame.frame_name)
+            selected = list(dict.fromkeys(selected))
+            if len(selected) == 1:
+                return selected[0]
             raise AssemblyFrameNotFoundError(f"Multiple assembly frames found for component {component_name}: {assembly_frames}. Expected only one assembly frame per component.")    
                 
         if len(assembly_frames) == 0:
@@ -880,19 +888,12 @@ class AssemblySceneAnalyzer():
         # check if instruction exists
         instruction = self.get_assembly_instruction_by_name(instruction_name)
 
-        component_1_name = instruction.component_1
-        component_2_name = instruction.component_2
-                
-        if instruction.component_1_is_moving_part:
-            moving_component_name = component_1_name
-        else:
-            moving_component_name = component_2_name
+        if isinstance(instruction, ami_msg.FrameAssemblyInstruction):
+            reference = instruction.frame_match.assembly_frame
+            return self.get_ref_frame_by_name(
+                scene_frame_name(reference.component, reference.frame))
+        return self.get_ref_frame_by_name(f'assembly_frame_{instruction.id}')
 
-        # Find the assembly frame for the moving component
-        assembly_frame_name = self.get_assembly_frame_for_component(moving_component_name)
-    
-        return self.get_ref_frame_by_name(assembly_frame_name)
-    
     def get_target_frame_for_instruction(self, instruction_name:str)->ami_msg.RefFrame:
         """Returns the target frame for the given instruction.
 
@@ -903,27 +904,21 @@ class AssemblySceneAnalyzer():
             ami_msg.RefFrame: The target frame for the given instruction.
         """
         instruction = self.get_assembly_instruction_by_name(instruction_name)
-        
-        component_1_name = instruction.component_1
-        component_2_name = instruction.component_2
-        
-        if instruction.component_1_is_moving_part:
-            moving_component_name = component_1_name
-        else:
-            moving_component_name = component_2_name
 
-        target_frame_name = self.get_target_frame_for_component(moving_component_name)
-        
-        return self.get_ref_frame_by_name(target_frame_name)
+        if isinstance(instruction, ami_msg.FrameAssemblyInstruction):
+            reference = instruction.frame_match.target_frame
+            return self.get_ref_frame_by_name(
+                scene_frame_name(reference.component, reference.frame))
+        return self.get_ref_frame_by_name(f'target_frame_{instruction.id}')
 
     def get_assembly_frame_for_target_frame(self, target_frame_name:str)-> str:
         
         target_frame = self.get_ref_frame_by_name(target_frame_name)
 
-        if not target_frame.properties.assembly_frame_properties.is_assembly_frame:
-            raise TargetFrameNotFoundError(f"The frame {target_frame_name} is not an assembly frame.")
+        if not target_frame.properties.assembly_frame_properties.is_target_frame:
+            raise TargetFrameNotFoundError(f"The frame {target_frame_name} is not a target frame.")
         
-        if target_frame.properties.assembly_frame_properties.is_target_frame:
+        if target_frame.properties.assembly_frame_properties.is_assembly_frame:
             raise TargetFrameNotFoundError(f"The frame {target_frame_name} is marked as assembly as well as as target frame. This is not allowed!")
         
         associated_assembly_frame = target_frame.properties.assembly_frame_properties.associated_frame
@@ -968,7 +963,9 @@ class AssemblySceneAnalyzer():
         
         return associated_target_frame
 
-    def get_assembly_instruction(self, assembly_component: str, target_component: str) -> ami_msg.AssemblyInstruction:
+    def get_assembly_instruction(
+            self, assembly_component: str,
+            target_component: str) -> AssemblyInstructionType:
         """
         Returns the assembly instruction for the given assembly and target component names.
         parameters:
@@ -980,19 +977,21 @@ class AssemblySceneAnalyzer():
             - assembly instruction for the given components
         """
 
-        for instruction in self._get_scene().assembly_instructions:
-            instruction:ami_msg.AssemblyInstruction
-
-            if instruction.component_1_is_moving_part:
-                if instruction.component_1 == assembly_component and instruction.component_2 == target_component:
-                    return instruction
-            else:
-                if instruction.component_2 == assembly_component and instruction.component_1 == target_component:
-                    return instruction
+        for instruction in self.get_all_assembly_instructions():
+            if moving_and_target_components(instruction) == (
+                    assembly_component, target_component):
+                return instruction
 
         raise AssemblyInstructionNotFoundError(f"Assembly instruction for components '{assembly_component}' and '{target_component}' not found in the scene. Make sure the assembly instruction was created correctly.")
         
-    def get_assembly_instruction_by_name(self, instruction_name: str) -> ami_msg.AssemblyInstruction:
+    def get_all_assembly_instructions(self):
+        """Return both instruction lists for operations shared by both models."""
+        scene = self._get_scene()
+        return [*scene.assembly_instructions, *scene.frame_assembly_instructions]
+
+    def get_assembly_instruction_by_name(
+            self, instruction_name: str
+    ) -> AssemblyInstructionType:
         """
         Returns the assembly instruction for the given instruction name.
         parameters:
@@ -1003,9 +1002,7 @@ class AssemblySceneAnalyzer():
             - assembly instruction for the given name
         """
 
-        for instruction in self._get_scene().assembly_instructions:
-            instruction:ami_msg.AssemblyInstruction
-
+        for instruction in self.get_all_assembly_instructions():
             if instruction.id == instruction_name:
                 return instruction
 
@@ -1050,13 +1047,53 @@ class AssemblySceneAnalyzer():
         for frame in component.ref_frames:
             frame:ami_msg.RefFrame
 
-            if frame.properties.glue_point_frame_properties.is_glue_point_frame:
+            if frame.properties.glue_pt_frame_properties.is_glue_point:
                 glue_pt_frames.append(frame)
                   
         if len(glue_pt_frames) == 0:
             raise GluePointFrameNotFoundError(f"No glue point frames found for component: {component_name}")
 
         return glue_pt_frames
+
+    def get_glue_line_frames_of_component(self, component_name):
+        """Return frames explicitly marked as glue-line frames."""
+        component = self.get_component_by_name(component_name)
+        return [frame for frame in component.ref_frames
+                if frame.properties.glue_line_frame_properties.is_glue_line_frame]
+
+    def check_assembly_prerequisites(self, instruction_name):
+        """List unmet dispensing and assembled-component prerequisites.
+
+        A glue prerequisite requires placement; curing is tracked separately.
+        Missing objects or frames are reported as unmet instead of raising.
+        """
+        prerequisites = self.get_assembly_instruction_by_name(
+            instruction_name).prerequisites
+        unmet = []
+        for references, attribute, role in (
+                (prerequisites.glue_prerequisites,
+                 'glue_pt_frame_properties', 'is_glue_point'),
+                (prerequisites.glue_line_prerequisites,
+                 'glue_line_frame_properties', 'is_glue_line_frame')):
+            for reference in references:
+                name = scene_frame_name(reference.component, reference.frame)
+                try:
+                    frame = self.get_ref_frame_by_name(name)
+                    properties = getattr(frame.properties, attribute)
+                    owner = self.get_component_for_frame_name(name)
+                    if (owner != reference.component or
+                            not getattr(properties, role) or
+                            not properties.has_been_placed):
+                        unmet.append(f'Glue not placed: {name}')
+                except (RefFrameNotFoundError, ComponentNotFoundError):
+                    unmet.append(f'Glue frame not found: {name}')
+        for name in prerequisites.component_prerequisites:
+            try:
+                if not self.get_component_by_name(name).properties.is_assembled:
+                    unmet.append(f'Component not assembled: {name}')
+            except ComponentNotFoundError:
+                unmet.append(f'Component not found: {name}')
+        return unmet
     
     def get_vision_frames_of_component(self, component_name:str)-> list[ami_msg.RefFrame]:
         """
@@ -1293,12 +1330,10 @@ class AssemblySceneAnalyzer():
         - component name for the given assembly instruction
         """
         instruction = self.get_assembly_instruction_by_name(instruction_name)
-        if instruction.component_1_is_moving_part:
-            return instruction.component_1
-        else:
-            return instruction.component_2
+        return moving_and_target_components(instruction)[0]
     
-    def get_instructions_for_component(self, component_name:str)-> list[ami_msg.AssemblyInstruction]: 
+    def get_instructions_for_component(
+            self, component_name: str) -> list[AssemblyInstructionType]:
         """
         Returns the assembly instructions for the given component name.
         parameters:
@@ -1313,10 +1348,9 @@ class AssemblySceneAnalyzer():
         # check if component exists
         self.get_component_by_name(component_name)
         instructions = []
-        for instruction in self._get_scene().assembly_instructions:
-            instruction:ami_msg.AssemblyInstruction
-
-            if instruction.component_1 == component_name or instruction.component_2 == component_name:
+        for instruction in self.get_all_assembly_instructions():
+            first, second, _ = instruction_components(instruction)
+            if component_name in (first, second):
                 instructions.append(instruction)
         
         if len(instructions) == 0:
@@ -1339,6 +1373,8 @@ class AssemblySceneAnalyzer():
         # check if instruction exists
         instruction = self.get_assembly_instruction_by_name(instruction_name)
 
+        if isinstance(instruction, ami_msg.FrameAssemblyInstruction):
+            return []
         planes = []
         if (component_name is None 
             or instruction.component_1 == component_name):
@@ -1418,6 +1454,17 @@ class AssemblySceneAnalyzer():
 
             instruction_key = f"{instruction.id}_({string_type})"
             tree_dict[instruction_key] = {}
+
+            if isinstance(instruction, ami_msg.FrameAssemblyInstruction):
+                reference = (
+                    instruction.frame_match.assembly_frame
+                    if string_type == 'assembly'
+                    else instruction.frame_match.target_frame)
+                frame = self.get_ref_frame_by_name(
+                    scene_frame_name(reference.component, reference.frame))
+                tree_dict[instruction_key] = self.build_frame_reference_tree(
+                    [frame])
+                continue
 
             planes = self.get_planes_for_instruction(instruction.id, component_name)
 

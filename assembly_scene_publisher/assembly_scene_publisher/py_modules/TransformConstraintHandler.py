@@ -179,7 +179,8 @@ class TransformConstraintHandler(ami_msg.FrConstraintTransform):
         qx = dictionary.get('transform',{}).get('rotation',{}).get('X',0.0)
         qy = dictionary.get('transform',{}).get('rotation',{}).get('Y',0.0)
         qz = dictionary.get('transform',{}).get('rotation',{}).get('Z',0.0)
-        qw = dictionary.get('transform',{}).get('rotation',{}).get('w',1.0)
+        rotation = dictionary.get('transform', {}).get('rotation', {})
+        qw = rotation.get('W', rotation.get('w', 1.0))
         constraint_handler.transform.translation.x = x
         constraint_handler.transform.translation.y = y
         constraint_handler.transform.translation.z = z

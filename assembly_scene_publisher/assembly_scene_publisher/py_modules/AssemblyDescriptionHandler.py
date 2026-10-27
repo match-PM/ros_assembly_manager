@@ -4,7 +4,9 @@ import json
 import os
 import re
 import time
+from copy import deepcopy
 
+import assembly_manager_interfaces.msg as ami_msg
 import assembly_manager_interfaces.srv as ami_srv
 from std_msgs.msg import ColorRGBA
 
@@ -13,6 +15,13 @@ from assembly_scene_publisher.py_modules.AssemblySceneAnalyzerAdv import (
 )
 from assembly_scene_publisher.py_modules.frame_constraints import (
     FrameConstraintsHandler,
+)
+from assembly_scene_publisher.py_modules.frame_properties import (
+    import_frame_properties,
+    scene_frame_name,
+)
+from assembly_scene_publisher.py_modules.assembly_instructions import (
+    instruction_components,
 )
 
 
@@ -33,7 +42,8 @@ class AssemblyDescriptionHandler:
             create_ref_frame_callback,
             create_axis_callback,
             create_ref_plane_callback,
-            create_assembly_instructions_callback):
+            create_assembly_instructions_callback,
+            create_frame_assembly_instructions_callback):
         self._logger = node.get_logger()
         self._object_scene = object_scene
         self._spawn_object = spawn_object_callback
@@ -42,6 +52,8 @@ class AssemblyDescriptionHandler:
         self._create_ref_plane = create_ref_plane_callback
         self._create_assembly_instructions = \
             create_assembly_instructions_callback
+        self._create_frame_assembly_instructions = \
+            create_frame_assembly_instructions_callback
         self._scene_analyzer = AssemblySceneAnalyzerAdv(
             object_scene.scene, self._logger)
 
@@ -74,25 +86,65 @@ class AssemblyDescriptionHandler:
                 if not success:
                     return self._failed_response(response, message)
 
+            # Incremental imports may reference components not spawned yet.
+            self._apply_component_frame_properties(
+                mounting_description.get('components', []),
+                skip_missing_components=not request.spawn_components)
+            self._scene_analyzer.set_scene(self._object_scene.scene)
+
+            created_count = 0
+            skipped_count = 0
+            response.instruction_id = ''
             for constraint in mounting_description.get(
                     'assemblyConstraints', []):
                 instruction_request = self._build_instruction_request(
                     constraint, multiplier)
-                response.instruction_id = \
-                    instruction_request.assembly_instruction.id
-                instruction_response = self._create_assembly_instructions(
-                    instruction_request,
-                    ami_srv.CreateAssemblyInstructions.Response(),
-                )
+                instruction_request.assembly_instruction.parent_file_path = \
+                    request.file_path
+                instruction = instruction_request.assembly_instruction
+                if not request.spawn_components:
+                    first, second, _ = instruction_components(instruction)
+                    missing = [name for name in (first, second)
+                               if not self._scene_analyzer.check_component_exists(name)]
+                    if missing:
+                        self._logger.warn(
+                            f"Skipping assembly instruction '{instruction.id}': "
+                            f"components not in the scene: {', '.join(missing)}. "
+                            'Import again after spawning them.')
+                        skipped_count += 1
+                        continue
+                if isinstance(instruction_request,
+                              ami_srv.CreateFrameAssemblyInstructions.Request):
+                    instruction_response = self._create_frame_assembly_instructions(
+                        instruction_request,
+                        ami_srv.CreateFrameAssemblyInstructions.Response(),
+                    )
+                else:
+                    instruction_response = self._create_assembly_instructions(
+                        instruction_request,
+                        ami_srv.CreateAssemblyInstructions.Response(),
+                    )
                 if not instruction_response.success:
                     return self._failed_response(
                         response,
                         'Error while creating assembly instruction '
-                        f"{response.instruction_id}!",
+                        f"{instruction.id}!",
                     )
+                created_count += 1
+                response.instruction_id = instruction.id
+
+            if created_count == 0:
+                return self._failed_response(
+                    response,
+                    'No assembly instructions could be created. '
+                    f'Skipped {skipped_count} instruction(s) with missing components.',
+                )
 
             time.sleep(1.5)
             response.success = True
+            response.message = (
+                f'Created {created_count} assembly instruction(s). '
+                f'Skipped {skipped_count} instruction(s) with missing components.')
         except Exception as error:
             return self._failed_response(
                 response,
@@ -187,7 +239,8 @@ class AssemblyDescriptionHandler:
             component_request = \
                 ami_srv.SpawnComponentFromDescription.Request()
             component_request.file_path = os.path.join(
-                component_directory, f'{component_name[:-2]}.json')
+                component_directory,
+                f"{component_name.rsplit('-', 1)[0]}.json")
             success, message = self.spawn_component(
                 component_request,
                 component_name_override=component_name,
@@ -196,6 +249,28 @@ class AssemblyDescriptionHandler:
                 return False, message
 
         return True, ''
+
+    def _apply_component_frame_properties(
+            self, components, skip_missing_components=False):
+        self._scene_analyzer.set_scene(self._object_scene.scene)
+        updates = []
+        for component in components:
+            component_name = component['name']
+            if (skip_missing_components and
+                    not self._scene_analyzer.check_component_exists(component_name)):
+                if component.get('frameProperties'):
+                    self._logger.warn(
+                        f"Skipping frame properties for component '{component_name}': "
+                        'component is not in the scene.')
+                continue
+            for frame_name, properties in component.get(
+                    'frameProperties', {}).items():
+                frame = self._scene_analyzer.get_ref_frame_by_name(
+                    scene_frame_name(component_name, frame_name))
+                updates.append((frame, import_frame_properties(
+                    properties, component_name, deepcopy(frame.properties))))
+        for frame, properties in updates:
+            frame.properties = properties
 
     def _spawn_reference_frames(
             self, component_name, frames, units, multiplier):
@@ -323,19 +398,47 @@ class AssemblyDescriptionHandler:
         )
         constraint_handler.unit = units
         request.ref_frame.constraints = constraint_handler.return_as_msg()
+        request.ref_frame.properties = import_frame_properties(
+            frame_data.get('properties', {}), component_name)
         return request
 
     @staticmethod
     def _build_instruction_request(constraint, multiplier):
-        request = ami_srv.CreateAssemblyInstructions.Request()
+        match_type = constraint.get('type', 'PlaneMatch')
+        if match_type == 'FrameMatch':
+            request = ami_srv.CreateFrameAssemblyInstructions.Request()
+        elif match_type == 'PlaneMatch':
+            request = ami_srv.CreateAssemblyInstructions.Request()
+        else:
+            raise ValueError(f'Unknown assembly match type: {match_type}')
         instruction = request.assembly_instruction
         component_1 = constraint.get('component_1')
         component_2 = constraint.get('component_2')
         instruction.id = constraint.get('name')
-        instruction.component_1_is_moving_part = \
-            constraint.get('moveComponent_1')
+        instruction.prerequisites = \
+            AssemblyDescriptionHandler._build_prerequisites(
+                constraint.get('prerequisites', {}))
+
+        if match_type == 'FrameMatch':
+            match = instruction.frame_match
+            match.assembly_frame = AssemblyDescriptionHandler._frame_reference(
+                constraint['assemblyFrame'])
+            match.target_frame = AssemblyDescriptionHandler._frame_reference(
+                constraint['targetFrame'])
+            if match.assembly_frame.component == match.target_frame.component:
+                raise ValueError('FrameMatch requires two distinct components.')
+            if (component_1 is not None or component_2 is not None) and \
+                    {match.assembly_frame.component, match.target_frame.component} \
+                    != {component_1, component_2}:
+                raise ValueError(
+                    'FrameMatch endpoints must reference component_1 and '
+                    'component_2, on different components.')
+            return request
+
         instruction.component_1 = component_1
         instruction.component_2 = component_2
+        instruction.component_1_is_moving_part = constraint.get(
+            'move_component_1', constraint.get('moveComponent_1', False))
 
         description = constraint.get('description')
         for index in range(1, 4):
@@ -352,6 +455,35 @@ class AssemblyDescriptionHandler:
             plane_match.inv_normal_vector = \
                 match_data.get('invertNormalVector')
         return request
+
+    @staticmethod
+    def _frame_reference(data):
+        reference = ami_msg.FrameReference()
+        reference.component = data['component']
+        reference.frame = data['frame']
+        if not reference.component or not reference.frame:
+            raise ValueError('Frame references require component and frame.')
+        return reference
+
+    @staticmethod
+    def _build_prerequisites(data):
+        prerequisites = ami_msg.AssemblyPrerequisites()
+        prerequisites.glue_prerequisites = [
+            AssemblyDescriptionHandler._frame_reference(item)
+            for item in data.get('gluePrerequisites', [])
+        ]
+        prerequisites.glue_line_prerequisites = [
+            AssemblyDescriptionHandler._frame_reference(item)
+            for item in data.get('glueLinePrerequisite',
+                                 data.get('glueLinePrerequisites', []))
+        ]
+        prerequisites.component_prerequisites = [
+            item['component'] if isinstance(item, dict) else item
+            for item in data.get('componentPrerequisites', [])
+        ]
+        if any(not name for name in prerequisites.component_prerequisites):
+            raise ValueError('Component prerequisites require a name.')
+        return prerequisites
 
     @staticmethod
     def _set_pose_fields(translation, rotation, transform, multiplier):

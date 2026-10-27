@@ -26,9 +26,11 @@ from assembly_scene_publisher.py_modules.AssemblyDescriptionHandler import (
 from assembly_scene_publisher.py_modules.scene_errors import (
     AddRefFrameError,
     AssemblyTransformationError,
+    AssemblyInstructionNotFoundError,
     ComponentNotFoundError,
     RefFrameNotFoundError,
     RefPlaneNotFoundError,
+    TfFrameLookupError,
 )
 from assembly_scene_publisher.py_modules.AssemblyScenePositionCorrector import AssemblyScenePositionCorrector
 from assembly_scene_publisher.py_modules.LineOfSightManager import LineOfSightManager
@@ -68,6 +70,8 @@ class AssemblyScenePublisherNode(Node):
             create_ref_plane_callback=self.create_ref_plane,
             create_assembly_instructions_callback=(
                 self.srv_create_assembly_instructions),
+            create_frame_assembly_instructions_callback=(
+                self.srv_create_frame_assembly_instructions),
         )
 
         self._create_ros_interfaces()
@@ -116,10 +120,18 @@ class AssemblyScenePublisherNode(Node):
              ami_srv.CreateAssemblyInstructions,
              f'{manager}/create_assembly_instructions',
              self.srv_create_assembly_instructions),
+            ('create_frame_assembly_instructions_srv',
+             ami_srv.CreateFrameAssemblyInstructions,
+             f'{manager}/create_frame_assembly_instructions',
+             self.srv_create_frame_assembly_instructions),
             ('calculate_assembly_instructions_srv',
              ami_srv.CalculateAssemblyInstructions,
              f'{manager}/calculate_assembly_instructions',
              self.calculate_assembly_instructions),
+            ('check_assembly_prerequisites_srv',
+             ami_srv.CheckAssemblyPrerequisites,
+             f'{manager}/check_assembly_prerequisites',
+             self.check_assembly_prerequisites),
             ('spawn_frames_from_description_srv',
              ami_srv.SpawnFramesFromDescription,
              f'{manager}/spawn_frames_from_description',
@@ -285,16 +297,27 @@ class AssemblyScenePublisherNode(Node):
             response.instruction_id = request.assembly_instruction.id
             response.success = create_success
 
-        except (ComponentNotFoundError) as e:
-            self.get_logger().warn(f"Components not found when creating assembly instructions '{request.assembly_instruction.id}: {e}. Check if the components exist in the scene!")
-            response.success = True
-
-        except (RefPlaneNotFoundError, ComponentNotFoundError) as e:
+        except (RefPlaneNotFoundError, RefFrameNotFoundError,
+                ComponentNotFoundError, AssemblyTransformationError,
+                TfFrameLookupError, ValueError) as e:
             self.get_logger().error(f"Error creating assembly instructions: {e}")
             response.success = False
+            response.message = str(e)
     
         return response
     
+    def srv_create_frame_assembly_instructions(self, request, response):
+        """Create an instruction in the dedicated frame-match scene list."""
+        response.instruction_id = request.assembly_instruction.id
+        try:
+            response.success = self.object_scene.create_frame_assembly_instructions(
+                request.assembly_instruction)
+        except (RefFrameNotFoundError, ComponentNotFoundError,
+                AssemblyTransformationError, ValueError) as error:
+            response.success = False
+            response.message = str(error)
+        return response
+
     def calculate_assembly_instructions(self, request: ami_srv.CalculateAssemblyInstructions.Request, response: ami_srv.CalculateAssemblyInstructions.Response):
         
         try:
@@ -303,6 +326,9 @@ class AssemblyScenePublisherNode(Node):
         except (AssemblyTransformationError,
                 ComponentNotFoundError,
                 RefPlaneNotFoundError,
+                RefFrameNotFoundError,
+                TfFrameLookupError,
+                ValueError,
                 AddRefFrameError) as e:
             self.get_logger().error(f"Error getting the assembly transformation: {e}")
             response.success = False
@@ -313,6 +339,19 @@ class AssemblyScenePublisherNode(Node):
         else:
             response.success = True
             response.assembly_transform = transfrom
+        return response
+
+    def check_assembly_prerequisites(self, request, response):
+        """Report readiness without blocking geometry calculation."""
+        try:
+            response.unmet_prerequisites = \
+                self.object_scene.assembly_scene_analyzer.check_assembly_prerequisites(
+                    request.instruction_id)
+            response.satisfied = not response.unmet_prerequisites
+            response.success = True
+        except AssemblyInstructionNotFoundError as error:
+            response.success = False
+            response.message = str(error)
         return response
     
     def modify_frame_from_frame(self, request: ami_srv.ModifyPoseFromFrame.Request, response: ami_srv.ModifyPoseFromFrame.Response):

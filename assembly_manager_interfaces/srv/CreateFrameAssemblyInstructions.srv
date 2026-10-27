@@ -1,0 +1,5 @@
+FrameAssemblyInstruction assembly_instruction
+---
+bool success
+string instruction_id
+string message

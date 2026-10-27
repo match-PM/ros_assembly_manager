@@ -37,65 +37,40 @@ class FrameConstraintsHandler(ami_msg.FrConstraints):
         self.transform_handler = TransformConstraintHandler(logger=logger)
     
     @staticmethod
-    def return_handler_from_dict(dictionary: dict, 
-                                    component_name: str = None,
-                                    unique_identifier = '',
-                                    scene: ami_msg.ObjectScene = None, 
-                                    logger: RcutilsLogger = None):
-            
+    def return_handler_from_dict(
+            dictionary: dict,
+            component_name: str = None,
+            unique_identifier='',
+            scene: ami_msg.ObjectScene = None,
+            logger: RcutilsLogger = None):
+        """Import only constraints present in the exported description."""
         frame_constraints = FrameConstraintsHandler(logger=logger)
-        # init centroid constraint handler
-        centroid_handler = CentroidConstraintHandler.return_handler_from_dict(dictionary.get('centroid',{}), 
-                                                                                unique_identifier = unique_identifier,
-                                                                                component_name=component_name,
-                                                                                logger=logger)
-        centroid_handler.set_is_active(scene=scene,
-                                       component_name=component_name)
-        
-        frame_constraints.centroid = centroid_handler.return_as_msg()
-        frame_constraints.centroid_handler = centroid_handler    
-        
-        
-        # init orthogonal constraint handler
-        orthogonal_handler = OrthogonalConstraintHandler.return_handler_from_dict(dictionary.get('orthogonal',{}),
-                                                                                unique_identifier = unique_identifier,
-                                                                                component_name=component_name,
-                                                                                logger=logger)
-        
-        orthogonal_handler.set_is_active(scene=scene,
-                                            component_name=component_name)
-        
-        frame_constraints.orthogonal = orthogonal_handler.return_as_msg()
-        frame_constraints.orthogonal_handler = orthogonal_handler
-        
-        
-        in_plane_handler = InPlaneConstraintHandler.return_handler_from_dict(dictionary.get('inPlane',{}),
-                                                                            unique_identifier = unique_identifier,
-                                                                            component_name=component_name,
-                                                                            logger=logger)
-        
-        in_plane_handler.set_is_active(scene=scene,
-                                       component_name=component_name)
-        
-        frame_constraints.in_plane = in_plane_handler.return_as_msg()
-        frame_constraints.in_plane_handler = in_plane_handler
-
-        transform_handler = TransformConstraintHandler.return_handler_from_dict(dictionary.get('transform',{}),
-                                                                                unique_identifier = unique_identifier,
-                                                                                component_name=component_name,
-                                                                                logger=logger)
-        
-        transform_handler.set_is_active(scene=scene,
-                                       component_name=component_name)
-        
-        frame_constraints.transform = transform_handler.return_as_msg()
-        frame_constraints.transform_handler = transform_handler
-        
+        handlers = {
+            'centroid': ('centroid', CentroidConstraintHandler),
+            'orthogonal': ('orthogonal', OrthogonalConstraintHandler),
+            'inPlane': ('in_plane', InPlaneConstraintHandler),
+            'transform': ('transform', TransformConstraintHandler),
+        }
+        unknown = set(dictionary) - set(handlers)
+        if unknown:
+            raise ValueError(f'Unknown constraint types: {sorted(unknown)}')
+        for name, data in dictionary.items():
+            if not data:
+                continue
+            attribute, handler_type = handlers[name]
+            handler = handler_type.return_handler_from_dict(
+                deepcopy(data),
+                component_name=component_name,
+                unique_identifier=unique_identifier,
+                logger=logger,
+            )
+            handler.set_is_active(scene=scene, component_name=component_name)
+            setattr(frame_constraints, attribute, handler.return_as_msg())
+            setattr(frame_constraints, f'{attribute}_handler', handler)
         return frame_constraints
-    
-                                          
+
     @staticmethod
-    def return_handler_from_msg(msg: ami_msg.FrConstraints, 
+    def return_handler_from_msg(msg: ami_msg.FrConstraints,
                                 scene: ami_msg.ObjectScene = None, 
                                 component_name: str = None,
                                 logger: RcutilsLogger = None):
