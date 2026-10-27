@@ -310,7 +310,7 @@ def test_description_uses_typed_create_services(monkeypatch):
 @pytest.mark.parametrize('kind', ['PlaneMatch', 'FrameMatch'])
 @pytest.mark.parametrize('available', [True, False])
 @pytest.mark.parametrize('missing_first', [True, False])
-def test_incremental_import_skips_missing_components(
+def test_incremental_import_includes_missing_components(
         monkeypatch, kind, available, missing_first):
     handler = AssemblyDescriptionHandler.__new__(AssemblyDescriptionHandler)
     handler._logger = Mock()
@@ -360,24 +360,131 @@ def test_incremental_import_skips_missing_components(
         file_path='/test/assembly.json', spawn_components=False)
     response = handler.create_assembly_instructions_callback(
         request, srv.CreateAssemblyInstructionFromDescription.Response())
-    assert response.success is available
-    assert response.instruction_id == ('ready' if available else '')
-    assert 'Skipped 1 instruction(s)' in response.message
-    handler._logger.warn.assert_called()
+    assert response.success
+    assert response.instruction_id == constraints[-1]['name']
+    assert f'Created {len(constraints)} assembly instruction(s).' in response.message
     callback = (handler._create_assembly_instructions if kind == 'PlaneMatch'
                 else handler._create_frame_assembly_instructions)
-    assert callback.call_count == int(available)
-    if available:
-        assert callback.call_args.args[0].assembly_instruction.id == 'ready'
-        handler._logger.error.assert_not_called()
+    assert callback.call_count == len(constraints)
+    assert [call.args[0].assembly_instruction.id for call in callback.call_args_list] == [
+        constraint['name'] for constraint in constraints]
+    assert all(not call.args[0].assembly_instruction.activated
+               for call in callback.call_args_list)
 
-    # A later import can create the skipped instruction after its component
-    # arrives, rather than treating the previous skip as permanent state.
-    component = msg.Object(obj_name='not_spawned-1')
-    frame = msg.RefFrame(frame_name='not_spawned-1_site', parent_frame='not_spawned-1')
-    component.ref_frames.append(frame)
-    handler._object_scene.scene.objects_in_scene.append(component)
-    response = handler.create_assembly_instructions_callback(
-        request, srv.CreateAssemblyInstructionFromDescription.Response())
+
+@pytest.mark.parametrize('kind', ['PlaneMatch', 'FrameMatch'])
+def test_pending_instructions_activate_after_geometry_arrives(kind):
+    from assembly_scene_publisher.py_modules.scene_errors import RefPlaneNotFoundError
+
+    complete_scene = make_scene()
+    scene = msg.ObjectScene()
+    manager = AssemblyManagerScene.__new__(AssemblyManagerScene)
+    manager.scene = scene
+    manager.logger = Mock()
+    manager.publish_information = Mock()
+    manager.assembly_scene_analyzer = AssemblySceneAnalyzer(scene)
+    manager.frame_match_handler = FrameMatchHandler(manager.assembly_scene_analyzer, None)
+    manager._check_create_instruction = Mock(return_value=True)
+    manager.calculate_assembly_transformation = Mock()
+    if kind == 'FrameMatch':
+        instruction = frame_instruction()
+        create = manager.create_frame_assembly_instructions
+    else:
+        instruction = msg.AssemblyInstruction(
+            id='planes', component_1='moving-1', component_2='fixed-1')
+        create = manager.create_assembly_instructions
+
+    # Ignore an activation flag supplied by the caller.
+    instruction.activated = True
+    assert create(instruction)
+    assert not instruction.activated
+    scene.objects_in_scene.append(complete_scene.objects_in_scene[0])
+    manager.initialize_pending_instructions()
+    assert not instruction.activated
+
+    second = complete_scene.objects_in_scene[1]
+    frames = list(second.ref_frames)
+    second.ref_frames.clear()
+    scene.objects_in_scene.append(second)
+    manager.calculate_assembly_transformation.side_effect = RefPlaneNotFoundError('pending')
+    manager.initialize_pending_instructions()
+    assert not instruction.activated
+
+    second.ref_frames.extend(frames)
+    manager.calculate_assembly_transformation.side_effect = None
+    manager.initialize_pending_instructions()
+    assert instruction.activated
+    manager.calculate_assembly_transformation.reset_mock()
+    manager.initialize_pending_instructions()
+    manager.calculate_assembly_transformation.assert_not_called()
+
+    # Losing a component invalidates the match; respawning can activate it again.
+    scene.objects_in_scene.pop()
+    manager.initialize_pending_instructions()
+    assert not instruction.activated
+    scene.objects_in_scene.append(second)
+    manager.initialize_pending_instructions()
+    assert instruction.activated
+
+
+def test_spawn_retries_instructions_after_reference_geometry(monkeypatch):
+    handler = AssemblyDescriptionHandler.__new__(AssemblyDescriptionHandler)
+    handler._logger = Mock()
+    handler._object_scene = Mock()
+    handler._load_json_file = Mock(return_value=({
+        'name': 'moving-1',
+        'mountingDescription': {'mountingReferences': {}},
+    }, None))
+    handler._build_spawn_request = Mock(return_value=srv.SpawnObject.Request())
+    handler._spawn_object = Mock(return_value=srv.SpawnObject.Response(success=True))
+    events = []
+    for name in ('frames', 'axes', 'planes'):
+        setattr(handler, f'_spawn_reference_{name}', Mock(
+            side_effect=lambda *args, name=name: (events.append(name) or True, '')))
+    handler._object_scene.initialize_pending_instructions.side_effect = (
+        lambda: events.append('initialize'))
+    monkeypatch.setattr(
+        'assembly_scene_publisher.py_modules.AssemblyDescriptionHandler.time.sleep',
+        lambda _: None)
+    success, _ = handler.spawn_component(srv.SpawnComponentFromDescription.Request())
+    assert success
+    assert events == ['frames', 'axes', 'planes', 'initialize']
+    handler._object_scene.publish_information.assert_called_once()
+
+
+def test_measurement_invalidation_preserves_all_other_frame_properties():
+    scene = make_scene()
+    manager = AssemblyManagerScene.__new__(AssemblyManagerScene)
+    manager.scene = scene
+    manager.assembly_scene_analyzer = AssemblySceneAnalyzer(scene)
+    manager.publish_information = Mock()
+    frame = scene.objects_in_scene[0].ref_frames[0]
+    frame.properties.vision_frame_properties.has_been_measured = True
+    frame.properties.laser_frame_properties.has_been_measured = True
+    frame.properties.gripping_frame_properties.is_gripping_frame = True
+    frame.properties.glue_pt_frame_properties.has_been_placed = True
+    untouched = scene.objects_in_scene[1].ref_frames[0]
+    untouched.properties.vision_frame_properties.has_been_measured = True
+    expected = deepcopy(frame)
+    expected.properties.vision_frame_properties.has_been_measured = False
+    expected.properties.laser_frame_properties.has_been_measured = False
+    response = manager.invalidate_frame_measurements(
+        srv.InvalidateFrameMeasurements.Request(frame_names=[frame.frame_name]))
     assert response.success
-    assert 'Skipped 0 instruction(s)' in response.message
+    assert frame == expected
+    assert untouched.properties.vision_frame_properties.has_been_measured
+    manager.publish_information.assert_called_once()
+
+
+def test_measurement_invalidation_validates_entire_request_before_mutating():
+    scene = make_scene()
+    manager = AssemblyManagerScene.__new__(AssemblyManagerScene)
+    manager.assembly_scene_analyzer = AssemblySceneAnalyzer(scene)
+    manager.publish_information = Mock()
+    frame = scene.objects_in_scene[0].ref_frames[0]
+    frame.properties.vision_frame_properties.has_been_measured = True
+    response = manager.invalidate_frame_measurements(
+        srv.InvalidateFrameMeasurements.Request(frame_names=[frame.frame_name, 'missing']))
+    assert not response.success
+    assert frame.properties.vision_frame_properties.has_been_measured
+    manager.publish_information.assert_not_called()

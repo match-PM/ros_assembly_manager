@@ -1,0 +1,26 @@
+joint_listener:
+  ros__parameters:
+    joint_states_topic: /joint_states
+    scene_topic: /assembly_manager/scene
+    robot_description_topic: /robot_description
+    invalidate_service: /assembly_manager/invalidate_frame_measurements
+    # The PM robot's two left and two right goniometer axes.
+    joints:
+      - Gonio_Left_Stage_1_Joint
+      - Gonio_Left_Stage_2_Joint
+      - Gonio_Right_Stage_1_Joint
+      - Gonio_Right_Stage_2_Joint
+    # Angular movement thresholds specified in degrees.
+    joints.Gonio_Left_Stage_1_Joint.threshold: 0.1
+    joints.Gonio_Left_Stage_1_Joint.threshold_unit: deg
+    joints.Gonio_Left_Stage_2_Joint.threshold: 0.1
+    joints.Gonio_Left_Stage_2_Joint.threshold_unit: deg
+    joints.Gonio_Right_Stage_1_Joint.threshold: 0.1
+    joints.Gonio_Right_Stage_1_Joint.threshold_unit: deg
+    joints.Gonio_Right_Stage_2_Joint.threshold: 0.1
+    joints.Gonio_Right_Stage_2_Joint.threshold_unit: deg
+    # Child links from pm_robot_description; TF provides downstream ancestry.
+    joints.Gonio_Left_Stage_1_Joint.child_frame: Gonio_Left_Stage_1_Top
+    joints.Gonio_Left_Stage_2_Joint.child_frame: Gonio_Left_Stage_2_Bottom
+    joints.Gonio_Right_Stage_1_Joint.child_frame: Gonio_Right_Stage_1_Top
+    joints.Gonio_Right_Stage_2_Joint.child_frame: Gonio_Right_Stage_2_Bottom

@@ -162,6 +162,7 @@ def instruction_html(instruction, scene):
     result = [
         f'<b>Instruction: {escape(instruction.id)}</b>',
         f'Type: {"FrameMatch" if is_frame else "PlaneMatch"}',
+        f'Activated: {_yes(instruction.activated)}',
         f'Source: {escape(instruction.parent_file_path)}',
     ]
     if is_frame:

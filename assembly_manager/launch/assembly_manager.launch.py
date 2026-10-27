@@ -40,8 +40,19 @@ def generate_launch_description():
         emulate_tty=True
     )
 
+    joint_listener = Node(
+        name="joint_listener",
+        package="joint_listener",
+        executable="joint_listener",
+        parameters=[os.path.join(
+            get_package_share_directory("joint_listener"), "config", "joints.yaml")],
+        output="screen",
+        emulate_tty=True,
+    )
+
     ld.add_action(assembly_manager)
     ld.add_action(assembly_scene_publisher)
+    ld.add_action(joint_listener)
     ld.add_action(moveit_component_spawner)
 
     return ld

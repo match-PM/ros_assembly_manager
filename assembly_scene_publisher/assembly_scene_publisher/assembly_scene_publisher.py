@@ -148,6 +148,9 @@ class AssemblyScenePublisherNode(Node):
              f'{manager}/save_scene_to_file', self.save_scene_to_file),
             ('load_scene_from_file_srv', ami_srv.LoadSceneFromFile,
              f'{manager}/load_scene_from_file', self.load_scene_from_file),
+            ('invalidate_frame_measurements_srv', ami_srv.InvalidateFrameMeasurements,
+             f'{manager}/invalidate_frame_measurements',
+             self.invalidate_frame_measurements),
             ('reset_frame_properties_srv', ami_srv.ResetFrameProperties,
              f'{manager}/reset_frame_properties',
              self.reset_frame_properties),
@@ -435,6 +438,9 @@ class AssemblyScenePublisherNode(Node):
             self.get_logger().error(f"Error loading scene from file: {e}")
             response.success = False
         return response
+
+    def invalidate_frame_measurements(self, request, response):
+        return self.object_scene.invalidate_frame_measurements(request)
 
     def reset_frame_properties(self, request: ami_srv.ResetFrameProperties.Request, response: ami_srv.ResetFrameProperties.Response):
         response = self.object_scene.reset_frame_properties(request)

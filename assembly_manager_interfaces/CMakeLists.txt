@@ -38,6 +38,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/ClearScene.srv"
   "srv/SaveSceneToFile.srv"
   "srv/LoadSceneFromFile.srv"
+  "srv/InvalidateFrameMeasurements.srv"
   "srv/ResetFrameProperties.srv"
   "srv/SetFrameProperties.srv"
   "srv/SetComponentUuid.srv"

@@ -1,0 +1,5 @@
+# Clear only vision/laser measurement state, preserving all other frame properties.
+string[] frame_names
+---
+bool success
+string message

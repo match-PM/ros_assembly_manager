@@ -14,6 +14,7 @@
 
   <build_depend>assembly_manager_interfaces</build_depend>
   <exec_depend>assembly_manager_interfaces</exec_depend>
+  <exec_depend>joint_listener</exec_depend>
   
   <export>
     <build_type>ament_python</build_type>

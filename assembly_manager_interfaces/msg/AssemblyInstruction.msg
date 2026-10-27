@@ -8,3 +8,5 @@ ConstraintPlanes plane_match_2
 ConstraintPlanes plane_match_3
 string parent_file_path 
 AssemblyPrerequisites prerequisites
+# True once components and match geometry are initialized.
+bool activated false

@@ -23,7 +23,7 @@ from assembly_scene_publisher.py_modules.AssemblySceneAnalyzer import AssemblySc
 from assembly_scene_publisher.py_modules.AssemblySceneModifier import AssemblySceneModifier
 from assembly_scene_publisher.py_modules.FrameMatchHandler import FrameMatchHandler
 from assembly_scene_publisher.py_modules.assembly_instructions import (
-    AssemblyInstructionType,
+    AssemblyInstructionType, instruction_components,
 )
 from assembly_scene_publisher.py_modules.frame_properties import import_frame_properties
 
@@ -100,7 +100,7 @@ class AssemblyManagerScene():
         self.node = node
         self.callback_group_pub = ReentrantCallbackGroup()
         self._scene_publisher = node.create_publisher(ami_msg.ObjectScene,assembly_scene_topic,10,callback_group=self.callback_group_pub)
-        self.timer = node.create_timer(5.0, self.publish_information,callback_group=self.callback_group_pub)
+        self.timer = node.create_timer(5.0, self._retry_pending_and_publish,callback_group=self.callback_group_pub)
         self.logger = node.get_logger()
         self.tf_broadcaster = StaticTransformBroadcaster(node)
         #self.tf_broadcaster = TransformBroadcaster(node)
@@ -109,6 +109,43 @@ class AssemblyManagerScene():
             self.assembly_scene_analyzer, self.tf_buffer)
         self.tf_listener = TransformListener(self.tf_buffer, node,spin_thread=True)
     
+    def _retry_pending_and_publish(self):
+        # TF may arrive after the component/reference geometry was spawned.
+        self.initialize_pending_instructions()
+        self.publish_information()
+
+    def initialize_pending_instructions(self):
+        """Retry inactive matches without requiring another description import."""
+        for instruction in self.assembly_scene_analyzer.get_all_assembly_instructions():
+            first, second, _ = instruction_components(instruction)
+            if not all(self.assembly_scene_analyzer.check_component_exists(name)
+                       for name in (first, second)):
+                instruction.activated = False
+            elif not instruction.activated:
+                self._initialize_instruction(instruction)
+
+    def _initialize_instruction(self, instruction):
+        instruction.activated = False
+        first, second, _ = instruction_components(instruction)
+        if not all(self.assembly_scene_analyzer.check_component_exists(name)
+                   for name in (first, second)):
+            return False
+        try:
+            if isinstance(instruction, ami_msg.FrameAssemblyInstruction):
+                self.frame_match_handler.attach(instruction)
+            else:
+                if not self._check_create_instruction(instruction):
+                    return False
+                self.calculate_assembly_transformation(instruction)
+        except (AssemblyTransformationError, ComponentNotFoundError,
+                RefPlaneNotFoundError, RefFrameNotFoundError, RefAxisNotFoundError,
+                TfFrameLookupError, AddRefFrameError, RefPlaneError, ValueError) as error:
+            self.logger.warn(
+                f"Assembly instruction '{instruction.id}' remains inactive: {error}")
+            return False
+        instruction.activated = True
+        return True
+
     def publish_information(self):
         self.publish_scene()
         self.publish_to_tf()
@@ -209,6 +246,7 @@ class AssemblyManagerScene():
 
         if not obj_existend:
             self.scene.objects_in_scene.append(new_comp)
+            self.initialize_pending_instructions()
             self.publish_scene()
             self.publish_to_tf()
             message = f"Object '{new_comp.obj_name}' successfully spawned."
@@ -388,6 +426,7 @@ class AssemblyManagerScene():
                     self.assembly_scene_modifier.del_from_occupied_frames(obj.parent_frame)
 
                 del self.scene.objects_in_scene[index]
+                self.initialize_pending_instructions()
 
                 self.publish_information()
                 self.logger.info(f'{obj_id} destroyed!!!')
@@ -921,52 +960,35 @@ class AssemblyManagerScene():
 
 
     def create_assembly_instructions(self,instruction: ami_msg.AssemblyInstruction)->bool:
-        """
-        Docstring for create_assembly_instructions
-        
-        :param self: Description
-        :param instruction: Description
-        :type instruction: ami_msg.AssemblyInstruction
-        :return: Description
-        :rtype: bool
-        :raises ComponentNotFoundError: Raised when a component specified in the instruction does not exist in the scene.
-        :raises ValueError: Raised when the assembly transformation cannot be calculated due to invalid plane selection or other issues.
-        :raises RefPlaneNotFoundError: Raised when a plane specified in the instruction does not exist in the scene.
-        """
-
-        try:
-            self._check_instruction_id_available(
-                instruction.id, self.scene.frame_assembly_instructions)
-            if not self._check_create_instruction(instruction):
-                return False
-            self.calculate_assembly_transformation(instruction)
-
-        except (AssemblyTransformationError,
-                ComponentNotFoundError,
-                RefPlaneNotFoundError,
-                RefFrameNotFoundError,
-                TfFrameLookupError,
-                AddRefFrameError,
-                ValueError) as e:
-            self.logger.error(f"Error occured in creating assembly instruction: {str(e)}")
-            return False    
-
-        
+        """Store a plane match, initializing it when its geometry is available."""
+        self._check_instruction_id_available(
+            instruction.id, self.scene.frame_assembly_instructions)
+        self._validate_instruction_components(instruction)
+        self._initialize_instruction(instruction)
         self._store_instruction(instruction, self.scene.assembly_instructions)
         self.publish_information()
-        
         return True
 
     def create_frame_assembly_instructions(
             self, instruction: ami_msg.FrameAssemblyInstruction) -> bool:
-        """Associate existing frames and store a frame-only instruction."""
+        """Store the match and associate its frames once they are available."""
         self._check_instruction_id_available(
             instruction.id, self.scene.assembly_instructions)
-        self.frame_match_handler.attach(instruction)
-        self._store_instruction(
-            instruction, self.scene.frame_assembly_instructions)
+        self._validate_instruction_components(instruction)
+        self._initialize_instruction(instruction)
+        self._store_instruction(instruction, self.scene.frame_assembly_instructions)
         self.publish_information()
         return True
+
+    @staticmethod
+    def _validate_instruction_components(instruction):
+        first, second, _ = instruction_components(instruction)
+        if not first or not second or first == second:
+            raise ValueError('Assembly instructions require two distinct component names.')
+        if isinstance(instruction, ami_msg.FrameAssemblyInstruction):
+            match = instruction.frame_match
+            if not match.assembly_frame.frame or not match.target_frame.frame:
+                raise ValueError('FrameMatch references require frame names.')
 
     @staticmethod
     def _check_instruction_id_available(instruction_id, other_instructions):
@@ -1067,6 +1089,10 @@ class AssemblyManagerScene():
         if instruction is None:
             return None
         else:
+            if not instruction.activated and not self._initialize_instruction(instruction):
+                raise AssemblyTransformationError(
+                    f"Assembly instruction '{instruction.id}' is inactive; "
+                    'waiting for components and match geometry.')
             assembly_transform = self.calculate_assembly_transformation(instruction)
             return assembly_transform
     
@@ -2147,6 +2173,24 @@ class AssemblyManagerScene():
         with open(file_path, 'w') as file:
             json.dump(obj_dict, file, indent=4)
             
+    def invalidate_frame_measurements(self, request):
+        """Clear measurement flags using current properties rather than a scene copy."""
+        response = ami_srv.InvalidateFrameMeasurements.Response()
+        try:
+            frames = [self.assembly_scene_analyzer.get_ref_frame_by_name(name)
+                      for name in set(request.frame_names)]
+        except RefFrameNotFoundError as error:
+            response.success = False
+            response.message = str(error)
+            return response
+        for frame in frames:
+            frame.properties.vision_frame_properties.has_been_measured = False
+            frame.properties.laser_frame_properties.has_been_measured = False
+        response.success = True
+        response.message = f'Invalidated measurements for {len(frames)} frame(s).'
+        self.publish_information()
+        return response
+
     def reset_frame_properties(self, request: ami_srv.ResetFrameProperties.Request):
         response = ami_srv.ResetFrameProperties.Response()
         try:

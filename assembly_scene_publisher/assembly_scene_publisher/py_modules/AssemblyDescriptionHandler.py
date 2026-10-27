@@ -20,9 +20,6 @@ from assembly_scene_publisher.py_modules.frame_properties import (
     import_frame_properties,
     scene_frame_name,
 )
-from assembly_scene_publisher.py_modules.assembly_instructions import (
-    instruction_components,
-)
 
 
 class AssemblyDescriptionHandler:
@@ -93,7 +90,6 @@ class AssemblyDescriptionHandler:
             self._scene_analyzer.set_scene(self._object_scene.scene)
 
             created_count = 0
-            skipped_count = 0
             response.instruction_id = ''
             for constraint in mounting_description.get(
                     'assemblyConstraints', []):
@@ -102,17 +98,6 @@ class AssemblyDescriptionHandler:
                 instruction_request.assembly_instruction.parent_file_path = \
                     request.file_path
                 instruction = instruction_request.assembly_instruction
-                if not request.spawn_components:
-                    first, second, _ = instruction_components(instruction)
-                    missing = [name for name in (first, second)
-                               if not self._scene_analyzer.check_component_exists(name)]
-                    if missing:
-                        self._logger.warn(
-                            f"Skipping assembly instruction '{instruction.id}': "
-                            f"components not in the scene: {', '.join(missing)}. "
-                            'Import again after spawning them.')
-                        skipped_count += 1
-                        continue
                 if isinstance(instruction_request,
                               ami_srv.CreateFrameAssemblyInstructions.Request):
                     instruction_response = self._create_frame_assembly_instructions(
@@ -136,15 +121,13 @@ class AssemblyDescriptionHandler:
             if created_count == 0:
                 return self._failed_response(
                     response,
-                    'No assembly instructions could be created. '
-                    f'Skipped {skipped_count} instruction(s) with missing components.',
+                    'No assembly instructions found in the description.',
                 )
 
             time.sleep(1.5)
             response.success = True
             response.message = (
-                f'Created {created_count} assembly instruction(s). '
-                f'Skipped {skipped_count} instruction(s) with missing components.')
+                f'Created {created_count} assembly instruction(s).')
         except Exception as error:
             return self._failed_response(
                 response,
@@ -205,6 +188,9 @@ class AssemblyDescriptionHandler:
                 component_name, references.get('ref_planes', []))
             if not success:
                 return False, message
+
+            self._object_scene.initialize_pending_instructions()
+            self._object_scene.publish_information()
 
             return (
                 True,

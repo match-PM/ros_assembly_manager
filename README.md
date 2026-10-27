@@ -46,6 +46,12 @@ To launch the ROS2 Assembly Manager, use the following command:
 ros2 launch assembly_manager assembly_manager.launch.py
 ```
 
+### Invalidate measurements after axis motion
+
+The optional [`joint_listener`](joint_listener/README.md) package monitors joints
+configured in YAML and clears downstream component measurement flags after motion
+exceeds each joint's threshold.
+
 ### Future Enhancements
 - Add launch argument for sim_time configuration (true/false)
 - Make topic names ('tf_static', '/planning_scene') configurable via launch parameters
