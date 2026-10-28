@@ -1,0 +1,6 @@
+# Called by an executor after verifying the final assembled state, or to reset it.
+string instruction_id
+bool completed
+---
+bool success
+string message

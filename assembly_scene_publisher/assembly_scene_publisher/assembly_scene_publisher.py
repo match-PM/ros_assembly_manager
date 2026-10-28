@@ -163,6 +163,9 @@ class AssemblyScenePublisherNode(Node):
             ('set_component_properties_srv', ami_srv.SetComponentProperties,
              f'{manager}/set_component_properties',
              self.set_component_properties),
+            ('set_assembly_instruction_completed_srv', ami_srv.SetAssemblyInstructionCompleted,
+             f'{manager}/set_assembly_instruction_completed',
+             self.set_assembly_instruction_completed),
             ('correct_component_position_srv',
              ami_srv.CorrectComponentPosition,
              f'{manager}/correct_component_position',
@@ -457,6 +460,9 @@ class AssemblyScenePublisherNode(Node):
     def set_component_properties(self, request: ami_srv.SetComponentProperties.Request, response: ami_srv.SetComponentProperties.Response):
         response = self.object_scene.set_component_properties(request)
         return response
+
+    def set_assembly_instruction_completed(self, request, response):
+        return self.object_scene.set_assembly_instruction_completed(request)
 
     def correct_component_position(self, request: ami_srv.CorrectComponentPosition.Request, response: ami_srv.CorrectComponentPosition.Response):
         try:

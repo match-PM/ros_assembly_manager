@@ -121,6 +121,7 @@ class AssemblyManagerScene():
             if not all(self.assembly_scene_analyzer.check_component_exists(name)
                        for name in (first, second)):
                 instruction.activated = False
+                instruction.completed = False
             elif not instruction.activated:
                 self._initialize_instruction(instruction)
 
@@ -1003,6 +1004,12 @@ class AssemblyManagerScene():
     def _store_instruction(instruction, instructions):
         for index, existing in enumerate(instructions):
             if existing.id == instruction.id:
+                # Reimporting an identical description must preserve progress.
+                # A changed mounting definition starts a new completion state.
+                fields = instruction.get_fields_and_field_types()
+                if all(getattr(existing, field) == getattr(instruction, field)
+                       for field in fields if field not in {'activated', 'completed'}):
+                    instruction.completed = existing.completed
                 instructions[index] = instruction
                 return
         instructions.append(instruction)
@@ -2220,6 +2227,30 @@ class AssemblyManagerScene():
         self.publish_information()
         return response
     
+    def set_assembly_instruction_completed(self, request):
+        response = ami_srv.SetAssemblyInstructionCompleted.Response()
+        try:
+            instruction = self.assembly_scene_analyzer.get_assembly_instruction_by_name(
+                request.instruction_id)
+            if request.completed and not instruction.activated:
+                response.message = 'Cannot complete an instruction whose geometry is not initialized.'
+                return response
+            instruction.completed = request.completed
+            moving = self.assembly_scene_analyzer.get_assembly_component_for_instruction(instruction.id)
+            if self.assembly_scene_analyzer.check_component_exists(moving):
+                related = [item for item in self.assembly_scene_analyzer.get_all_assembly_instructions()
+                           if self.assembly_scene_analyzer.get_assembly_component_for_instruction(item.id) == moving]
+                component = self.assembly_scene_analyzer.get_component_by_name(moving)
+                # Keep the existing component-level state usable by robot skills.
+                # Completing just one of several mountings does not complete it.
+                component.properties.is_assembled = all(item.completed for item in related)
+            response.success = True
+            response.message = f'Instruction {instruction.id} completed={instruction.completed}'
+            self.publish_information()
+        except AssemblyInstructionNotFoundError as error:
+            response.message = str(error)
+        return response
+
     def set_component_properties(self, request: ami_srv.SetComponentProperties.Request):
         response = ami_srv.SetComponentProperties.Response()
         try:

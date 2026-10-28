@@ -1,5 +1,5 @@
 string file_path
-bool spawn_components true
+bool spawn_components false
 ---
 string instruction_id
 bool success

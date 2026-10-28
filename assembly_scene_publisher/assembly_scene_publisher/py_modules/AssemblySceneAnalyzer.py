@@ -989,6 +989,10 @@ class AssemblySceneAnalyzer():
         scene = self._get_scene()
         return [*scene.assembly_instructions, *scene.frame_assembly_instructions]
 
+    def check_assembly_instruction_completed(self, instruction_name: str) -> bool:
+        """Return the verified completion state of one mounting instruction."""
+        return self.get_assembly_instruction_by_name(instruction_name).completed
+
     def get_assembly_instruction_by_name(
             self, instruction_name: str
     ) -> AssemblyInstructionType:
@@ -1140,6 +1144,190 @@ class AssemblySceneAnalyzer():
 
         return laser_frames
     
+    def _get_measurement_frames_for_frame(
+            self, frame_name: str, measurement_type: str = None
+            ) -> list[tuple[ami_msg.RefFrame, bool]]:
+        """Return unique constraint dependencies and their measured state.
+
+        Includes the input frame itself when it has a measurement role. Only
+        active constraints are followed, recursively, across components. Empty
+        results are valid; missing references and cycles raise the same errors
+        as build_frame_reference_tree. Ordering follows the reference tree.
+        For a frame with both roles, the combined query requires both measured
+        flags to be true; a sensor-specific query uses only that sensor's flag.
+        """
+        frame = self.get_ref_frame_by_name(frame_name)
+        tree = self.build_frame_reference_tree([frame])
+        result = []
+        visited = set()
+        attributes = ([f'{measurement_type}_frame_properties']
+                      if measurement_type else
+                      ['laser_frame_properties', 'vision_frame_properties'])
+
+        def collect(branch):
+            for name, children in branch.items():
+                if name in visited:
+                    continue
+                visited.add(name)
+                dependency = self.get_ref_frame_by_name(name)
+                groups = [getattr(dependency.properties, attr)
+                          for attr in attributes]
+                active = [group for group in groups
+                          if (getattr(group, 'is_laser_frame', False) or
+                              getattr(group, 'is_vision_frame', False))]
+                if active:
+                    result.append((dependency, all(
+                        group.has_been_measured for group in active)))
+                collect(children)
+
+        collect(tree)
+        return result
+
+    def get_measurement_frames_for_frame(
+            self, frame_name: str) -> list[tuple[ami_msg.RefFrame, bool]]:
+        """Return relevant laser and vision frames as (frame, measured) pairs.
+
+        Relevance means the frame itself or a recursive active constraint
+        dependency, rather than every measurement frame on its component.
+        """
+        return self._get_measurement_frames_for_frame(frame_name)
+
+    def _get_measurement_frames_for_role(
+            self, frame_name: str, role: str, measurement_type: str = None
+            ) -> list[tuple[ami_msg.RefFrame, bool]]:
+        properties = self.get_frame_properties(frame_name)
+        if role == 'gripping':
+            valid = properties.gripping_frame_properties.is_gripping_frame
+            error = GrippingFrameNotFoundError
+        else:
+            valid = getattr(properties.assembly_frame_properties,
+                            f'is_{role}_frame')
+            error = (AssemblyFrameNotFoundError if role == 'assembly'
+                     else TargetFrameNotFoundError)
+        if not valid:
+            raise error(f'The frame {frame_name} is not a {role} frame.')
+        return self._get_measurement_frames_for_frame(
+            frame_name, measurement_type)
+
+    def get_laser_frames_for_gripping_frame(
+            self, gripping_frame_name: str
+            ) -> list[tuple[ami_msg.RefFrame, bool]]:
+        """Return relevant laser (frame, measured) pairs for a gripping frame."""
+        return self._get_measurement_frames_for_role(
+            gripping_frame_name, 'gripping', 'laser')
+
+    def get_vision_frames_for_gripping_frame(
+            self, gripping_frame_name: str
+            ) -> list[tuple[ami_msg.RefFrame, bool]]:
+        """Return relevant vision (frame, measured) pairs for a gripping frame."""
+        return self._get_measurement_frames_for_role(
+            gripping_frame_name, 'gripping', 'vision')
+
+    def get_measurement_frames_for_gripping_frame(
+            self, gripping_frame_name: str
+            ) -> list[tuple[ami_msg.RefFrame, bool]]:
+        """Return laser and vision (frame, measured) pairs for a gripping frame."""
+        return self._get_measurement_frames_for_role(
+            gripping_frame_name, 'gripping')
+
+    def get_laser_frames_for_target_frame(
+            self, target_frame_name: str
+            ) -> list[tuple[ami_msg.RefFrame, bool]]:
+        """Return relevant laser (frame, measured) pairs for a target frame."""
+        return self._get_measurement_frames_for_role(
+            target_frame_name, 'target', 'laser')
+
+    def get_vision_frames_for_target_frame(
+            self, target_frame_name: str
+            ) -> list[tuple[ami_msg.RefFrame, bool]]:
+        """Return relevant vision (frame, measured) pairs for a target frame."""
+        return self._get_measurement_frames_for_role(
+            target_frame_name, 'target', 'vision')
+
+    def get_measurement_frames_for_target_frame(
+            self, target_frame_name: str
+            ) -> list[tuple[ami_msg.RefFrame, bool]]:
+        """Return laser and vision (frame, measured) pairs for a target frame."""
+        return self._get_measurement_frames_for_role(target_frame_name, 'target')
+
+    def get_laser_frames_for_assembly_frame(
+            self, assembly_frame_name: str
+            ) -> list[tuple[ami_msg.RefFrame, bool]]:
+        """Return relevant laser (frame, measured) pairs for an assembly frame."""
+        return self._get_measurement_frames_for_role(
+            assembly_frame_name, 'assembly', 'laser')
+
+    def get_vision_frames_for_assembly_frame(
+            self, assembly_frame_name: str
+            ) -> list[tuple[ami_msg.RefFrame, bool]]:
+        """Return relevant vision (frame, measured) pairs for an assembly frame."""
+        return self._get_measurement_frames_for_role(
+            assembly_frame_name, 'assembly', 'vision')
+
+    def get_measurement_frames_for_assembly_frame(
+            self, assembly_frame_name: str
+            ) -> list[tuple[ami_msg.RefFrame, bool]]:
+        """Return laser and vision (frame, measured) pairs for an assembly frame."""
+        return self._get_measurement_frames_for_role(
+            assembly_frame_name, 'assembly')
+
+    def _get_glue_frame_states(
+            self, frame_names: list[str], glue_line: bool, state: str
+            ) -> dict[str, bool]:
+        attribute = ('glue_line_frame_properties' if glue_line
+                     else 'glue_pt_frame_properties')
+        role = 'is_glue_line_frame' if glue_line else 'is_glue_point'
+        result = {}
+        for name in frame_names:
+            properties = getattr(self.get_frame_properties(name), attribute)
+            if not getattr(properties, role):
+                raise ValueError(f'Frame {name} is not a '
+                                 f'{"glue line" if glue_line else "glue point"} frame.')
+            result[name] = getattr(properties, state)
+        return result
+
+    def get_glue_pt_frames_placed(
+            self, frame_names: list[str]) -> dict[str, bool]:
+        """Map each supplied glue point frame name to its placement state.
+
+        An empty input returns {}. Missing frames raise RefFrameNotFoundError;
+        frames without the requested glue role raise ValueError.
+        """
+        return self._get_glue_frame_states(
+            frame_names, False, 'has_been_placed')
+
+    def get_glue_pt_frames_cured(
+            self, frame_names: list[str]) -> dict[str, bool]:
+        """Map each glue point frame name to its independently tracked cure state.
+
+        Uses the same input validation as get_glue_pt_frames_placed.
+        """
+        return self._get_glue_frame_states(
+            frame_names, False, 'has_been_cured')
+
+    def get_glue_line_frames_placed(
+            self, frame_names: list[str]) -> dict[str, bool]:
+        """Map each glue line frame name to its placement state (no cure field).
+
+        Uses the same input validation as get_glue_pt_frames_placed.
+        """
+        return self._get_glue_frame_states(
+            frame_names, True, 'has_been_placed')
+
+    def get_gripper_configuration_for_gripping_frame(
+            self, gripping_frame_name: str) -> ami_msg.GrippingFrameProperties:
+        """Return a copy of the declared compatible grippers and gripper tips.
+
+        No particular gripper or tip is selected: the scene stores compatibility
+        lists, rather than a single required configuration or gripper settings.
+        """
+        properties = self.get_frame_properties(
+            gripping_frame_name).gripping_frame_properties
+        if not properties.is_gripping_frame:
+            raise GrippingFrameNotFoundError(
+                f'The frame {gripping_frame_name} is not a gripping frame.')
+        return deepcopy(properties)
+
     def get_frame_properties(self, frame_name:str)-> ami_msg.RefFrameProperties:
         """
         Returns the properties of the given ref frame name.
@@ -1191,24 +1379,9 @@ class AssemblySceneAnalyzer():
         """
         This function returns a list of frame names that are constraints for the given frame.
         """
-        from assembly_scene_publisher.py_modules.frame_constraints import (
-            FrameConstraintsHandler,
-        )
+        return [self.get_ref_frame_by_name(name)
+                for name in self.get_constraint_frame_names_for_frame(frame)]
 
-        final_list = []
-        constraints_handler = FrameConstraintsHandler()
-        constraints_handler.set_from_msg(frame.constraints)
-        
-        ref_frame_names = constraints_handler.get_frame_references()
-        
-        if len(ref_frame_names) > 0:
-            for ref_frame_name in ref_frame_names:
-                ref_frame = self.get_ref_frame_by_name(ref_frame_name)
-
-                final_list.append(ref_frame)
-        
-        return final_list
-    
     def build_frame_reference_tree(self,
                                frames: list[ami_msg.RefFrame]) -> dict:
         """Builds a tree structure representing the references between frames.
@@ -1320,18 +1493,51 @@ class AssemblySceneAnalyzer():
             return False
     
     def get_assembly_component_for_instruction(self, instruction_name:str)-> str:
-        """
-        Returns the component name for the given assembly instruction name.
-        parameters:
-        - instruction_name: name of the assembly instruction
-        raises:
-        - AssemblyInstructionNotFoundError: if no assembly instruction is found for the given name
-        returns:
-        - component name for the given assembly instruction
+        """Return the moving component name for an instruction ID.
+
+        instruction_name is matched against instruction.id. Supports plane and
+        frame instructions; raises AssemblyInstructionNotFoundError if absent.
         """
         instruction = self.get_assembly_instruction_by_name(instruction_name)
         return moving_and_target_components(instruction)[0]
-    
+
+    def get_target_component_for_instruction(self, instruction_name: str) -> str:
+        """Return the target component name for an instruction ID.
+
+        instruction_name is matched against instruction.id. Supports plane and
+        frame instructions; raises AssemblyInstructionNotFoundError if absent.
+        """
+        instruction = self.get_assembly_instruction_by_name(instruction_name)
+        return moving_and_target_components(instruction)[1]
+
+    @staticmethod
+    def _component_type_from_name(component_name: str) -> str:
+        """Strip only a trailing numeric instance suffix, e.g. Part-A-12."""
+        component_type, separator, instance = component_name.rpartition('-')
+        if component_type and separator and instance.isdecimal():
+            return component_type
+        return component_name
+
+    def get_assembly_component_type_for_instruction(
+            self, instruction_name: str) -> str:
+        """Return the moving component's JSON file stem for an instruction ID.
+
+        Removes a trailing numeric instance suffix (Part-A-2 -> Part-A).
+        Names without that suffix are preserved. Unknown instruction IDs raise
+        AssemblyInstructionNotFoundError, as in the component name lookup.
+        """
+        return self._component_type_from_name(
+            self.get_assembly_component_for_instruction(instruction_name))
+
+    def get_target_component_type_for_instruction(
+            self, instruction_name: str) -> str:
+        """Return the target component's JSON file stem for an instruction ID.
+
+        Uses the same suffix handling and errors as the assembly type query.
+        """
+        return self._component_type_from_name(
+            self.get_target_component_for_instruction(instruction_name))
+
     def get_instructions_for_component(
             self, component_name: str) -> list[AssemblyInstructionType]:
         """

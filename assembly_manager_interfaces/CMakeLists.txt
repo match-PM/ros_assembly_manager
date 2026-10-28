@@ -45,6 +45,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/CorrectComponentPosition.srv"
   "srv/CheckLineOfSight.srv"
   "srv/SetComponentProperties.srv"
+  "srv/SetAssemblyInstructionCompleted.srv"
 
   "msg/AssemblyInstruction.msg"
   "msg/FrameAssemblyInstruction.msg"
