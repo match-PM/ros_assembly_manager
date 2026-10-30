@@ -781,12 +781,9 @@ class AssemblyManagerScene():
         parent_frame = \
             self.assembly_scene_analyzer.get_parent_frame_for_ref_frame(
                 frame_name)
-        frame_to_modify = self.assembly_scene_analyzer.get_ref_frame_by_name(frame_name)
+        component_name, frame_to_modify = \
+            self.assembly_scene_analyzer.get_frame_from_scene(frame_name)
         pose_to_modify = frame_to_modify.pose
-        
-        component_name = \
-            self.assembly_scene_analyzer.get_component_for_frame_name(
-                frame_name)
         
         if parent_frame is None:
             self.logger.error(f"Pose of frame '{frame_name}' will be updated relative to the world frame!")
@@ -874,16 +871,13 @@ class AssemblyManagerScene():
 
             #self.logger.info(f'Frame {frame_name} updated!') 
             
-            frame_to_modify = self.assembly_scene_analyzer.get_ref_frame_by_name(frame_name)
+            component_name, frame_to_modify = \
+                self.assembly_scene_analyzer.get_frame_from_scene(frame_name)
             frame_to_modify.pose.position = pose_to_modify.position
 
             if modify_orientation:
                 frame_to_modify.pose.orientation = pose_to_modify.orientation
                 self.logger.warning(f"MODIFING ORIENTATION")
-            
-            component_name = \
-                self.assembly_scene_analyzer.get_component_for_frame_name(
-                    frame_name)
             
             if request.set_laser_measured:
                 frame_to_modify.properties.laser_frame_properties.is_laser_frame = True
@@ -926,7 +920,8 @@ class AssemblyManagerScene():
             self.logger.error(f"Frame '{from_frame}' does not exist in the tf buffer!")
             return False
                
-        ref_frame = self.assembly_scene_analyzer.get_ref_frame_by_name(frame_to_set)
+        component_name, ref_frame = \
+            self.assembly_scene_analyzer.get_frame_from_scene(frame_to_set)
         
         ref_frame.pose.position.x = transform.transform.translation.x
         ref_frame.pose.position.y = transform.transform.translation.y
@@ -945,10 +940,6 @@ class AssemblyManagerScene():
             ref_frame.properties.vision_frame_properties.is_vision_frame = True
             ref_frame.properties.vision_frame_properties.has_been_measured = True
 
-        component_name = \
-            self.assembly_scene_analyzer.get_component_for_frame_name(
-                frame_to_set)
-        
         if component_name is not None:
             calculate_constraints_for_component(scene=self.scene,
                                 component_name=component_name,

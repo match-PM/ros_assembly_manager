@@ -426,11 +426,20 @@ class AssemblyScenePublisherNode(Node):
         self.clear_adhesive_points_client.call_async(EmptyWithSuccess.Request())
     
     def save_scene_to_file(self, request: ami_srv.SaveSceneToFile.Request, response: ami_srv.SaveSceneToFile.Response):
+        response.success = False
+        response.file_path = ""
+        response.message = ""
         try:
-            response.success, path = self.object_scene.save_scene_to_file(request.file_path)
+            success, path = self.object_scene.save_scene_to_file(request.file_path)
+            if success:
+                response.file_path = os.path.abspath(path)
+                response.success = True
+            else:
+                response.message = f"Failed to save scene to directory '{request.file_path}'."
+                self.get_logger().error(response.message)
         except Exception as e:
-            self.get_logger().error(f"Error saving scene to file: {e}")
-            response.success = False    
+            response.message = f"Error saving scene to file: {e}"
+            self.get_logger().error(response.message)
         return response
 
     def load_scene_from_file(self, request: ami_srv.LoadSceneFromFile.Request, response: ami_srv.LoadSceneFromFile.Response):
