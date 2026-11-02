@@ -1,10 +1,12 @@
 import vtk
-import threading
-import time
 import math
 from typing import Tuple, Optional
 from geometry_msgs.msg import Pose, Point
 import numpy as np
+from assembly_scene_publisher.py_modules.LineOfSightVisualizer import LineOfSightVisualizer
+
+
+_visualizer = LineOfSightVisualizer()
 
 class LineOfSightChecker:
     """Class for checking line of sight between viewpoint and target using STL mesh.
@@ -308,94 +310,97 @@ class LineOfSightChecker:
         arrowActor.GetProperty().SetOpacity(0.8)
         return arrowActor
     
-    def visualize(self, timeout_seconds: int = 10) -> None:
-        """Create and display the 3D visualization in a separate thread.
-        
-        Displays:
-        - Semi-transparent gray mesh
-        - Blue sphere at viewpoint
-        - Yellow sphere at target point
-        - Cyan arrow from viewpoint to target
-        - Red spheres at collision points (if any)
-        - Small reference axes
-        - Legend explaining colors
-        
-        Args:
-            timeout_seconds: Seconds to display window before auto-closing (default 10)
+    def visualize(self, timeout_seconds: int = 10) -> bool:
+        """Open an isolated window without blocking the caller.
+
+        Return False if another LOS window is already open. Only plain data is
+        passed to a fresh interpreter; VTK objects never cross process boundaries.
+        The window closes automatically after timeout_seconds.
         """
-        def run_visualization() -> None:
-            """Run the visualization in a thread."""
-            # Create renderer
-            renderer = vtk.vtkRenderer()
-            renderer.SetBackground(0.1, 0.1, 0.1)
-            
-            # Add actors
-            renderer.AddActor(self.create_mesh_actor())
-            arrow_actor = self.create_arrow_actor()
-            if arrow_actor:
-                renderer.AddActor(arrow_actor)
-            renderer.AddActor(self.create_viewpoint_actor())
-            renderer.AddActor(self.create_target_actor())
-            
-            collision_actor = self.create_collision_points_actor()
-            if collision_actor:
-                renderer.AddActor(collision_actor)
-            
-            # Add axes (small reference frame)
-            axes = vtk.vtkAxesActor()
-            axes.SetAxisLabels(0)  # Disable labels to reduce visual clutter
-            axes.GetXAxisShaftProperty().SetColor(1, 0, 0)
-            axes.GetYAxisShaftProperty().SetColor(0, 1, 0)
-            axes.GetZAxisShaftProperty().SetColor(0, 0, 1)
-            
-            # Use actor position instead of scale for better control
-            axes.SetPosition(0, 0, 0)
-            
-            # Scale down using actor's property
-            axes.SetUserTransform(vtk.vtkTransform())
-            axes.GetUserTransform().Scale(0.2, 0.2, 0.2)
-            renderer.AddActor(axes)
-            
-            # Add legend/text
-            legend = vtk.vtkTextActor()
-            legend.SetInput("Blue: Viewpoint  |  Yellow: Target  |  Red: Collisions  |  Cyan: Direction")
-            legend.GetTextProperty().SetFontSize(12)
-            legend.GetTextProperty().SetColor(1.0, 1.0, 1.0)
-            legend.SetDisplayPosition(10, 20)
-            renderer.AddActor2D(legend)
-            
-            # Reset camera to fit all actors
-            renderer.ResetCamera()
-            camera = renderer.GetActiveCamera()
-            camera.Zoom(1.2)
-            
-            # Create window and interactor
-            renderWindow = vtk.vtkRenderWindow()
-            renderWindow.AddRenderer(renderer)
-            renderWindow.SetSize(1000, 800)
-            renderWindow.SetWindowName("Line of Sight Visualization")
-            
-            interactor = vtk.vtkRenderWindowInteractor()
-            interactor.SetRenderWindow(renderWindow)
-            
-            # Set trackball camera style for responsive interaction
-            style = vtk.vtkInteractorStyleTrackballCamera()
-            interactor.SetInteractorStyle(style)
-            
-            # Create timer callback to close window after timeout
-            def on_timer(obj, event) -> None:
-                renderWindow.Finalize()
-                interactor.TerminateApp()
-            
-            interactor.Initialize()
-            renderWindow.Render()
-            
-            # Set timer to close after timeout_seconds
-            timer_id = interactor.CreateRepeatingTimer(timeout_seconds * 1000)
-            interactor.AddObserver('TimerEvent', on_timer)
-            
+        if timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be positive")
+        points = self.collision_points
+        return _visualizer.show({
+            'mesh_filepath': self.mesh_filepath,
+            'viewpoint': self.viewpoint,
+            'target_point': self.target_point,
+            'collision_points': [points.GetPoint(i) for i in range(
+                points.GetNumberOfPoints())] if points is not None else [],
+            'timeout_seconds': timeout_seconds,
+        }, logger=self.logger)
+
+    def _render(self, timeout_seconds: int) -> None:
+        """Render on the visualizer process's main thread."""
+        # Create renderer
+        renderer = vtk.vtkRenderer()
+        renderer.SetBackground(0.1, 0.1, 0.1)
+
+        # Add actors
+        renderer.AddActor(self.create_mesh_actor())
+        arrow_actor = self.create_arrow_actor()
+        if arrow_actor:
+            renderer.AddActor(arrow_actor)
+        renderer.AddActor(self.create_viewpoint_actor())
+        renderer.AddActor(self.create_target_actor())
+
+        collision_actor = self.create_collision_points_actor()
+        if collision_actor:
+            renderer.AddActor(collision_actor)
+
+        # Add axes (small reference frame)
+        axes = vtk.vtkAxesActor()
+        axes.SetAxisLabels(0)  # Disable labels to reduce visual clutter
+        axes.GetXAxisShaftProperty().SetColor(1, 0, 0)
+        axes.GetYAxisShaftProperty().SetColor(0, 1, 0)
+        axes.GetZAxisShaftProperty().SetColor(0, 0, 1)
+
+        # Use actor position instead of scale for better control
+        axes.SetPosition(0, 0, 0)
+
+        # Scale down using actor's property
+        axes.SetUserTransform(vtk.vtkTransform())
+        axes.GetUserTransform().Scale(0.2, 0.2, 0.2)
+        renderer.AddActor(axes)
+
+        # Avoid vertical bars, which VTK can interpret as a math-text table.
+        legend = vtk.vtkTextActor()
+        legend.SetInput("Blue: Viewpoint    Yellow: Target    Red: Collisions    Cyan: Direction")
+        legend.GetTextProperty().SetFontSize(12)
+        legend.GetTextProperty().SetColor(1.0, 1.0, 1.0)
+        legend.SetDisplayPosition(10, 20)
+        renderer.AddActor2D(legend)
+
+        # Reset camera to fit all actors
+        renderer.ResetCamera()
+        camera = renderer.GetActiveCamera()
+        camera.Zoom(1.2)
+
+        # Create window and interactor
+        renderWindow = vtk.vtkRenderWindow()
+        renderWindow.AddRenderer(renderer)
+        renderWindow.SetSize(1000, 800)
+        renderWindow.SetWindowName("Line of Sight Visualization")
+
+        interactor = vtk.vtkRenderWindowInteractor()
+        interactor.SetRenderWindow(renderWindow)
+
+        # Set trackball camera style for responsive interaction
+        style = vtk.vtkInteractorStyleTrackballCamera()
+        interactor.SetInteractorStyle(style)
+
+        # Create timer callback to close window after timeout
+        def on_timer(obj, event) -> None:
+            interactor.TerminateApp()
+
+        interactor.Initialize()
+        renderWindow.Render()
+
+        # Use a one-shot timer and release the window after the event loop exits.
+        interactor.AddObserver('TimerEvent', on_timer)
+        timer_id = interactor.CreateOneShotTimer(int(timeout_seconds * 1000))
+        try:
             interactor.Start()
-        
-        # Start visualization in separate daemon thread
-        vis_thread = threading.Thread(target=run_visualization, daemon=True)
-        vis_thread.start()
+        finally:
+            interactor.DestroyTimer(timer_id)
+            renderWindow.Finalize()
+            interactor.SetRenderWindow(None)

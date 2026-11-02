@@ -2129,6 +2129,7 @@ class AssemblyManagerScene():
             set_message_fields(new_scene, scene_dict)  # modifies in place
             self.scene = new_scene
             self.assembly_scene_analyzer.set_scene(self.scene)
+            self.assembly_scene_modifier.set_scene(self.scene)
             self.publish_information()
             self.logger.info(f"Loaded scene from file {file_path} successfully!")
             return True

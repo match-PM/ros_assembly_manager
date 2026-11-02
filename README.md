@@ -52,6 +52,20 @@ The optional [`joint_listener`](joint_listener/README.md) package monitors joint
 configured in YAML and clears downstream component measurement flags after motion
 exceeds each joint's threshold.
 
+### Line of sight visualization
+
+Enable optional debug windows on the running publisher with:
+
+```bash
+ros2 param set /assembly_scene_publisher visualize_line_of_sight true
+```
+
+Visualization is disabled by default. Each window runs in a separate process so
+a VTK rendering crash cannot terminate the publisher. Windows close after ten
+seconds; further visualization requests are skipped while a window is open.
+Line of sight checks continue normally. Set the parameter to `false` to stop
+opening new windows.
+
 ### Future Enhancements
 - Add launch argument for sim_time configuration (true/false)
 - Make topic names ('tf_static', '/planning_scene') configurable via launch parameters

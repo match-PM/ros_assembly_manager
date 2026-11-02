@@ -22,6 +22,7 @@ class LineOfSightManager:
         self.node = node
         # create subscriber to listen for scene updates and correct positions when a new scene is received
         self.logger = self.node.get_logger()
+        self.node.declare_parameter('visualize_line_of_sight', False)
         self.scene = None  # This will hold the current scene for comparison
         self.scene_subscription = node.create_subscription(
             ami_msg.ObjectScene,
@@ -69,10 +70,15 @@ class LineOfSightManager:
             
             if collision_detected:
                 self.logger.error(f"Line of sight blocked for frame '{request.frame_name}'.")
-                checker.visualize(timeout_seconds=10)
             else:
                 self.logger.info(f"Line of sight clear for frame '{request.frame_name}'.")
-                checker.visualize(timeout_seconds=10)
+
+            if self.node.get_parameter('visualize_line_of_sight').value:
+                try:
+                    checker.visualize(timeout_seconds=10)
+                except Exception as e:
+                    # A debug window must never change the service result.
+                    self.logger.warning(f'Could not start LOS visualizer: {e}')
 
             response.success = not collision_detected
             
