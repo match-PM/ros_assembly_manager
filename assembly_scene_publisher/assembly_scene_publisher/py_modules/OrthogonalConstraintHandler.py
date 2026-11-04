@@ -244,7 +244,8 @@ class OrthogonalConstraintHandler(ami_msg.FrConstraintOrthogonal):
                             scene,
                             unit: str = 'mm',
                             frame_name: str = None,
-                            component_name: str = None) -> Pose:
+                            component_name: str = None,
+                            frame_index: dict = None) -> Pose:
         """
         Calculate constrained pose based on three reference frames.
 
@@ -259,14 +260,20 @@ class OrthogonalConstraintHandler(ami_msg.FrConstraintOrthogonal):
             Pose: Updated pose.
         """
         if not self.is_active:
-            self.logger.debug('Orthogonal constraint is not active')
+            if self.logger is not None:
+                self.logger.debug('Orthogonal constraint is not active')
             return initial_frame_pose
 
         # Get reference frame poses
-        analyzer = AssemblySceneAnalyzer(scene, self.logger)
-        pose_frame_1 = analyzer.get_ref_frame_by_name(self.frame_1).pose
-        pose_frame_2 = analyzer.get_ref_frame_by_name(self.frame_2).pose
-        pose_frame_3 = analyzer.get_ref_frame_by_name(self.frame_3).pose
+        if frame_index is not None:
+            pose_frame_1 = frame_index[self.frame_1].pose
+            pose_frame_2 = frame_index[self.frame_2].pose
+            pose_frame_3 = frame_index[self.frame_3].pose
+        else:
+            analyzer = AssemblySceneAnalyzer(scene, self.logger)
+            pose_frame_1 = analyzer.get_ref_frame_by_name(self.frame_1).pose
+            pose_frame_2 = analyzer.get_ref_frame_by_name(self.frame_2).pose
+            pose_frame_3 = analyzer.get_ref_frame_by_name(self.frame_3).pose
 
         # Convert positions to numpy arrays
         p1 = np.array([pose_frame_1.position.x, pose_frame_1.position.y, pose_frame_1.position.z])

@@ -107,7 +107,8 @@ class TransformConstraintHandler(ami_msg.FrConstraintTransform):
                              scene: ami_msg.ObjectScene,
                              unit: str = 'mm',
                              component_name: str = None,
-                            frame_name: str = None) -> Pose:
+                             frame_name: str = None,
+                             frame_index: dict = None) -> Pose:
         
         
         #def caluclate_frame_centroid(self, ref_frames: list[str], dim: str, offset_values: list[float], initial_pose: Pose) -> Pose:
@@ -122,7 +123,8 @@ class TransformConstraintHandler(ami_msg.FrConstraintTransform):
             return initial_frame_pose
         
         else:
-            self.logger.debug('Centroid constraint is active')
+            if self.logger is not None:
+                self.logger.debug('Transform constraint is active')
         
         self.set_multiplier(unit=unit)
         
@@ -135,9 +137,12 @@ class TransformConstraintHandler(ami_msg.FrConstraintTransform):
 
         tansform_m.rotation = self.transform.rotation
 
-        ref_frame_pose = AssemblySceneAnalyzer(
-            scene, self.logger).get_ref_frame_poses_by_names(
-                [self.ref_frame])[0]
+        if frame_index is not None:
+            ref_frame_pose = frame_index[self.ref_frame].pose
+        else:
+            ref_frame_pose = AssemblySceneAnalyzer(
+                scene, self.logger).get_ref_frame_poses_by_names(
+                    [self.ref_frame])[0]
         result_pose = multiply_ros_transforms(a = ref_frame_pose, 
                                               b = tansform_m, 
                                               output_type=Pose)

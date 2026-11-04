@@ -213,7 +213,9 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
                              scene: ami_msg.ObjectScene,
                              unit: str = 'mm',
                              component_name: str = None,
-                            frame_name: str = None) -> Pose:
+                             frame_name: str = None,
+                             frame_index: dict = None,
+                             validate_activation: bool = True) -> Pose:
         
         
         #def caluclate_frame_centroid(self, ref_frames: list[str], dim: str, offset_values: list[float], initial_pose: Pose) -> Pose:
@@ -221,14 +223,16 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
         This function calculates the centroid of the given ref frames and returns the pose of the centroid.
         """
         # Check if constraint is valid
-        self.set_is_active(scene=scene, component_name=component_name)   
+        if validate_activation:
+            self.set_is_active(scene=scene, component_name=component_name)
         
         if self.is_active == False:
             #self.logger.error('Centroid constraint is not active')
             return initial_frame_pose
         
         else:
-            self.logger.debug('Centroid constraint is active')
+            if self.logger is not None:
+                self.logger.debug('Centroid constraint is active')
         
         self.set_multiplier(unit=unit)
         
@@ -245,9 +249,11 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
 
             #self.logger.warn(f'Centroid constraint with one reference frame: {frame_name} constraint by {self.ref_frame_names[0]}')
                         
-            ref_frame = AssemblySceneAnalyzer(
-                scene, self.logger).get_ref_frame_by_name(
-                    self.ref_frame_names[0])
+            ref_frame = (frame_index.get(self.ref_frame_names[0])
+                         if frame_index is not None else
+                         AssemblySceneAnalyzer(
+                             scene, self.logger).get_ref_frame_by_name(
+                                 self.ref_frame_names[0]))
             if ref_frame is None:
                 centroid_pose.position.x = initial_frame_pose.position.x
                 centroid_pose.position.y = initial_frame_pose.position.y
@@ -269,9 +275,13 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
             result_pose = get_transformed_pose(centroid_pose, vector)
         
         else:
-            poses_list = AssemblySceneAnalyzer(
-                scene, self.logger).get_ref_frame_poses_by_names(
-                    self.ref_frame_names)
+            if frame_index is not None:
+                poses_list = [frame_index[name].pose
+                              for name in self.ref_frame_names]
+            else:
+                poses_list = AssemblySceneAnalyzer(
+                    scene, self.logger).get_ref_frame_poses_by_names(
+                        self.ref_frame_names)
             orientation, centroid = compute_eigenvectors_and_centroid(poses_list, logger=self.logger)
             orientation: Quaternion
             centroid: Vector3
@@ -293,7 +303,7 @@ class CentroidConstraintHandler(ami_msg.FrConstraintCentroid):
         #     result_pose.position.z = float(initial_frame_pose.position.z)
 
         #self.logger.debug(f"Centroid pose: {str(initial_frame_pose)}")
-        if frame_name is not None:
+        if frame_name is not None and self.logger is not None:
             self.logger.debug(f'Start calculating constraint for: {frame_name}')
             
         return result_pose

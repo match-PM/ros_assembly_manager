@@ -222,12 +222,15 @@ class AssemblyScenePublisherNode(Node):
         response.success = change_success
         return response
 
-    def create_ref_frame(self, request: ami_srv.CreateRefFrame.Request, response: ami_srv.CreateRefFrame.Response):
+    def create_ref_frame(self, request: ami_srv.CreateRefFrame.Request,
+                         response: ami_srv.CreateRefFrame.Response,
+                         publish: bool = True):
         """This is the callback function for the /CreateRefFrame service. If the TF Frame does not exist, the function creates a new TF Frame. 
         If the frame already exists, the inforamtion will be updated!"""
         
         try:
-            self.object_scene.add_ref_frame_to_scene(request.ref_frame)
+            self.object_scene.add_ref_frame_to_scene(
+                request.ref_frame, publish=publish)
 
         except AddRefFrameError as e:
             self.get_logger().error(f"Error occurred while adding reference frame: {e}")
@@ -235,7 +238,7 @@ class AssemblyScenePublisherNode(Node):
             return response
 
         if request.recalculate_constraints:
-            self.object_scene.update_scene_with_constraints()
+            self.object_scene.update_scene_with_constraints(publish=publish)
 
         response.success = True
         
@@ -260,7 +263,10 @@ class AssemblyScenePublisherNode(Node):
 
         return response   
 
-    def spawn_object_callback(self, request: ami_srv.SpawnObject.Request, response: ami_srv.SpawnObject.Response):
+    def spawn_object_callback(self, request: ami_srv.SpawnObject.Request,
+                              response: ami_srv.SpawnObject.Response,
+                              publish: bool = True,
+                              initialize_pending: bool = True):
         """This method spawns an object. This means that all the relevant object information are stored in a list that contains all the objects. 
         It then publishes the information as topics and also publishes a Frame in TF"""
         new_obj = ami_msg.Object()
@@ -276,7 +282,11 @@ class AssemblyScenePublisherNode(Node):
         new_obj.obj_pose.position.y = request.translation.y
         new_obj.obj_pose.position.z = request.translation.z
 
-        add_success, add_message = self.object_scene.add_obj_to_scene(new_obj)
+        add_success, add_message = self.object_scene.add_obj_to_scene(
+            new_obj,
+            publish=publish,
+            initialize_pending=initialize_pending,
+        )
         response.success = add_success
         response.message = add_message
 

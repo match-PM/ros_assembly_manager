@@ -16,6 +16,7 @@ from ament_index_python.packages import get_package_share_directory
 import os
 import random
 import string
+import time
 from dataclasses import dataclass
 # import plt
 import matplotlib.pyplot as plt
@@ -29,8 +30,10 @@ from assembly_scene_publisher.py_modules.frame_properties import import_frame_pr
 
 from scipy.optimize import minimize, least_squares
 from assembly_scene_publisher.py_modules.frame_constraints import (FrameConstraintsHandler, 
-                                                                    calculate_constraints_for_component,
                                                                     calculate_constraints_for_scene,
+                                                                    calculate_constraints_for_frame_change,
+                                                                    calculate_constraints_for_frame_changes,
+                                                                    get_frames_affected_by_changes,
                                                                     get_identification_order)
 from copy import deepcopy,copy
 
@@ -202,7 +205,9 @@ class AssemblyManagerScene():
 
         return False, ""
 
-    def add_obj_to_scene(self, new_comp:ami_msg.Object)-> bool:
+    def add_obj_to_scene(self, new_comp:ami_msg.Object,
+                         publish: bool = True,
+                         initialize_pending: bool = True)-> bool:
         
         if self.assembly_scene_analyzer.check_frame_in_occupied_frames(new_comp.parent_frame, component_name=new_comp.obj_name):
             message = f"Parent frame '{new_comp.parent_frame}' is marked as occupied frame. Object '{new_comp.obj_name}' can not be spawned! Only one object can be spawned at this chuck."
@@ -247,9 +252,10 @@ class AssemblyManagerScene():
 
         if not obj_existend:
             self.scene.objects_in_scene.append(new_comp)
-            self.initialize_pending_instructions()
-            self.publish_scene()
-            self.publish_to_tf()
+            if initialize_pending:
+                self.initialize_pending_instructions()
+            if publish:
+                self.publish_information()
             message = f"Object '{new_comp.obj_name}' successfully spawned."
             self.logger.info(message)
             return True, message
@@ -266,14 +272,17 @@ class AssemblyManagerScene():
 
                     message = f"Service for spawning '{new_comp.obj_name}' was called, but object already exists. Information updated!"
                     self.logger.warn(message)
-                    self.publish_scene()
-                    self.publish_to_tf()
+                    if initialize_pending:
+                        self.initialize_pending_instructions()
+                    if publish:
+                        self.publish_information()
                     return True, message
             message = f"Object '{new_comp.obj_name}' not found during update."
             self.logger.error(message)
             return False, message
 
-    def add_ref_frame_to_scene(self, new_ref_frame:ami_msg.RefFrame):
+    def add_ref_frame_to_scene(self, new_ref_frame:ami_msg.RefFrame,
+                               publish: bool = True):
         
         if new_ref_frame is None:
             self.node.get_logger().warn(f"Frame is None.")
@@ -292,7 +301,12 @@ class AssemblyManagerScene():
             self.logger.error(f"Ref frame '{new_ref_frame.frame_name}' can not have the same name as an existing reference frame or object!")
             raise AddRefFrameError("Ref frame name conflicts with an existing reference frame or object.")
 
-        parent_frame_exists = self.check_if_frame_exists(new_ref_frame.parent_frame)
+        parent_frame_exists = (
+            self.assembly_scene_analyzer.check_component_exists(
+                new_ref_frame.parent_frame)
+            or self.check_ref_frame_exists(new_ref_frame.parent_frame)[0]
+            or self.check_if_frame_exists(new_ref_frame.parent_frame)
+        )
             
         if not parent_frame_exists:
             self.logger.warn(f'Tried to spawn ref frame {new_ref_frame.frame_name}, but parent frame {new_ref_frame.parent_frame} does not exist!')
@@ -331,7 +345,8 @@ class AssemblyManagerScene():
             frame_list_to_append_to.append(new_ref_frame)
 
         #self.assembly_scene_modifier.update_all_frame_constraint_activations()
-        self.publish_information()
+        if publish:
+            self.publish_information()
 
 
     def add_ref_frames_to_scene_from_dict(self, ref_frames_dict:dict)-> bool:
@@ -514,44 +529,107 @@ class AssemblyManagerScene():
             return False
             
     def publish_to_tf(self):
-        # Create a static transform
+        transforms = []
+        stamp = self.node.get_clock().now().to_msg()
+
         for ref_frame in self.scene.ref_frames_in_scene:
             transform = TransformStamped()
             ref_frame:ami_msg.RefFrame
-            transform.header.stamp = self.node.get_clock().now().to_msg()
+            transform.header.stamp = stamp
             transform.header.frame_id = ref_frame.parent_frame
             transform.child_frame_id = ref_frame.frame_name
             transform.transform.rotation = ref_frame.pose.orientation
             transform.transform.translation.x=ref_frame.pose.position.x
             transform.transform.translation.y=ref_frame.pose.position.y
             transform.transform.translation.z=ref_frame.pose.position.z
-            self.tf_broadcaster.sendTransform(transform)
+            transforms.append(transform)
 
         for obj in self.scene.objects_in_scene:
             obj: ami_msg.Object
             transform_stamped = TransformStamped()
-            transform_stamped.header.stamp = self.node.get_clock().now().to_msg()
+            transform_stamped.header.stamp = stamp
             transform_stamped.child_frame_id = obj.obj_name
             transform_stamped.header.frame_id = obj.parent_frame
             transform_stamped.transform.translation.x = obj.obj_pose.position.x
             transform_stamped.transform.translation.y = obj.obj_pose.position.y
             transform_stamped.transform.translation.z = obj.obj_pose.position.z
             transform_stamped.transform.rotation = obj.obj_pose.orientation
-            self.tf_broadcaster.sendTransform(transform_stamped)
+            transforms.append(transform_stamped)
 
         for obj in self.scene.objects_in_scene:
             obj: ami_msg.Object
             for ref_frame in obj.ref_frames:
                 transform = TransformStamped()
                 ref_frame:ami_msg.RefFrame
-                transform.header.stamp = self.node.get_clock().now().to_msg()
+                transform.header.stamp = stamp
                 transform.header.frame_id = ref_frame.parent_frame
                 transform.child_frame_id = ref_frame.frame_name
                 transform.transform.rotation = ref_frame.pose.orientation
                 transform.transform.translation.x=ref_frame.pose.position.x
                 transform.transform.translation.y=ref_frame.pose.position.y
                 transform.transform.translation.z=ref_frame.pose.position.z
-                self.tf_broadcaster.sendTransform(transform)
+                transforms.append(transform)
+
+        if transforms:
+            self.tf_broadcaster.sendTransform(transforms)
+
+    def publish_transforms_and_wait(self, frame_names: list[str],
+                                    timeout_sec: float = 1.0) -> bool:
+        """Publish TF and wait until the buffer contains the current poses."""
+        self.publish_to_tf()
+        expected = []
+        for frame_name in dict.fromkeys(frame_names):
+            if self.assembly_scene_analyzer.check_component_exists(frame_name):
+                component = self.assembly_scene_analyzer.get_component_by_name(
+                    frame_name)
+                expected.append((frame_name, component.parent_frame,
+                                 component.obj_pose))
+            else:
+                _, frame = self.assembly_scene_analyzer.get_frame_from_scene(
+                    frame_name)
+                expected.append((frame_name, frame.parent_frame, frame.pose))
+
+        deadline = time.monotonic() + timeout_sec
+        while time.monotonic() < deadline:
+            all_current = True
+            for frame_name, parent_frame, pose in expected:
+                try:
+                    transform = self.tf_buffer.lookup_transform(
+                        parent_frame, frame_name, rclpy.time.Time())
+                except Exception:
+                    all_current = False
+                    break
+
+                actual_translation = transform.transform.translation
+                expected_translation = pose.position
+                if not np.allclose(
+                        [actual_translation.x, actual_translation.y,
+                         actual_translation.z],
+                        [expected_translation.x, expected_translation.y,
+                         expected_translation.z],
+                        atol=1e-9):
+                    all_current = False
+                    break
+
+                actual_rotation = transform.transform.rotation
+                expected_rotation = pose.orientation
+                actual_quaternion = np.array([
+                    actual_rotation.x, actual_rotation.y,
+                    actual_rotation.z, actual_rotation.w])
+                expected_quaternion = np.array([
+                    expected_rotation.x, expected_rotation.y,
+                    expected_rotation.z, expected_rotation.w])
+                if not (np.allclose(actual_quaternion, expected_quaternion,
+                                    atol=1e-9)
+                        or np.allclose(actual_quaternion,
+                                       -expected_quaternion, atol=1e-9)):
+                    all_current = False
+                    break
+
+            if all_current:
+                return True
+            time.sleep(0.005)
+        return False
 
     def check_if_frame_exists(self, frame_id:str) -> bool:
         """ This function checks if a tf exists in the tf buffer"""
@@ -819,13 +897,9 @@ class AssemblyManagerScene():
             frame_to_modify.properties.vision_frame_properties.is_vision_frame = True
             frame_to_modify.properties.vision_frame_properties.has_been_measured = True
 
-        if component_name is not None:
-            calculate_constraints_for_component(scene=self.scene,
-                                component_name=component_name,
-                                logger=self.logger)
-            self.publish_information()
-        else:
-            self.update_scene_with_constraints()
+        calculate_constraints_for_frame_change(
+            scene=self.scene, frame_name=frame_name, logger=self.logger)
+        self.publish_information()
                     
         self.logger.info(f'Pose for object {frame_name} updated!')
         return True
@@ -850,9 +924,10 @@ class AssemblyManagerScene():
         if  parent_frame is not None:
         
             # Transform of point in world       
-            transform_global_parent:sp.Matrix = get_transform_matrix_from_tf(get_transform_for_frame_in_world(parent_frame, self.tf_buffer, logger=self.logger))
-            
-            parent_frame = get_transform_for_frame_in_world(parent_frame, self.tf_buffer, logger=self.logger)
+            parent_world_transform = get_transform_for_frame_in_world(
+                parent_frame, self.tf_buffer, logger=self.logger)
+            transform_global_parent: sp.Matrix = \
+                get_transform_matrix_from_tf(parent_world_transform)
             
             #self.logger.warn(f"Parent frame: {parent_frame}")
 
@@ -888,13 +963,9 @@ class AssemblyManagerScene():
                 frame_to_modify.properties.vision_frame_properties.has_been_measured = True
 
 
-            if component_name is not None:
-                calculate_constraints_for_component(scene=self.scene,
-                                    component_name=component_name,
-                                    logger=self.logger)
-                self.publish_information()
-            else:
-                self.update_scene_with_constraints()
+            calculate_constraints_for_frame_change(
+                scene=self.scene, frame_name=frame_name, logger=self.logger)
+            self.publish_information()
                 
             return True
         else:
@@ -940,13 +1011,9 @@ class AssemblyManagerScene():
             ref_frame.properties.vision_frame_properties.is_vision_frame = True
             ref_frame.properties.vision_frame_properties.has_been_measured = True
 
-        if component_name is not None:
-            calculate_constraints_for_component(scene=self.scene,
-                                component_name=component_name,
-                                logger=self.logger)
-            self.publish_information()
-        else:
-            self.update_scene_with_constraints()
+        calculate_constraints_for_frame_change(
+            scene=self.scene, frame_name=frame_to_set, logger=self.logger)
+        self.publish_information()
         
         return True
 
@@ -1970,6 +2037,7 @@ class AssemblyManagerScene():
     def update_scene_with_constraints(
         self,
         frame_poses_to_preserve: dict[str, Pose] = None,
+        publish: bool = True,
     ):
         """
         This function calculates the constraints for all frames in the scene and updates their activation status.
@@ -1992,7 +2060,29 @@ class AssemblyManagerScene():
                     f"Could not preserve pose of frame {frame_name}: frame not found."
                 )
 
-        self.publish_information()
+        if publish:
+            self.publish_information()
+
+    def update_scene_with_constraints_for_frames(
+            self,
+            frame_names: list[str],
+            publish: bool = True):
+        """Update only changed frames and their transitive dependents."""
+        if not frame_names:
+            return
+
+        affected_names = get_frames_affected_by_changes(
+            self.scene, frame_names)
+        for frame_name in affected_names:
+            _, frame = self.assembly_scene_analyzer.get_frame_from_scene(
+                frame_name)
+            self.assembly_scene_modifier.update_frame_constraint_activation(
+                frame)
+
+        calculate_constraints_for_frame_changes(
+            self.scene, frame_names, logger=self.logger)
+        if publish:
+            self.publish_information()
     
     def destroy_all_ref_frames(self):
         for obj in self.scene.objects_in_scene:

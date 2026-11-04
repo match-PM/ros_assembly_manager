@@ -39,7 +39,8 @@ def test_modify_frame_updates_pose_measurements_and_constraints(
 
     module = importlib.import_module(AssemblyManagerScene.__module__)
     constraints = Mock()
-    monkeypatch.setattr(module, 'calculate_constraints_for_component', constraints)
+    monkeypatch.setattr(
+        module, 'calculate_constraints_for_frame_change', constraints)
     parent_transform = TransformStamped()
     parent_transform.transform.rotation.w = 1.0
     monkeypatch.setattr(module, 'get_transform_for_frame_in_world',
@@ -70,12 +71,7 @@ def test_modify_frame_updates_pose_measurements_and_constraints(
     assert frame.properties.laser_frame_properties.has_been_measured
     assert frame.properties.vision_frame_properties.is_vision_frame
     assert frame.properties.vision_frame_properties.has_been_measured
-    if component_owned:
-        constraints.assert_called_once_with(
-            scene=scene, component_name='part', logger=manager.logger)
-        manager.publish_information.assert_called_once_with()
-        manager.update_scene_with_constraints.assert_not_called()
-    else:
-        constraints.assert_not_called()
-        manager.publish_information.assert_not_called()
-        manager.update_scene_with_constraints.assert_called_once_with()
+    constraints.assert_called_once_with(
+        scene=scene, frame_name='laser', logger=manager.logger)
+    manager.publish_information.assert_called_once_with()
+    manager.update_scene_with_constraints.assert_not_called()

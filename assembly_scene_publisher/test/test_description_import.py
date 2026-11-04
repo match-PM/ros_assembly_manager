@@ -449,7 +449,41 @@ def test_spawn_retries_instructions_after_reference_geometry(monkeypatch):
     success, _ = handler.spawn_component(srv.SpawnComponentFromDescription.Request())
     assert success
     assert events == ['frames', 'axes', 'planes', 'initialize']
+    assert handler._spawn_object.call_args.kwargs == {
+        'publish': False,
+        'initialize_pending': False,
+    }
+    assert handler._object_scene.publish_transforms_and_wait.call_count == 2
+    handler._object_scene.update_scene_with_constraints_for_frames.assert_called_once_with(
+        [], publish=False)
     handler._object_scene.publish_information.assert_called_once()
+
+
+def test_description_frame_import_defers_publication_and_constraints():
+    handler = AssemblyDescriptionHandler.__new__(AssemblyDescriptionHandler)
+    handler._logger = Mock()
+    handler._create_ref_frame = Mock(side_effect=lambda request, response, **kwargs: (
+        setattr(response, 'success', True) or response))
+    frames = [
+        {
+            'name': name,
+            'transformation': {
+                'translation': {'X': 0.0, 'Y': 0.0, 'Z': 0.0},
+                'rotation': {'X': 0.0, 'Y': 0.0, 'Z': 0.0, 'W': 1.0},
+            },
+        }
+        for name in ('first', 'second')
+    ]
+
+    success, _ = handler._spawn_reference_frames(
+        'part-1', frames, 'mm', 0.001)
+
+    assert success
+    assert handler._create_ref_frame.call_count == 2
+    for call in handler._create_ref_frame.call_args_list:
+        request = call.args[0]
+        assert not request.recalculate_constraints
+        assert call.kwargs == {'publish': False}
 
 
 def test_measurement_invalidation_preserves_all_other_frame_properties():

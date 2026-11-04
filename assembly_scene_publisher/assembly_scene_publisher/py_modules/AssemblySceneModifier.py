@@ -9,7 +9,13 @@ from assembly_scene_publisher.py_modules.scene_errors import *
 from copy import copy
 from typing import Union
 import time
-from assembly_scene_publisher.py_modules.frame_constraints import FrameConstraintsHandler
+from assembly_scene_publisher.py_modules.frame_constraints import (
+    FrameConstraintsHandler,
+    calculate_constraints_for_component as calculate_component_constraints,
+    calculate_constraints_for_scene as calculate_scene_constraints,
+    calculate_frame_contrains_for_frame_list as calculate_frame_list_constraints,
+    update_ref_frame_by_constraint as update_frame_by_constraint,
+)
 
 from copy import deepcopy
 
@@ -35,29 +41,8 @@ class AssemblySceneModifier(AssemblySceneAnalyzer):
             bool: True if the update was successful, False otherwise.
         """
 
-        try:
-            # make a deep copy just to be sure that the original ref frame is not modified
-            # this is just for safety reasons
-
-            #self.logger.warn(f"Update ref frame constraints for frame '{ref_frame.frame_name}'")
-            
-            frame_constraints_handler:FrameConstraintsHandler = FrameConstraintsHandler.return_handler_from_msg(msg=ref_frame.constraints,
-                                                                                                                scene=self._get_scene())
-            
-            pose = frame_constraints_handler.calculate_frame_constraints(initial_pose = ref_frame.pose, 
-                                                                            scene=self._get_scene(),
-                                                                            frame_name=ref_frame.frame_name,
-                                                                            component_name = component_name,
-                                                                            logger=self.logger)
-            
-            ref_frame.pose = pose
-
-            return True
-        
-        except Exception as e:
-            self.logger.error(str(e))
-            self.logger.error(f"Unknown Error. Constraint could not be updated!")
-            return False
+        return update_frame_by_constraint(
+            self._get_scene(), ref_frame, component_name, self.logger)
 
     def update_frame_constraint_activation(self,
                                         ref_frame:ami_msg.RefFrame,
@@ -96,72 +81,23 @@ class AssemblySceneModifier(AssemblySceneAnalyzer):
         """
         This function calculates the frame constraints for a list of frames.
         """
-        def get_dict_depth(d: dict) -> int:
-            """Recursively calculates the depth of a nested dictionary."""
-            if not isinstance(d, dict) or not d:  # Base case: empty or non-dict
-                return 0
-            return 1 + max(get_dict_depth(v) for v in d.values())
-
-        def get_unique_elements_at_depth(d: dict, depth: int) -> list:
-            """Returns unique keys at a specific depth in a nested dictionary."""
-            if depth < 1:
-                return []
-            
-            if depth == 1:
-                return list(set(d.keys()))  # Base case: return unique keys at the current level
-            
-            elements = set()  # Use a set to store unique elements
-            for v in d.values():
-                if isinstance(v, dict):
-                    elements.update(get_unique_elements_at_depth(v, depth - 1))  # Recurse deeper
-
-            return list(elements)  # Convert back to a list for the final output
-    
-        reference_tree = self.build_frame_reference_tree(frame_list)
-        max_depth = get_dict_depth(reference_tree)
-        calculated_frames=[]
-
-        for depth in range(max_depth, 0, -1):
-            unique_elements = get_unique_elements_at_depth(reference_tree, depth)
-            #logger.warn(f"unique_elements{unique_elements}")
-            for frame_name in unique_elements:
-                if frame_name not in calculated_frames:
-
-
-                    frame = self.get_ref_frame_by_name(frame_name)
-                    self.update_ref_frame_by_constraint(frame, component_name=component_name)
-                    calculated_frames.append(frame_name)
-        return True
+        return calculate_frame_list_constraints(
+            self._get_scene(), frame_list, component_name, self.logger)
 
     def calculate_constraints_for_component(self,
                                             component_name: str = None)-> bool:
         """
         This function calculates the frame constraints for a component.
         """
-        frame_list = []
-        if component_name is None:
-            frame_list = self._get_scene().ref_frames_in_scene
-        else:
-            comp = self.get_component_by_name(component_name)
-
-        return self.calculate_frame_constraints_for_frame_list(frame_list, component_name=component_name)
+        return calculate_component_constraints(
+            self._get_scene(), component_name, self.logger)
 
 
     def calculate_constraints_for_scene(self)-> bool:
         """
         This function calculates the frame constraints for the whole scene.
         """
-        #logger.warn(f"initial_scene{str(scene)}")
-        # calculate the constraints for all components in the scene
-        for component in self._get_scene().objects_in_scene:
-            component: ami_msg.Object
-            self.calculate_constraints_for_component(component.obj_name)
-
-        # calculate the constraints for frames not associated with any component
-        self.calculate_constraints_for_component()
-        
-        #logger.warn(f"final_scene{str(scene)}")
-        return True
+        return calculate_scene_constraints(self._get_scene(), self.logger)
 
     def set_to_occupied_frames(self, frame_name: str)-> None:
         """

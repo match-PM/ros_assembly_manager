@@ -163,21 +163,43 @@ class AssemblyDescriptionHandler:
             )
 
             spawn_response = self._spawn_object(
-                spawn_request, ami_srv.SpawnObject.Response())
+                spawn_request,
+                ami_srv.SpawnObject.Response(),
+                publish=False,
+                initialize_pending=False,
+            )
             if not spawn_response.success:
                 return False, spawn_response.message
 
-            # Constraint calculations can require the component TF.
-            time.sleep(0.5)
-
+            frame_data = references.get('ref_frames', [])
             success, message = self._spawn_reference_frames(
                 component_name,
-                references.get('ref_frames', []),
+                frame_data,
                 units,
                 multiplier,
             )
             if not success:
                 return False, message
+
+            frame_names = [
+                f"{component_name}_{frame.get('name')}"
+                for frame in frame_data
+            ]
+            tf_frames = [component_name, *frame_names]
+            if not self._object_scene.publish_transforms_and_wait(tf_frames):
+                return False, (
+                    'Timed out waiting for the newly spawned component '
+                    'transforms.')
+
+            self._object_scene.update_scene_with_constraints_for_frames(
+                frame_names, publish=False)
+
+            # Constraint calculation may update frame poses. Make the final
+            # geometry available before validating axes and planes.
+            if not self._object_scene.publish_transforms_and_wait(tf_frames):
+                return False, (
+                    'Timed out waiting for the constrained component '
+                    'transforms.')
 
             success, message = self._spawn_reference_axes(
                 component_name, references.get('ref_axes', []))
@@ -260,16 +282,16 @@ class AssemblyDescriptionHandler:
 
     def _spawn_reference_frames(
             self, component_name, frames, units, multiplier):
-        for index, frame_data in enumerate(frames):
+        for frame_data in frames:
             request = self._build_ref_frame_request(
                 frame_data,
                 component_name,
                 units,
                 multiplier,
-                recalculate_constraints=index == len(frames) - 1,
+                recalculate_constraints=False,
             )
             response = self._create_ref_frame(
-                request, ami_srv.CreateRefFrame.Response())
+                request, ami_srv.CreateRefFrame.Response(), publish=False)
             if not response.success:
                 message = (
                     'Error while spawning ref frame '

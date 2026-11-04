@@ -139,14 +139,17 @@ class InPlaneConstraintHandler(ami_msg.FrConstraintInPlane):
                              scene: ami_msg.ObjectScene,
                              unit: str = 'mm',
                              component_name: str = None,
-                            frame_name: str = None) -> Pose:
+                             frame_name: str = None,
+                             frame_index: dict = None,
+                             validate_activation: bool = True) -> Pose:
         
         #def caluclate_frame_centroid(self, ref_frames: list[str], dim: str, offset_values: list[float], initial_pose: Pose) -> Pose:
         """
         This function calculates the centroid of the given ref frames and returns the pose of the centroid.
         """
         # Check if constraint is valid
-        self.set_is_active(scene=scene, component_name=component_name)   
+        if validate_activation:
+            self.set_is_active(scene=scene, component_name=component_name)
         
         if self.is_active == False:
             #self.logger.error('Centroid constraint is not active')
@@ -155,9 +158,12 @@ class InPlaneConstraintHandler(ami_msg.FrConstraintInPlane):
 
         self.set_multiplier(unit=unit)
 
-        frames = AssemblySceneAnalyzer(
-            scene, self.logger).get_ref_frame_poses_by_names(
-                self.ref_frame_names)
+        if frame_index is not None:
+            frames = [frame_index[name].pose for name in self.ref_frame_names]
+        else:
+            frames = AssemblySceneAnalyzer(
+                scene, self.logger).get_ref_frame_poses_by_names(
+                    self.ref_frame_names)
 
         plane = create_3D_plane_2(frames,
                                   plane_offset=self.plane_offset*self.multiplier,
