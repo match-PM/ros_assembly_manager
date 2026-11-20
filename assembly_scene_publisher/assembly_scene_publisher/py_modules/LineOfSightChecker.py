@@ -116,12 +116,14 @@ class LineOfSightChecker:
             if epsilon < t < ray_length - epsilon:
                 valid_intersections.append(p)
 
-        # Check if either point is inside the mesh
+        # Only the viewpoint is tested for lying inside the mesh. The target is a
+        # frame on the part surface, where the inside test is undecided (points on
+        # downward-facing faces count as inside). A target buried in the part is
+        # still detected: the ray from an outside viewpoint must cross the surface.
         viewpoint_inside = self._point_inside_mesh(self.viewpoint)
-        target_inside = self._point_inside_mesh(self.target_point)
 
         # Decide occlusion rule
-        self.is_occluded = len(valid_intersections) > 0 or viewpoint_inside or target_inside
+        self.is_occluded = len(valid_intersections) > 0 or viewpoint_inside
 
         # Store filtered collision points
         self.collision_points = vtk.vtkPoints()
@@ -134,8 +136,6 @@ class LineOfSightChecker:
             #self.logger.info(f"  - Valid intersections: {len(valid_intersections)}")
             if viewpoint_inside:
                 self.logger.error("Viewpoint is inside the mesh!")
-            if target_inside:
-                self.logger.error("Target point is inside the mesh!")
 
         return self.collision_points, self.is_occluded
     
