@@ -30,6 +30,11 @@ class AssemblyDescriptionHandler:
         'cm': 0.01,
         'um': 0.000001,
     }
+    # Allowed values of the optional mountingReferences.spawningLocation
+    # ('' = not declared). chuckConfig names the chuck the spawn data is made
+    # for; both are copied into the spawned Object unchanged.
+    SPAWNING_LOCATIONS = (
+        '', 'gonio_left', 'gonio_right', 'smarpod_center', 'smarpod')
 
     def __init__(
             self,
@@ -363,6 +368,12 @@ class AssemblyDescriptionHandler:
         request.apperance_color = self._build_color(file_data.get('color'))
         request.component_type_uuid = file_data.get('guid')
         request.parent_frame = references.get('spawningOrigin')
+        request.chuck_config = references.get('chuckConfig') or ''
+        request.spawning_location = references.get('spawningLocation') or ''
+        if request.spawning_location not in self.SPAWNING_LOCATIONS:
+            raise ValueError(
+                f"spawningLocation '{request.spawning_location}' is not one "
+                f'of {", ".join(self.SPAWNING_LOCATIONS[1:])}.')
 
         description_dir = os.path.dirname(source_request.file_path)
         cad_path = file_data.get('cadPath')

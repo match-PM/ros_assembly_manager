@@ -277,6 +277,8 @@ class AssemblyScenePublisherNode(Node):
         new_obj.component_type_uuid = request.component_type_uuid
         new_obj.apperance_color = request.apperance_color
         new_obj.parent_frame = request.parent_frame
+        new_obj.chuck_config = request.chuck_config
+        new_obj.spawning_location = request.spawning_location
         new_obj.obj_pose.orientation = request.rotation
         new_obj.obj_pose.position.x = request.translation.x
         new_obj.obj_pose.position.y = request.translation.y

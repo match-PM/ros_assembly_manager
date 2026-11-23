@@ -10,6 +10,9 @@ from PyQt6.QtWidgets import (
     QVBoxLayout, QWidget,
 )
 
+from assembly_scene_publisher.py_modules.AssemblyDescriptionHandler import (
+    AssemblyDescriptionHandler,
+)
 from assembly_scene_viewer.py_modules.AssemblyDescriptionModifier import IDENTITY_TRANSFORM
 
 
@@ -51,6 +54,48 @@ PROPERTIES = {
 }
 
 
+# Stations a component can be spawned on (mountingReferences.spawningLocation)
+# and the sections of the robot's bringup configuration listing their chucks.
+SPAWNING_LOCATIONS = AssemblyDescriptionHandler.SPAWNING_LOCATIONS[1:]
+CHUCK_LISTS = {
+    'gonio_left': ('pm_robot_gonio_left', 'availabe_chucks'),
+    'gonio_right': ('pm_robot_gonio_right', 'availabe_chucks'),
+    'smarpod': ('pm_smparpod_station', 'availabe_chucks'),
+    'smarpod_center': ('pm_smparpod_station', 'available_chucks_center'),
+}
+
+
+def load_available_chucks(path=None):
+    """Chucks per spawning location from the robot's bringup configuration.
+
+    ``path`` defaults to the installed ``pm_robot_bringup`` configuration. An
+    unavailable or unreadable file gives an empty mapping, so the chuck field
+    stays a free text field.
+    """
+    import yaml
+    try:
+        if path is None:
+            from ament_index_python.packages import get_package_share_directory
+            path = (f"{get_package_share_directory('pm_robot_bringup')}"
+                    '/config/pm_robot_bringup_config.yaml')
+        with open(path, encoding='utf-8') as stream:
+            configuration = yaml.safe_load(stream) or {}
+    except Exception:  # package missing, file missing or invalid YAML
+        return {}
+    chucks = {}
+    for location, (section, key) in CHUCK_LISTS.items():
+        values = (configuration.get(section) or {}).get(key) or []
+        chucks[location] = [str(value) for value in values if value != 'empty']
+    return chucks
+
+
+def chuck_choices(chucks, location):
+    """Chucks of ``location``, or of all locations if none is selected."""
+    if location in chucks:
+        return list(chucks[location])
+    return list(dict.fromkeys(name for values in chucks.values() for name in values))
+
+
 def label(key):
     """Turn exported field names into readable form labels."""
     aliases = {
@@ -62,6 +107,7 @@ def label(key):
         'targetFrame': 'Stationary target frame', 'frameProperties': 'Frame role overrides',
         'move_component_1': 'Move component 1', 'moveComponent_1': 'Move component 1',
         'glueLinePrerequisite': 'Glue line prerequisites',
+        'chuckConfig': 'Chuck configuration',
     }
     readable = re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', key).replace('_', ' ').capitalize()
     return aliases.get(key, readable)
@@ -72,7 +118,8 @@ def defaults_for(key, value):
     schemas = {
         'metadata': {'name': '', 'description': '', 'documentUnits': 'mm',
                      'cadPath': '', 'cadPathCollision': ''},
-        'spawning': {'spawningOrigin': '', 'spawningTransformation': IDENTITY_TRANSFORM},
+        'spawning': {'spawningOrigin': '', 'spawningLocation': '', 'chuckConfig': '',
+                     'spawningTransformation': IDENTITY_TRANSFORM},
         'ref_frames': {'name': '', 'type': 'frame', 'transformation': IDENTITY_TRANSFORM,
                        'constraints': {}, 'properties': {}},
         'ref_axes': {'name': '', 'refPointNames': ['', '']},
@@ -367,6 +414,12 @@ class ObjectForm(QWidget):
             reset.clicked.connect(self._identity_rotation)
             self.form.addRow(reset)
 
+        if (kind == 'spawning' and {'spawningLocation', 'chuckConfig'} <= self.controls.keys()
+                and isinstance(self.controls['chuckConfig'].control, QComboBox)):
+            # Offer the chucks of the selected station only.
+            self.controls['spawningLocation'].control.currentTextChanged.connect(
+                self._update_chuck_choices)
+
         if kind == 'orthogonal':
             self.controls['unit_distance_from_f1'].control.currentTextChanged.connect(
                 lambda unit: self.controls['distance_from_f1'].set_unit(
@@ -405,6 +458,11 @@ class ObjectForm(QWidget):
         }
         if key == 'type' and self.kind == 'ref_frames':
             return ['frame', 'point']
+        if key == 'spawningLocation':
+            return list(SPAWNING_LOCATIONS)
+        if key == 'chuckConfig':
+            return chuck_choices(self.context.get('chucks', {}),
+                                 self.original.get('spawningLocation', ''))
         if key in ('component', 'component_1', 'component_2', 'associatedComponent',
                    'associated_component'):
             return self.context.get('components', [])
@@ -414,6 +472,15 @@ class ObjectForm(QWidget):
         if key in ('planeNameComponent_1', 'planeNameComponent_2'):
             return self.context.get('planes', [])
         return choices.get(key)
+
+    def _update_chuck_choices(self, location):
+        combo = self.controls['chuckConfig'].control
+        current = combo.currentText()
+        combo.blockSignals(True)
+        combo.clear()
+        combo.addItems(['', *chuck_choices(self.context.get('chucks', {}), location)])
+        combo.setCurrentText(current)
+        combo.blockSignals(False)
 
     def _add_override(self):
         name, accepted = QInputDialog.getItem(

@@ -15,7 +15,9 @@ from rclpy.node import Node
 from assembly_scene_viewer.py_modules.AssemblyDescriptionModifier import (
     AssemblyDescriptionModifier, IDENTITY_TRANSFORM,
 )
-from assembly_scene_viewer.py_modules.DescriptionForms import NoWheelComboBox, ObjectForm
+from assembly_scene_viewer.py_modules.DescriptionForms import (
+    NoWheelComboBox, ObjectForm, load_available_chucks,
+)
 
 
 class AssemblyModifierWidget(QWidget):
@@ -28,6 +30,7 @@ class AssemblyModifierWidget(QWidget):
         self._path = None
         self._dirty = False
         self._form_modified = False
+        self._chucks = None  # chucks per spawning location, loaded on first use
         self.form = None
         self._excluded = {}
         self.setStyleSheet('''
@@ -214,6 +217,9 @@ class AssemblyModifierWidget(QWidget):
                     continue
         context = {key: list(dict.fromkeys(values)) for key, values in context.items()}
         context['unit'] = data.get('documentUnits', 'mm')
+        if self._chucks is None:
+            self._chucks = load_available_chucks()
+        context['chucks'] = self._chucks
         return context
 
     def _select(self, item, previous):

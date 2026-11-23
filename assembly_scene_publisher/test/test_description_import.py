@@ -522,3 +522,34 @@ def test_measurement_invalidation_validates_entire_request_before_mutating():
     assert not response.success
     assert frame.properties.vision_frame_properties.has_been_measured
     manager.publish_information.assert_not_called()
+
+
+def spawn_request(**references):
+    handler = AssemblyDescriptionHandler.__new__(AssemblyDescriptionHandler)
+    identity = {'translation': {'X': 0.0, 'Y': 0.0, 'Z': 0.0},
+                'rotation': {'X': 0.0, 'Y': 0.0, 'Z': 0.0, 'W': 1.0}}
+    source = Mock(file_path='/data/components/part.json', uuid_override='')
+    return handler._build_spawn_request(
+        source, {'cadPath': 'part.stl', 'guid': 'part-guid'},
+        {'spawningOrigin': 'station_origin', 'spawningTransformation': identity,
+         **references},
+        'part-1', 0.001)
+
+
+def test_spawn_request_carries_declared_chuck_and_location():
+    request = spawn_request(chuckConfig='fixture_a', spawningLocation='gonio_right')
+    assert (request.chuck_config, request.spawning_location) == ('fixture_a', 'gonio_right')
+    undeclared = spawn_request()
+    assert (undeclared.chuck_config, undeclared.spawning_location) == ('', '')
+    with pytest.raises(ValueError, match='spawningLocation'):
+        spawn_request(spawningLocation='conveyor')
+
+
+def test_saved_scene_without_chuck_fields_still_loads():
+    from rosidl_runtime_py.set_message import set_message_fields
+
+    scene = msg.ObjectScene()
+    set_message_fields(scene, {'objects_in_scene': [
+        {'obj_name': 'part-1', 'parent_frame': 'station_origin'}]})
+    obj = scene.objects_in_scene[0]
+    assert (obj.chuck_config, obj.spawning_location) == ('', '')

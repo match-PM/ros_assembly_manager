@@ -8,6 +8,9 @@ string cad_data
 string cad_data_collision
 string parent_file_path
 std_msgs/ColorRGBA apperance_color
+# See Object.msg.
+string chuck_config
+string spawning_location
 ---
 bool success
 string message

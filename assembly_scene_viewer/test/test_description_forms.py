@@ -72,3 +72,37 @@ def test_instruction_controls_edit_endpoints_and_add_prerequisites():
         'gluePrerequisites': [{'component': 'Base-1', 'frame': 'dot'}]}
     form.close()
     app.processEvents()
+
+
+def test_spawning_form_offers_chucks_of_the_selected_location(tmp_path):
+    from assembly_scene_viewer.py_modules.DescriptionForms import load_available_chucks
+
+    config = tmp_path / 'bringup.yaml'
+    config.write_text(
+        'pm_robot_gonio_left: {availabe_chucks: [left_a, left_b]}\n'
+        'pm_robot_gonio_right: {availabe_chucks: [right_a]}\n'
+        'pm_smparpod_station: {availabe_chucks: [empty, pod_a], '
+        'available_chucks_center: [empty, center_a]}\n')
+    chucks = load_available_chucks(config)
+    assert chucks == {'gonio_left': ['left_a', 'left_b'], 'gonio_right': ['right_a'],
+                      'smarpod': ['pod_a'], 'smarpod_center': ['center_a']}
+    assert load_available_chucks(tmp_path / 'missing.yaml') == {}
+
+    app = QApplication.instance() or QApplication([])
+    data = {'spawningOrigin': 'origin', 'spawningLocation': 'gonio_left',
+            'spawningTransformation': deepcopy(IDENTITY_TRANSFORM)}
+    form = ObjectForm(data, 'spawning', {'chucks': chucks, 'frames': []})
+    combo = form.controls['chuckConfig'].control
+
+    def items():
+        return [combo.itemText(index) for index in range(combo.count())]
+
+    assert items() == ['', 'left_a', 'left_b']
+    assert form.value() == data  # untouched fields are not written
+    form.controls['spawningLocation'].control.setCurrentText('smarpod_center')
+    assert items() == ['', 'center_a']
+    combo.setCurrentText('center_a')
+    result = form.value()
+    assert (result['spawningLocation'], result['chuckConfig']) == ('smarpod_center', 'center_a')
+    form.close()
+    app.processEvents()

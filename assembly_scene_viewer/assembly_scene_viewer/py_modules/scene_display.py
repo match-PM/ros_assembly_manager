@@ -51,6 +51,8 @@ def object_html(obj):
     return (
         f'<b>Object: {escape(obj.obj_name)}</b><br>'
         f'Parent frame: {escape(obj.parent_frame)}<br>'
+        f'Spawning location: {escape(obj.spawning_location or "not declared")}<br>'
+        f'Chuck configuration: {escape(obj.chuck_config or "not declared")}<br>'
         f'UUID: {escape(obj.uuid)}<br>'
         f'Component type UUID: {escape(obj.component_type_uuid)}<br>'
         f'Component description: {escape(obj.parent_file_path)}<br>'

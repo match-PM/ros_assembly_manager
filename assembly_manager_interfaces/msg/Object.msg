@@ -11,3 +11,9 @@ Axis[] ref_axis
 Plane[] ref_planes
 std_msgs/ColorRGBA apperance_color
 ComponentProperties properties
+# Chuck the component's spawn data is made for (name from the robot's
+# bringup configuration, e.g. use_chuck of the station); empty: not declared.
+string chuck_config
+# Station the component spawns on: "" (not declared), "gonio_left",
+# "gonio_right", "smarpod_center" or "smarpod".
+string spawning_location
