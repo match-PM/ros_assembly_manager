@@ -66,10 +66,15 @@ class LineOfSightManager:
                                          target_point=frame.pose,
                                          logger=self.logger)
             
-            points, collision_detected = checker.check_line_of_sight()
-            
+            # feature_radius / tilt_tolerance 0: one ray, as before.
+            collision_detected, blocked_rays, rays = checker.check_line_of_sight_bundle(
+                feature_radius=request.feature_radius,
+                tilt_tolerance=request.tilt_tolerance)
+            response.blocked_rays = blocked_rays
+
             if collision_detected:
-                self.logger.error(f"Line of sight blocked for frame '{request.frame_name}'.")
+                self.logger.error(f"Line of sight blocked for frame '{request.frame_name}' "
+                                  f"({len(blocked_rays)} of {rays} rays).")
             else:
                 self.logger.info(f"Line of sight clear for frame '{request.frame_name}'.")
 

@@ -123,9 +123,14 @@ def test_visualization_failure_does_not_change_service_result(monkeypatch, occlu
     manager.internal_scene_analyzer.get_ref_frame_by_name.return_value.pose = Pose()
     monkeypatch.setattr(module, 'multiply_ros_transforms', Mock(return_value=Pose()))
     checker = Mock()
-    checker.check_line_of_sight.return_value = (None, occluded)
+    checker.check_line_of_sight_bundle.return_value = (
+        occluded, ['ring 1'] if occluded else [], 45)
     checker.visualize.side_effect = OSError('could not start child')
     monkeypatch.setattr(module, 'LineOfSightChecker', Mock(return_value=checker))
-    response = manager.check_line_of_sight(Mock(frame_name='test'))
+    response = manager.check_line_of_sight(
+        Mock(frame_name='test', feature_radius=0.0003, tilt_tolerance=0.0087))
     assert response.success == (not occluded)
+    assert list(response.blocked_rays) == (['ring 1'] if occluded else [])
+    checker.check_line_of_sight_bundle.assert_called_once_with(
+        feature_radius=0.0003, tilt_tolerance=0.0087)
     manager.logger.warning.assert_called_once()

@@ -165,3 +165,46 @@ def test_publish_to_tf_batches_all_static_transforms():
     transforms = manager.tf_broadcaster.sendTransform.call_args.args[0]
     assert [transform.child_frame_id for transform in transforms] == [
         'standalone', 'part', 'owned']
+
+
+def test_constraints_of_components_added_after_a_clear_are_activated():
+    """clear_scene replaces the scene; the modifier must follow, or the
+    constraints of later components stay inactive (their references are
+    looked up in the old scene)."""
+    from unittest.mock import Mock
+
+    import assembly_manager_interfaces.msg as msg
+
+    from assembly_scene_publisher.py_modules.AssemblyScene import AssemblyManagerScene
+    from assembly_scene_publisher.py_modules.AssemblySceneAnalyzer import AssemblySceneAnalyzer
+    from assembly_scene_publisher.py_modules.AssemblySceneModifier import AssemblySceneModifier
+
+    manager = AssemblyManagerScene.__new__(AssemblyManagerScene)
+    manager.scene = msg.ObjectScene()
+    manager.logger = Mock()
+    manager.publish_information = Mock()
+    manager.destroy_all_ref_frames = Mock()
+    manager.assembly_scene_analyzer = AssemblySceneAnalyzer(manager.scene)
+    manager.assembly_scene_modifier = AssemblySceneModifier(manager.scene, Mock())
+
+    assert manager.clear_scene()
+
+    part = msg.Object()
+    part.obj_name = 'part-1'
+    for name in ('a', 'b'):
+        frame = msg.RefFrame()
+        frame.frame_name = f'part-1_{name}'
+        frame.parent_frame = 'part-1'
+        frame.pose.orientation.w = 1.0
+        part.ref_frames.append(frame)
+    centre = msg.RefFrame()
+    centre.frame_name = 'part-1_centre'
+    centre.parent_frame = 'part-1'
+    centre.pose.orientation.w = 1.0
+    centre.constraints.centroid.ref_frame_names = ['part-1_a', 'part-1_b']
+    centre.constraints.centroid.dim = 'xyz'
+    part.ref_frames.append(centre)
+    manager.scene.objects_in_scene.append(part)
+
+    manager.assembly_scene_modifier.update_frame_constraint_activation(centre)
+    assert centre.constraints.centroid.is_active

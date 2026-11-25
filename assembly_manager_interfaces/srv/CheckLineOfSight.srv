@@ -1,4 +1,11 @@
 string frame_name
 geometry_msgs/Transform transform_from_frame
+# Surroundings the sensor needs clear around the frame [m] (camera: feature,
+# laser and confocal: spot) and the tilt of the part around its expected
+# orientation the view must tolerate [rad]. Both 0: one ray.
+float64 feature_radius
+float64 tilt_tolerance
 ---
-bool success 
+bool success
+# Rays that are blocked (centre, ring k, with tilt u+/u-/v+/v-).
+string[] blocked_rays

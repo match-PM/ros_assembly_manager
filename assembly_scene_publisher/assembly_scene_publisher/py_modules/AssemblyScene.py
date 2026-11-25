@@ -2107,10 +2107,13 @@ class AssemblyManagerScene():
         self.scene.occupied_spawning_frames = []
         self.destroy_all_ref_frames()
         self.scene = ami_msg.ObjectScene()
+        # Every helper must work on the new scene: a stale modifier left the
+        # constraints of components spawned after a clear inactive.
         self.assembly_scene_analyzer.set_scene(self.scene)
+        self.assembly_scene_modifier.set_scene(self.scene)
         self.publish_information()
 
-        
+
         return True
         
     def get_core_frames_for_component(self, component_name:str)->list[str]:

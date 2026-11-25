@@ -91,54 +91,115 @@ class LineOfSightChecker:
         select.Update()
         return bool(select.IsInside(0))
     
-    def check_line_of_sight(self) -> Tuple[vtk.vtkPoints, bool]:
+    def _obb_tree(self) -> vtk.vtkOBBTree:
         if self.mesh is None:
             raise RuntimeError("Mesh must be loaded before checking line of sight. Call load_mesh() first.")
-
         obbTree = vtk.vtkOBBTree()
         obbTree.SetDataSet(self.mesh)
+        # The default tolerance (0.01, in mesh units: 10 mm for meshes in
+        # metres) drops intersections of short rays, e.g. a ray from 10 mm
+        # above through a 4 mm plate finds no hit.
+        obbTree.SetTolerance(1e-6)
         obbTree.BuildLocator()
+        return obbTree
 
-        # Ray-mesh intersections
+    def _ray(self, obbTree, viewpoint, target) -> Tuple[list, bool]:
+        """Intersections strictly between ``viewpoint`` and ``target`` and
+        whether the viewpoint lies inside the mesh."""
         collision_points = vtk.vtkPoints()
-        obbTree.IntersectWithLine(self.viewpoint, self.target_point, collision_points, None)
-
-        # Compute ray vector
-        ray_vec = np.array(self.target_point) - np.array(self.viewpoint)
-        ray_length = np.linalg.norm(ray_vec)
+        obbTree.IntersectWithLine(tuple(viewpoint), tuple(target), collision_points, None)
+        ray_length = np.linalg.norm(np.array(target) - np.array(viewpoint))
         epsilon = 1e-6
-
-        # Filter intersections strictly between start and end
         valid_intersections = []
         for i in range(collision_points.GetNumberOfPoints()):
             p = np.array(collision_points.GetPoint(i))
-            t = np.linalg.norm(p - np.array(self.viewpoint))
+            t = np.linalg.norm(p - np.array(viewpoint))
             if epsilon < t < ray_length - epsilon:
                 valid_intersections.append(p)
-
         # Only the viewpoint is tested for lying inside the mesh. The target is a
         # frame on the part surface, where the inside test is undecided (points on
         # downward-facing faces count as inside). A target buried in the part is
         # still detected: the ray from an outside viewpoint must cross the surface.
-        viewpoint_inside = self._point_inside_mesh(self.viewpoint)
+        return valid_intersections, self._point_inside_mesh(tuple(viewpoint))
 
-        # Decide occlusion rule
-        self.is_occluded = len(valid_intersections) > 0 or viewpoint_inside
-
-        # Store filtered collision points
+    def _store(self, intersections, occluded):
+        self.is_occluded = occluded
         self.collision_points = vtk.vtkPoints()
-        for p in valid_intersections:
+        for p in intersections:
             self.collision_points.InsertNextPoint(p)
 
-        if self.logger:
-            #self.logger.info(f"Line of sight: {'Occluded' if self.is_occluded else 'Visible'}")
-            #self.logger.info(f"  - Total intersections: {collision_points.GetNumberOfPoints()}")
-            #self.logger.info(f"  - Valid intersections: {len(valid_intersections)}")
-            if viewpoint_inside:
-                self.logger.error("Viewpoint is inside the mesh!")
-
+    def check_line_of_sight(self) -> Tuple[vtk.vtkPoints, bool]:
+        """One ray from the viewpoint to the target."""
+        intersections, viewpoint_inside = self._ray(self._obb_tree(), self.viewpoint,
+                                                    self.target_point)
+        self._store(intersections, len(intersections) > 0 or viewpoint_inside)
+        if self.logger and viewpoint_inside:
+            self.logger.error("Viewpoint is inside the mesh!")
         return self.collision_points, self.is_occluded
-    
+
+    def check_line_of_sight_bundle(self, feature_radius: float = 0.0,
+                                   tilt_tolerance: float = 0.0,
+                                   ring_rays: int = 8) -> Tuple[bool, list, int]:
+        """Rays for a sensor that needs the surroundings of the target, with
+        the part's orientation known only roughly.
+
+        Besides the centre ray, parallel rays onto a ring of ``feature_radius``
+        around the target (perpendicular to the ray) are checked, each at the
+        given direction and tilted by ``tilt_tolerance`` [rad] about two axes
+        perpendicular to the ray. Ring rays end one radius before the ring:
+        the ring is perpendicular to the ray, not to the face, so on a face
+        tilted against it (up to 45 deg) its end would lie inside the part.
+        The target is visible only if every ray is clear; a target on an edge
+        of the part, seen past that edge, is therefore not. With both values
+        0 this is :meth:`check_line_of_sight`.
+
+        Returns ``(occluded, labels of the blocked rays, number of rays)``;
+        ``collision_points`` holds the intersections of all rays.
+        """
+        from scipy.spatial.transform import Rotation
+
+        target = np.array(self.target_point, dtype=float)
+        ray = np.array(self.viewpoint, dtype=float) - target
+        length = float(np.linalg.norm(ray))
+
+        def perpendicular(direction):
+            helper = np.array([1.0, 0.0, 0.0]) if abs(direction[0]) < 0.9 else np.array([0.0, 1.0, 0.0])
+            u = np.cross(direction, helper)
+            u /= np.linalg.norm(u)
+            return u, np.cross(direction, u)
+
+        rays = []  # (label, viewpoint, target)
+        if length > 0:
+            u, v = perpendicular(ray / length)
+            directions = [('', ray)]
+            if tilt_tolerance:
+                directions += [(f'tilt {name}{"+" if sign > 0 else "-"}',
+                                Rotation.from_rotvec(sign * tilt_tolerance * axis).apply(ray))
+                               for name, axis in (('u', u), ('v', v)) for sign in (1, -1)]
+            for label, direction in directions:
+                unit = direction / np.linalg.norm(direction)
+                du, dv = perpendicular(unit)
+                shifts = [('center', np.zeros(3))]
+                if feature_radius:
+                    shifts += [(f'ring {k}', feature_radius * (np.cos(angle) * du + np.sin(angle) * dv))
+                               for k, angle in enumerate(np.linspace(0, 2 * np.pi, ring_rays,
+                                                                     endpoint=False))]
+                for name, shift in shifts:
+                    end = target + shift + (unit * feature_radius if name != 'center' else 0.0)
+                    rays.append((' '.join(filter(None, (name, label))), end + direction, end))
+        else:
+            rays.append(('center', np.array(self.viewpoint, dtype=float), target))
+
+        obbTree = self._obb_tree()
+        blocked, intersections = [], []
+        for label, start, end in rays:
+            hits, inside = self._ray(obbTree, start, end)
+            intersections += hits
+            if hits or inside:
+                blocked.append(label)
+        self._store(intersections, bool(blocked))
+        return self.is_occluded, blocked, len(rays)
+
     def create_mesh_actor(self) -> vtk.vtkActor:
         """Create actor for the mesh.
         
