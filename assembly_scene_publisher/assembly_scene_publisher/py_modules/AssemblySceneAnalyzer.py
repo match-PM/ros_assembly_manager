@@ -1158,6 +1158,12 @@ class AssemblySceneAnalyzer():
         """
         frame = self.get_ref_frame_by_name(frame_name)
         tree = self.build_frame_reference_tree([frame])
+        # A plane match's generated assembly/target frame has no constraints:
+        # its pose comes from the instruction's planes, so it depends on the
+        # frames defining those planes on its own component.
+        defining = self._plane_match_defining_frames(frame_name)
+        if defining:
+            tree[frame.frame_name].update(self.build_frame_reference_tree(defining))
         result = []
         visited = set()
         attributes = ([f'{measurement_type}_frame_properties']
@@ -1182,6 +1188,48 @@ class AssemblySceneAnalyzer():
 
         collect(tree)
         return result
+
+    def get_defining_frames_for_instruction(
+            self, instruction_name: str, side: str) -> list[ami_msg.RefFrame]:
+        """Frames that define one side of an instruction (``side``:
+        'assembly' for the moving component, 'target' for the other).
+
+        Frame match: the referenced assembly or target frame. Plane match:
+        the frames defining the instruction's planes on that side's
+        component, in plane order and without duplicates. Works before the
+        instruction is activated, when the generated plane-match frames do
+        not exist yet. Raises AssemblyInstructionNotFoundError, and
+        ValueError for an unknown side.
+        """
+        if side not in ('assembly', 'target'):
+            raise ValueError(f"side must be 'assembly' or 'target', not {side!r}.")
+        instruction = self.get_assembly_instruction_by_name(instruction_name)
+        if isinstance(instruction, ami_msg.FrameAssemblyInstruction):
+            reference = getattr(instruction.frame_match, f'{side}_frame')
+            return [self.get_ref_frame_by_name(
+                scene_frame_name(reference.component, reference.frame))]
+        moving, target = moving_and_target_components(instruction)
+        component = moving if side == 'assembly' else target
+        frames, seen = [], set()
+        for plane in self.get_planes_for_instruction(instruction.id, component):
+            for frame in self.get_frames_for_plane(plane):
+                if frame.frame_name not in seen:
+                    seen.add(frame.frame_name)
+                    frames.append(frame)
+        return frames
+
+    def _plane_match_defining_frames(self, frame_name: str) -> list[ami_msg.RefFrame]:
+        """Defining frames when ``frame_name`` is the generated assembly or
+        target frame of a plane match, else an empty list."""
+        for side in ('assembly', 'target'):
+            prefix = f'{side}_frame_'
+            if not frame_name.startswith(prefix):
+                continue
+            instruction_id = frame_name[len(prefix):]
+            if any(item.id == instruction_id
+                   for item in self._get_scene().assembly_instructions):
+                return self.get_defining_frames_for_instruction(instruction_id, side)
+        return []
 
     def get_measurement_frames_for_frame(
             self, frame_name: str) -> list[tuple[ami_msg.RefFrame, bool]]:

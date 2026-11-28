@@ -208,3 +208,88 @@ def test_instruction_component_types(first_moves, name, expected):
                   analyzer.get_target_component_type_for_instruction):
         with pytest.raises(AssemblyInstructionNotFoundError):
             query('missing')
+
+
+def plane_match_scene():
+    """Chip (moving) on base; the base planes are defined by two laser frames
+    and a vision frame that depends on a third laser frame."""
+    scene = msg.ObjectScene()
+    for name, frames in (('base', ['base_l1', 'base_l2', 'base_v']), ('chip', ['chip_a'])):
+        component = msg.Object()
+        component.obj_name = name
+        for frame_name in frames:
+            frame = msg.RefFrame()
+            frame.frame_name = frame_name
+            component.ref_frames.append(frame)
+        for index in range(1, 4):
+            plane = msg.Plane()
+            plane.ref_plane_name = f'{name}_plane_{index}'
+            # Three named points per base plane; one point (the rest empty) per chip plane.
+            plane.point_names = ((frames * 3)[index - 1:index + 2] if len(frames) == 3
+                                 else [frames[0], '', ''])
+            component.ref_planes.append(plane)
+        scene.objects_in_scene.append(component)
+    base = {frame.frame_name: frame for frame in scene.objects_in_scene[0].ref_frames}
+    for name in ('base_l1', 'base_l2'):
+        base[name].properties.laser_frame_properties.is_laser_frame = True
+    base['base_l2'].properties.laser_frame_properties.has_been_measured = True
+    base['base_v'].properties.vision_frame_properties.is_vision_frame = True
+    base['base_v'].constraints.centroid.is_active = True
+    base['base_v'].constraints.centroid.ref_frame_names = ['base_l3']
+    add_frame(scene, 'base_l3').properties.laser_frame_properties.is_laser_frame = True
+    instruction = msg.AssemblyInstruction()
+    instruction.id = 'mount'
+    instruction.component_1, instruction.component_2 = 'chip', 'base'
+    instruction.component_1_is_moving_part = True
+    for index in range(1, 4):
+        match = getattr(instruction, f'plane_match_{index}')
+        match.plane_name_component_1 = f'chip_plane_{index}'
+        match.plane_name_component_2 = f'base_plane_{index}'
+    scene.assembly_instructions.append(instruction)
+    # Activation creates these frames without constraints.
+    for side, owner in (('target', 0), ('assembly', 1)):
+        frame = msg.RefFrame()
+        frame.frame_name = f'{side}_frame_mount'
+        setattr(frame.properties.assembly_frame_properties, f'is_{side}_frame', True)
+        scene.objects_in_scene[owner].ref_frames.append(frame)
+    return scene
+
+
+def test_plane_match_frames_depend_on_the_frames_defining_their_planes():
+    analyzer = AssemblySceneAnalyzer(plane_match_scene())
+    assert [(frame.frame_name, measured) for frame, measured in
+            analyzer.get_laser_frames_for_target_frame('target_frame_mount')] == [
+        ('base_l1', False), ('base_l2', True), ('base_l3', False)]
+    assert [frame.frame_name for frame, _ in
+            analyzer.get_vision_frames_for_target_frame('target_frame_mount')] == ['base_v']
+    # The assembly side has frames without a measurement role only.
+    assert analyzer.get_measurement_frames_for_assembly_frame('assembly_frame_mount') == []
+    assert [frame.frame_name for frame in
+            analyzer.get_defining_frames_for_instruction('mount', 'target')] == [
+        'base_l1', 'base_l2', 'base_v']
+    assert [frame.frame_name for frame in
+            analyzer.get_defining_frames_for_instruction('mount', 'assembly')] == ['chip_a']
+    with pytest.raises(ValueError):
+        analyzer.get_defining_frames_for_instruction('mount', 'gripping')
+
+
+def test_frame_match_side_is_its_referenced_frame():
+    scene = msg.ObjectScene()
+    add_frame(scene, 'chip_bond')
+    add_frame(scene, 'base_site')
+    instruction = msg.FrameAssemblyInstruction()
+    instruction.id = 'bond'
+    instruction.frame_match.assembly_frame.component = 'chip'
+    instruction.frame_match.assembly_frame.frame = 'bond'
+    instruction.frame_match.target_frame.component = 'base'
+    instruction.frame_match.target_frame.frame = 'site'
+    scene.frame_assembly_instructions.append(instruction)
+    analyzer = AssemblySceneAnalyzer(scene)
+    assert [frame.frame_name for frame in
+            analyzer.get_defining_frames_for_instruction('bond', 'assembly')] == ['chip_bond']
+    assert [frame.frame_name for frame in
+            analyzer.get_defining_frames_for_instruction('bond', 'target')] == ['base_site']
+    # A frame named like a generated plane-match frame, without such an
+    # instruction, keeps only its constraints.
+    add_frame(scene, 'target_frame_bond')
+    assert analyzer._plane_match_defining_frames('target_frame_bond') == []
